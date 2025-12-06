@@ -1,7 +1,6 @@
 // lib/screens/onboarding_screen.dart (versión actualizada)
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../utils/prefs.dart'; // 👈 Importamos
 
 class OnboardingScreen extends StatefulWidget {

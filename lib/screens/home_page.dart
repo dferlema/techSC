@@ -171,7 +171,7 @@ class HomePage extends StatelessWidget {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'Fundada en 2012, TechService Pro nació de la pasión por la tecnología y el deseo de brindar servicios técnicos de calidad a nuestra comunidad. Lo que comenzó como un pequeño taller se ha convertido en una empresa de referencia en el sector.\n\nCon más de 15 años de experiencia, hemos atendido a miles de clientes satisfechos, desde usuarios domésticos hasta grandes empresas. Nuestro compromiso con la excelencia y la innovación nos ha permitido crecer y adaptarnos a las constantes evoluciones tecnológicas.\n\nHoy en día, ofrecemos una amplia gama de servicios que incluyen reparación de hardware, instalación de software, venta de equipos y accesorios, y soporte técnico especializado.',
+                    'Fundada en 2012, TechService Computer nació de la pasión por la tecnología y el deseo de brindar servicios técnicos de calidad a nuestra comunidad. Lo que comenzó como un pequeño taller se ha convertido en una empresa de referencia en el sector.\n\nCon más de 15 años de experiencia, hemos atendido a miles de clientes satisfechos, desde usuarios domésticos hasta grandes empresas. Nuestro compromiso con la excelencia y la innovación nos ha permitido crecer y adaptarnos a las constantes evoluciones tecnológicas.\n\nHoy en día, ofrecemos una amplia gama de servicios que incluyen reparación de hardware, instalación de software, venta de equipos y accesorios, y soporte técnico especializado.',
                     style: TextStyle(fontSize: 16, height: 1.5),
                   ),
                 ],
@@ -243,24 +243,50 @@ class HomePage extends StatelessWidget {
               ),
             ),
 
-            SizedBox(height: 24),
-
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/products');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                minimumSize: const Size(double.infinity, 50),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
-                'Ver Productos',
-                style: TextStyle(fontSize: 18),
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Revisa nuestros productos',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Encuentra lo que necesitas para tus proyectos tecnológicos',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                    SizedBox(height: 16),
+
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/products');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1976D2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        minimumSize: const Size(double.infinity, 40),
+                      ),
+                      child: const Text(
+                        'Ver Productos',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 

@@ -40,6 +40,7 @@ dependencies:
   pdf: ^3.11.3                   # 👈 Para generar PDF
   printing: ^5.14.0              # 👈 Para imprimir/exportar PDF
   path_provider: ^2.1.5
+  firebase_core: ^4.2.1
 
 dev_dependencies:
   flutter_test:

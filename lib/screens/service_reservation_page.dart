@@ -266,7 +266,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
               // Tipo de Servicio
               DropdownButtonFormField<String>(
-                value: _selectedService,
+                initialValue: _selectedService,
                 onChanged: (value) {
                   setState(() {
                     _selectedService = value;
