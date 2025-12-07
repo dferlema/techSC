@@ -2,7 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/services.dart'; // ✅ Necesario para TapGestureRecognizer
+import 'package:flutter/services.dart';
+import '../services/auth_service.dart'; // ✅ Necesario para TapGestureRecognizer
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,6 +21,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _addressController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -71,7 +73,9 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  void _onRegisterPressed() {
+  bool _isLoading = false;
+
+  void _onRegisterPressed() async {
     if (_formKey.currentState!.validate()) {
       // Validación cruzada de contraseñas
       if (_passwordController.text != _confirmPasswordController.text) {
@@ -81,23 +85,53 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      // Checkbox
       if (!_acceptTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes aceptar los términos y condiciones'),
-          ),
+          const SnackBar(content: Text('Debes aceptar los términos')),
         );
         return;
       }
 
-      // ✅ ¡Registro exitoso!
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Registro completado con éxito!')),
+      // 🌀 Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Navegar a home (simulado)
-      Navigator.pushReplacementNamed(context, '/home');
+      try {
+        // ✅ Registrar en Firebase
+        final user = await _authService.registerWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          name: _nameController.text.trim(),
+          id: _idController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+        );
+
+        if (user != null) {
+          Navigator.pop(context); // Cierra el loading
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('¡Registro exitoso!')));
+
+          // 👉 Navegar a Home
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } on String catch (message) {
+        Navigator.pop(context); // Cierra el loading
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('⚠️ $message')));
+      } catch (e) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Error al registrar. Inténtalo de nuevo.'),
+          ),
+        );
+      }
     }
   }
 
@@ -444,10 +478,14 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           minimumSize: const Size(double.infinity, 50),
                         ),
-                        child: const Text(
-                          'Registrarse',
-                          style: TextStyle(fontSize: 18),
-                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                'Registrarse',
+                                style: TextStyle(fontSize: 18),
+                              ),
                       ),
                       const SizedBox(height: 20),
 

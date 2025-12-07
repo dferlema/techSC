@@ -1,6 +1,7 @@
 // lib/screens/login_page.dart
 
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -28,7 +29,9 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
-  void _onLoginPressed() {
+  bool _isLoading = false;
+
+  void _onLoginPressed() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
@@ -39,9 +42,36 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // Aquí iría la lógica de autenticación (Firebase, API, etc.)
-    // Por ahora, solo navegamos a HomePage
-    Navigator.pushReplacementNamed(context, '/home');
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = AuthService();
+      final user = await authService.loginWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (user != null && mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -196,10 +226,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         minimumSize: const Size(double.infinity, 50),
                       ),
-                      child: const Text(
-                        'Iniciar Sesión',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Iniciar Sesión',
+                              style: TextStyle(fontSize: 18),
+                            ),
                     ),
                     const SizedBox(height: 20),
 

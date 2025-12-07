@@ -41,6 +41,9 @@ dependencies:
   printing: ^5.14.0              # 👈 Para imprimir/exportar PDF
   path_provider: ^2.1.5
   firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+ 
 
 dev_dependencies:
   flutter_test:

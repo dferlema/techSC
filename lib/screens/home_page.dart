@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -22,10 +23,37 @@ class HomePage extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.menu, color: Colors.white),
             onPressed: () {
-              // Acción para el menú hamburguesa
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Menú seleccionado')));
+              // Menú desplegable con opción de cerrar sesión
+              showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return Wrap(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.person),
+                        title: const Text('Mi Perfil'),
+                        onTap: () {
+                          Navigator.pop(context); // Cierra el bottom sheet
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Perfil en construcción')),
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.red),
+                        title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red)),
+                        onTap: () async {
+                          Navigator.pop(context); // Cierra el bottom sheet
+                          await AuthService().signOut();
+                          if (context.mounted) {
+                            Navigator.pushReplacementNamed(context, '/login');
+                          }
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
             },
           ),
         ],
@@ -321,7 +349,7 @@ class HomePage extends StatelessWidget {
                         Navigator.pushNamed(context, '/reserve-service');
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF1976D2),
+                        backgroundColor: Color.fromARGB(255, 238, 165, 8),
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(

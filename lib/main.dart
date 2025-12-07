@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TechService Pro',
+      title: 'Tech Service Computer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1976D2)),
@@ -42,8 +42,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterPage(),
         '/home': (context) => const HomePage(),
         '/products': (context) => const ProductsPage(),
-        '/reserve-service': (context) =>
-            const ServiceReservationPage(), // 👈 Nueva ruta
+        '/reserve-service': (context) => const ServiceReservationPage(),
       },
     );
   }
