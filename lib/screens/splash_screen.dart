@@ -26,10 +26,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final completed = await _prefs.getOnboardingCompleted();
     if (completed) {
-      // 👉 Ya lo vio → va directo al login
       Navigator.pushReplacementNamed(context, '/login');
     } else {
-      // 👉 Primera vez → muestra onboarding
       Navigator.pushReplacementNamed(context, '/onboarding');
     }
   }

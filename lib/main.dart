@@ -10,6 +10,8 @@ import 'screens/products_page.dart';
 import 'screens/service_reservation_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'screens/main_tabs_screen.dart';
+import 'screens/admin_panel_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,9 +42,14 @@ class MyApp extends StatelessWidget {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/home': (context) => const HomePage(),
-        '/products': (context) => const ProductsPage(),
+        '/home': (context) => const HomePage(routeName: '/home'),
+        '/products': (context) => const ProductsPage(routeName: '/products'),
         '/reserve-service': (context) => const ServiceReservationPage(),
+        '/admin': (context) => const AdminPanelPage(),
+        '/main': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          return MainTabsScreen();
+        },
       },
     );
   }

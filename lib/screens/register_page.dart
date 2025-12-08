@@ -73,7 +73,7 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   void _onRegisterPressed() async {
     if (_formKey.currentState!.validate()) {
@@ -117,7 +117,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ).showSnackBar(const SnackBar(content: Text('¡Registro exitoso!')));
 
           // 👉 Navegar a Home
-          Navigator.pushReplacementNamed(context, '/home');
+          Navigator.pushReplacementNamed(context, '/main');
         }
       } on String catch (message) {
         Navigator.pop(context); // Cierra el loading

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import 'package:techsc/widgets/app_drawer.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final String routeName;
+  const HomePage({super.key, this.routeName = '/home'});
 
   @override
   Widget build(BuildContext context) {
@@ -19,45 +20,8 @@ class HomePage extends StatelessWidget {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              // Menú desplegable con opción de cerrar sesión
-              showModalBottomSheet(
-                context: context,
-                builder: (context) {
-                  return Wrap(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.person),
-                        title: const Text('Mi Perfil'),
-                        onTap: () {
-                          Navigator.pop(context); // Cierra el bottom sheet
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Perfil en construcción')),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.logout, color: Colors.red),
-                        title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.red)),
-                        onTap: () async {
-                          Navigator.pop(context); // Cierra el bottom sheet
-                          await AuthService().signOut();
-                          if (context.mounted) {
-                            Navigator.pushReplacementNamed(context, '/login');
-                          }
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
-        ],
       ),
+      drawer: AppDrawer(currentRoute: routeName),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,7 +261,11 @@ class HomePage extends StatelessWidget {
 
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/products');
+                        Navigator.pushReplacementNamed(
+                          context,
+                          '/main',
+                          arguments: '/products',
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1976D2),
@@ -318,7 +286,6 @@ class HomePage extends StatelessWidget {
               ),
             ),
 
-            // En home_page.dart, después de la sección "Nuestros Valores"
             SizedBox(height: 24),
 
             Card(
@@ -346,7 +313,11 @@ class HomePage extends StatelessWidget {
                     SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/reserve-service');
+                        Navigator.pushReplacementNamed(
+                          context,
+                          '/main',
+                          arguments: '/reserve-service',
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Color.fromARGB(255, 238, 165, 8),
