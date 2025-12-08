@@ -400,7 +400,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                   ),
                 ),
                 keyboardType: TextInputType.phone,
-                validator: (v) => v!.trim().length != 10 || !v!.startsWith('09')
+                validator: (v) => v!.trim().length != 10 || !v.startsWith('09')
                     ? '09XXXXXXXX'
                     : null,
               ),
@@ -446,7 +446,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
               // Tipo de Servicio
               DropdownButtonFormField<String>(
-                value: _selectedService,
+                initialValue: _selectedService,
                 decoration: InputDecoration(
                   labelText: 'Tipo de Servicio *',
                   border: OutlineInputBorder(

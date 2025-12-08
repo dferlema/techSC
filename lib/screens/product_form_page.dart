@@ -237,7 +237,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     ),
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: const InputDecoration(
                         labelText: 'Categoría *',
                         border: OutlineInputBorder(),
@@ -271,7 +271,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         Row(
                           children: [
                             const Icon(Icons.star, color: Colors.amber),
-                            Text('${_rating.toStringAsFixed(1)}'),
+                            Text(_rating.toStringAsFixed(1)),
                           ],
                         ),
                       ],

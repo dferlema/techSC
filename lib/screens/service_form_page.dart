@@ -323,10 +323,12 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
-                        if (value.trim().length < 3)
+                        }
+                        if (value.trim().length < 3) {
                           return 'Mínimo 3 caracteres';
+                        }
                         return null;
                       },
                     ),
@@ -378,7 +380,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
                     // 🛠️ Tipo de servicio
                     DropdownButtonFormField<String>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       decoration: InputDecoration(
                         labelText: 'Tipo de servicio *',
                         border: OutlineInputBorder(),

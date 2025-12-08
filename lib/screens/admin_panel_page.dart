@@ -346,8 +346,9 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                                   firstDate: DateTime(2020),
                                   lastDate: DateTime.now(),
                                 );
-                                if (date != null)
+                                if (date != null) {
                                   setState(() => _startDate = date);
+                                }
                               },
                               icon: const Icon(Icons.calendar_today, size: 16),
                               label: Text(
@@ -368,8 +369,9 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                                   firstDate: DateTime(2020),
                                   lastDate: DateTime.now(),
                                 );
-                                if (date != null)
+                                if (date != null) {
                                   setState(() => _endDate = date);
+                                }
                               },
                               icon: const Icon(Icons.calendar_today, size: 16),
                               label: Text(
@@ -455,8 +457,9 @@ class _AdminPanelPageState extends State<AdminPanelPage>
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('users').snapshots(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData)
+              if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
+              }
 
               final allClients = snapshot.data!.docs
                   .map(
@@ -498,11 +501,15 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                   final createdAt = (client['createdAt'] as Timestamp?)
                       ?.toDate();
                   if (createdAt == null) return true;
-                  if (_startDate != null && createdAt.isBefore(_startDate!))
+                  if (_startDate != null && createdAt.isBefore(_startDate!)) {
                     return false;
+                  }
                   if (_endDate != null &&
-                      createdAt.isAfter(_endDate!.add(const Duration(days: 1))))
+                      createdAt.isAfter(
+                        _endDate!.add(const Duration(days: 1)),
+                      )) {
                     return false;
+                  }
                   return true;
                 }).toList();
               }
@@ -632,9 +639,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   Future<void> _exportToCSV() async {
     try {
       final docs = await FirebaseFirestore.instance.collection('users').get();
-      final clients = docs.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList();
+      final clients = docs.docs.map((doc) => doc.data()).toList();
 
       final StringBuffer buffer = StringBuffer();
       buffer.writeln('Cédula,Nombre,Correo,Teléfono,Tipo,Fecha Registro');
@@ -669,9 +674,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   Future<void> _exportToPDF() async {
     try {
       final docs = await FirebaseFirestore.instance.collection('users').get();
-      final clients = docs.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
-          .toList();
+      final clients = docs.docs.map((doc) => doc.data()).toList();
 
       final pdf = pw.Document();
       pdf.addPage(
@@ -688,7 +691,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                   (client['type'] ?? 'particular').toString(),
                   (client['createdAt'] as Timestamp?)
                           ?.toDate()
-                          ?.toString()
+                          .toString()
                           .split(' ')[0] ??
                       '—',
                 ],

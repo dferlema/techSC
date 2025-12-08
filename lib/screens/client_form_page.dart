@@ -228,11 +228,13 @@ class _ClientFormPageState extends State<ClientFormPage> {
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
+                        }
                         if (value.trim().length != 10) return '10 dígitos';
-                        if (!_isValidEcuadorianId(value.trim()))
+                        if (!_isValidEcuadorianId(value.trim())) {
                           return 'Cédula inválida';
+                        }
                         return null;
                       },
                     ),
@@ -248,8 +250,9 @@ class _ClientFormPageState extends State<ClientFormPage> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
+                        }
                         if (value.trim().length < 5) return 'Mín. 5 caracteres';
                         return null;
                       },
@@ -267,8 +270,9 @@ class _ClientFormPageState extends State<ClientFormPage> {
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
+                        }
                         if (!RegExp(
                           r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                         ).hasMatch(value.trim())) {
@@ -290,8 +294,9 @@ class _ClientFormPageState extends State<ClientFormPage> {
                       ),
                       keyboardType: TextInputType.phone,
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
+                        }
                         if (!_isValidEcuadorianPhone(value.trim())) {
                           return 'Teléfono ecuatoriano inválido';
                         }
@@ -319,7 +324,7 @@ class _ClientFormPageState extends State<ClientFormPage> {
 
                     // 🏢 Tipo de cliente
                     DropdownButtonFormField<String>(
-                      value: _clientType,
+                      initialValue: _clientType,
                       decoration: InputDecoration(
                         labelText: 'Tipo de Cliente *',
                         border: OutlineInputBorder(),
