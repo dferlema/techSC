@@ -24,6 +24,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late TextEditingController _priceController;
   late TextEditingController
   _imageUrlController; // 👈 Nuevo controlador para URL
+  late TextEditingController
+  _descriptionController; // 👈 Controlador para descripción
   late String _selectedCategory;
   late double _rating;
 
@@ -54,6 +56,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _imageUrlController = TextEditingController(
       text: widget.initialData?['image'] ?? '', // 👈 Cargar URL existente
     );
+    _descriptionController = TextEditingController(
+      text: widget.initialData?['description'] ?? '',
+    );
     _selectedCategory = widget.initialData?['category'] ?? _categories[0];
     _rating = (widget.initialData?['rating'] as num?)?.toDouble() ?? 4.5;
   }
@@ -64,6 +69,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _specsController.dispose();
     _priceController.dispose();
     _imageUrlController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -79,12 +85,14 @@ class _ProductFormPageState extends State<ProductFormPage> {
     final specs = _specsController.text.trim();
     final price = double.tryParse(_priceController.text) ?? 0.0;
     final imageUrl = _imageUrlController.text.trim();
+    final description = _descriptionController.text.trim();
 
     try {
       final productData = {
         'name': name,
         'specs': specs,
         'price': price,
+        'description': description,
         'category': _selectedCategory,
         'rating': _rating,
         'image': imageUrl.isNotEmpty ? imageUrl : null,
@@ -220,6 +228,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Descripción',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 4,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(

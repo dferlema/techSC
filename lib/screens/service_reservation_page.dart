@@ -8,8 +8,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-import '../widgets/app_drawer.dart';
+// import '../widgets/app_drawer.dart';
 
+/// Pantalla para reservar servicio técnico.
+/// Permite al usuario llenar un formulario con sus datos y detalles del problema.
+/// Genera un PDF de confirmación al guardar.
 class ServiceReservationPage extends StatefulWidget {
   const ServiceReservationPage({super.key});
 
@@ -18,23 +21,28 @@ class ServiceReservationPage extends StatefulWidget {
 }
 
 class _ServiceReservationPageState extends State<ServiceReservationPage> {
+  // Clave global para validar el formulario
   final _formKey = GlobalKey<FormState>();
+
+  // Controladores para capturar la entrada de texto del usuario
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _idController = TextEditingController();
+  final _idController = TextEditingController(); // Cédula
   final _deviceController = TextEditingController();
   final _addressController = TextEditingController();
   final _problemController = TextEditingController();
 
+  // Variables de estado para selectores
   String? _selectedService;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  LatLng? _selectedLocation;
+  LatLng? _selectedLocation; // Clase personalizada simple para coordenadas
 
-  // Para usuarios logueados
+  // Usuario actual logueado (si existe)
   User? _currentUser;
 
+  // Lista de servicios disponibles para el dropdown
   final List<String> _services = [
     'Reparación de Hardware',
     'Instalación de Software',
@@ -43,24 +51,63 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     'Diagnóstico Técnico',
   ];
 
-  // Ubicación predeterminada (Quito)
+  // Ubicación predeterminada (Quito) para fallbacks si fuera necesario
   static const LatLng _defaultLocation = LatLng(-0.1807, -78.4678);
 
   @override
   void initState() {
     super.initState();
+    // Obtener la instancia del usuario actual de Firebase Auth
     _currentUser = FirebaseAuth.instance.currentUser;
+    // Cargar datos del usuario para autocompletar el formulario
     _loadUserData();
   }
 
-  void _loadUserData() {
+  /// Carga la información del usuario desde Firestore si está autenticado.
+  /// Esto mejora la UX al no tener que escribir datos repetitivos.
+  Future<void> _loadUserData() async {
     if (_currentUser != null) {
-      // Si está logueado, cargar datos básicos (opcional: desde Firestore)
+      // 1. Pre-llenar con datos básicos de la cuenta de autenticación
       _nameController.text = _currentUser!.displayName ?? '';
       _emailController.text = _currentUser!.email ?? '';
+
+      try {
+        // 2. Consultar la colección 'users' usando el UID para obtener perfil completo
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentUser!.uid)
+            .get();
+
+        if (doc.exists && mounted) {
+          // Extraer datos del documento
+          final data = doc.data() as Map<String, dynamic>;
+
+          setState(() {
+            // Asignar valores a los controladores si existen en la base de datos
+            // Priorizamos los datos de Firestore sobre los locales si están disponibles
+            if (data['name'] != null) _nameController.text = data['name'];
+            if (data['phone'] != null) _phoneController.text = data['phone'];
+            if (data['id'] != null) _idController.text = data['id']; // Cédula
+            if (data['address'] != null)
+              _addressController.text = data['address'];
+          });
+
+          // Notificar al usuario que sus datos se cargaron
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Tus datos se han autocompletado'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        // Manejo silencioso de errores para no interrumpir el flujo, pero logueamos en consola
+        debugPrint('Error cargando datos de usuario: $e');
+      }
     }
   }
 
+  /// Libera los recursos de los controladores cuando se cierra la pantalla.
   @override
   void dispose() {
     _nameController.dispose();
@@ -73,20 +120,20 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     super.dispose();
   }
 
-  // 📅 Seleccionar fecha
+  /// Muestra un selector de fecha nativo y actualiza el estado.
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1),
+      firstDate: DateTime.now(), // No permitir fechas pasadas
+      lastDate: DateTime(DateTime.now().year + 1), // Máximo 1 año a futuro
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
   }
 
-  // ⏰ Seleccionar hora
+  /// Muestra un selector de hora nativo y actualiza el estado.
   Future<void> _selectTime(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -97,17 +144,23 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     }
   }
 
-  // 📍 Simular selección de ubicación (sin Google Maps)
+  /// Simula la selección de una ubicación GPS.
+  /// En una app real, aquí se usaría geolocator o google_maps_flutter.
   void _simulateLocationSelection() {
     setState(() {
+      // Genera una pequeña variación para simular "obtener ubicación actual"
       _selectedLocation = LatLng(
         -0.1807 + (DateTime.now().microsecondsSinceEpoch % 1000) / 100000,
         -78.4678 + (DateTime.now().microsecondsSinceEpoch % 1000) / 100000,
       );
     });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('📍 Ubicación obtenida correctamente')),
+    );
   }
 
-  // 📧 Generar PDF de confirmación
+  /// Genera un documento PDF con el resumen de la reserva.
+  /// Retorna los bytes del PDF generado.
   Future<Uint8List> _generatePDF(Map<String, dynamic> data) async {
     final pdf = pw.Document();
 
@@ -116,6 +169,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
         build: (pw.Context context) {
           return pw.Column(
             children: [
+              // Encabezado
               pw.Center(
                 child: pw.Text(
                   'TechService Pro',
@@ -136,6 +190,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               pw.Divider(),
               pw.SizedBox(height: 10),
 
+              // Detalles de la reserva
               _buildPdfRow('Cliente', data['clientName']),
               _buildPdfRow('Cédula', data['clientId']),
               _buildPdfRow('Correo', data['clientEmail']),
@@ -150,12 +205,17 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
               _buildPdfRow('Hora', data['scheduledTime'] ?? '—'),
               _buildPdfRow('Dirección', data['address']),
+
+              // Coordenadas si existen
               if (data['location'] != null)
                 _buildPdfRow(
                   'Ubicación',
                   '${data['location']['lat'].toStringAsFixed(6)}, ${data['location']['lng'].toStringAsFixed(6)}',
                 ),
+
               pw.SizedBox(height: 10),
+
+              // Descripción del problema
               pw.Text(
                 'Descripción del Problema:',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -164,13 +224,26 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 padding: const pw.EdgeInsets.only(top: 4),
                 child: pw.Text(data['description'], maxLines: 20),
               ),
+
               pw.SizedBox(height: 20),
               pw.Divider(),
               pw.SizedBox(height: 10),
+
+              // Pie de página
               pw.Center(
                 child: pw.Text(
                   '¡Gracias por confiar en TechService Pro!',
                   style: pw.TextStyle(color: PdfColors.blue),
+                ),
+              ),
+              pw.SizedBox(height: 5),
+              pw.Center(
+                child: pw.Text(
+                  'Presente este comprobante al momento de la cita.',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey,
+                  ),
                 ),
               ),
             ],
@@ -179,16 +252,17 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       ),
     );
 
-    return await pdf.save();
+    return await pdf.save(); // Retorna el binario del PDF
   }
 
+  /// Widget auxiliar para filas de texto en el PDF.
   pw.Widget _buildPdfRow(String label, String value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),
       child: pw.Row(
         children: [
           pw.Container(
-            width: 120,
+            width: 120, // Ancho fijo para la etiqueta
             child: pw.Text(
               '$label:',
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
@@ -200,10 +274,13 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     );
   }
 
-  // 💾 Guardar reserva en Firebase
+  /// Valida el formulario y guarda la reserva en Firebase Firestore.
+  /// Luego genera y comparte un PDF de confirmación.
   Future<void> _saveReservation() async {
+    // 1. Validar campos del formulario
     if (!_formKey.currentState!.validate()) return;
 
+    // 2. Validar campos personalizados (Fecha/Hora)
     if (_selectedDate == null) {
       ScaffoldMessenger.of(
         context,
@@ -217,7 +294,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       return;
     }
 
-    // 🌀 Mostrar loading
+    // 3. Mostrar indicador de carga
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -225,9 +302,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     );
 
     try {
-      // Datos de la reserva
+      // Recopilar datos del formulario
       final reservationData = {
-        'userId': _currentUser?.uid,
+        'userId': _currentUser?.uid, // Vincular al usuario actual
         'clientName': _nameController.text.trim(),
         'clientEmail': _emailController.text.trim(),
         'clientPhone': _phoneController.text.trim(),
@@ -244,60 +321,69 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             : null,
         'scheduledDate': _selectedDate,
         'scheduledTime': _selectedTime!.format(context),
-        'status': 'pendiente',
+        'status': 'pendiente', // Estado inicial
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // 1️⃣ Guardar en Firestore
+      // 4. Guardar en Firestore
       final docRef = await FirebaseFirestore.instance
           .collection('reservations')
           .add(reservationData);
       final reservationId = docRef.id;
 
-      // 2️⃣ Generar PDF
+      // 5. Generar PDF usando los datos locales + el ID generado
       final pdfBytes = await _generatePDF({
         ...reservationData,
         'id': reservationId,
       });
 
-      // 3️⃣ Guardar PDF en Firebase Storage (opcional)
-      // final url = await _uploadPDFToStorage(pdfBytes, reservationId);
+      // 6. Cerrar diálogo de carga
+      if (mounted) Navigator.pop(context);
 
-      // 4️⃣ Mostrar PDF
+      // 7. Mostrar selector para compartir/imprimir PDF
       await Printing.sharePdf(
         bytes: pdfBytes,
         filename: 'reserva_techservice_$reservationId.pdf',
       );
 
-      Navigator.pop(context); // Cierra el loading
-
-      // ✅ Éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✅ Reserva creada con éxito'),
-          action: SnackBarAction(
-            label: 'Ver',
-            onPressed: () {
-              // Opcional: navegar a detalle de reserva
-            },
+      // 8. Mensaje de éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Reserva creada con éxito'),
+            action: SnackBarAction(label: 'Listo', onPressed: () {}),
           ),
-        ),
-      );
+        );
 
-      // Limpiar formulario (opcional)
-      _formKey.currentState?.reset();
-      setState(() {
-        _selectedService = null;
-        _selectedDate = null;
-        _selectedTime = null;
-        _selectedLocation = null;
-      });
+        // Regresar a la pantalla anterior o resetear formulario
+        // Navigator.pop(context); // Descomentar para salir
+        _resetForm();
+      }
     } catch (e) {
-      Navigator.pop(context);
+      // Manejo de errores en el proceso de guardado
+      if (mounted) Navigator.pop(context); // Cerrar loading
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('❌ Error al guardar: ${e.toString()}')),
       );
     }
+  }
+
+  /// Limpia el formulario para una nueva entrada.
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    _nameController.clear();
+    _phoneController.clear();
+    _idController.clear();
+    _deviceController.clear();
+    _addressController.clear();
+    _problemController.clear();
+    _loadUserData(); // Recargar datos base
+    setState(() {
+      _selectedService = null;
+      _selectedDate = null;
+      _selectedTime = null;
+      _selectedLocation = null;
+    });
   }
 
   @override
@@ -305,6 +391,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1976D2),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -320,10 +410,6 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
           ],
         ),
       ),
-      drawer: AppDrawer(
-        currentRoute: '/reserve-service',
-        userName: _currentUser?.displayName ?? 'Usuario',
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -331,20 +417,20 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Sección 1: Información Personal
+              // --- Sección 1: Información Personal ---
               const Text(
                 'Información Personal',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
 
-              // Nombre
+              // Campo Nombre
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.person),
                   labelText: 'Nombre Completo *',
-                  hintText: _currentUser?.displayName ?? 'Diego Lema',
+                  hintText: 'Ej: Diego Lema',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -353,13 +439,13 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
               const SizedBox(height: 20),
 
-              // Cédula
+              // Campo Cédula
               TextFormField(
                 controller: _idController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.badge),
                   labelText: 'Cédula *',
-                  hintText: '1716472038',
+                  hintText: '17XXXXXXXX',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -369,13 +455,13 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
               const SizedBox(height: 20),
 
-              // Correo
+              // Campo Correo
               TextFormField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.email),
                   labelText: 'Correo Electrónico *',
-                  hintText: _currentUser?.email ?? 'tu@email.com',
+                  hintText: 'tu@email.com',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -383,36 +469,46 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) =>
                     !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v!)
-                    ? 'Inválido'
+                    ? 'Correo inválido'
                     : null,
               ),
               const SizedBox(height: 20),
 
-              // Teléfono
+              // Campo Teléfono
               TextFormField(
                 controller: _phoneController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.phone),
                   labelText: 'Teléfono *',
-                  hintText: '0991234567',
+                  hintText: '09XXXXXXXX',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 keyboardType: TextInputType.phone,
                 validator: (v) => v!.trim().length != 10 || !v.startsWith('09')
-                    ? '09XXXXXXXX'
+                    ? 'Debe iniciar con 09 y tener 10 dígitos'
                     : null,
               ),
               const SizedBox(height: 20),
+
+              const Divider(),
+              const SizedBox(height: 16),
+
+              // --- Sección 2: Detalles del Equipo ---
+              const Text(
+                'Detalles del Equipo',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
 
               // Tipo de Dispositivo
               TextFormField(
                 controller: _deviceController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.laptop),
-                  labelText: 'Tipo de Dispositivo *',
-                  hintText: 'Ej: Laptop MSI GF63',
+                  labelText: 'Dispositivo / Modelo *',
+                  hintText: 'Ej: Laptop HP Pavilion 15',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -426,8 +522,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 controller: _addressController,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.location_on),
-                  labelText: 'Dirección *',
-                  hintText: 'Av. Amazonas y Naciones Unidas',
+                  labelText: 'Dirección de Retiro *',
+                  hintText: 'Calles principales y referencia',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -437,14 +533,14 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
               const SizedBox(height: 20),
 
-              // Sección 2: Seleccionar Servicio
+              // --- Sección 3: Servicio y Problema ---
               const Text(
                 'Seleccionar Servicio',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
 
-              // Tipo de Servicio
+              // Dropdown Tipo de Servicio
               DropdownButtonFormField<String>(
                 initialValue: _selectedService,
                 decoration: InputDecoration(
@@ -461,22 +557,27 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
               const SizedBox(height: 20),
 
-              // Describir el Problema
+              // Descripción del Problema
               TextFormField(
                 controller: _problemController,
                 decoration: InputDecoration(
                   labelText: 'Describe el Problema *',
-                  hintText: 'Ej: No enciende, pantalla negra...',
+                  hintText: 'Ej: El equipo se calienta mucho y se apaga...',
+                  alignLabelWithHint: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 maxLines: 4,
-                validator: (v) => v!.trim().isEmpty ? 'Obligatorio' : null,
+                validator: (v) =>
+                    v!.trim().isEmpty ? 'Describe el problema' : null,
               ),
               const SizedBox(height: 20),
 
-              // 🗓️ Fecha y Hora
+              const Divider(),
+              const SizedBox(height: 16),
+
+              // --- Sección 4: Cita ---
               const Text(
                 'Programar Cita',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -485,6 +586,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
               Row(
                 children: [
+                  // Selector de Fecha
                   Expanded(
                     child: TextFormField(
                       readOnly: true,
@@ -493,17 +595,18 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                         labelText: 'Fecha *',
                         hintText: _selectedDate != null
                             ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                            : 'Selecciona fecha',
+                            : 'Seleccionar',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       onTap: () => _selectDate(context),
                       validator: (v) =>
-                          _selectedDate == null ? 'Selecciona fecha' : null,
+                          _selectedDate == null ? 'Requerido' : null,
                     ),
                   ),
                   const SizedBox(width: 12),
+                  // Selector de Hora
                   Expanded(
                     child: TextFormField(
                       readOnly: true,
@@ -512,57 +615,69 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                         labelText: 'Hora *',
                         hintText: _selectedTime != null
                             ? _selectedTime!.format(context)
-                            : 'Selecciona hora',
+                            : 'Seleccionar',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       onTap: () => _selectTime(context),
                       validator: (v) =>
-                          _selectedTime == null ? 'Selecciona hora' : null,
+                          _selectedTime == null ? 'Requerido' : null,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // 📍 Ubicación (simulada)
+              // Botón Ubicación GPS
               ElevatedButton.icon(
                 onPressed: _simulateLocationSelection,
                 icon: const Icon(Icons.gps_fixed),
                 label: Text(
                   _selectedLocation != null
                       ? 'Ubicación seleccionada'
-                      : 'Seleccionar ubicación',
+                      : 'Usar mi ubicación actual',
                   style: TextStyle(
-                    color: _selectedLocation != null ? Colors.green : null,
+                    color: _selectedLocation != null ? Colors.green[800] : null,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _selectedLocation != null
-                      ? Colors.green[100]
-                      : null,
+                      ? Colors.green[50]
+                      : Colors.grey[100],
+                  elevation: 0,
+                  minimumSize: const Size(double.infinity, 45),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 32),
 
-              // 📤 Botón de guardar
+              // --- Botón Principal de Guardado ---
               ElevatedButton(
                 onPressed: _saveReservation,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1976D2),
+                  backgroundColor: const Color(0xFF1976D2), // Azul principal
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  minimumSize: const Size(double.infinity, 50),
+                  elevation: 4,
+                  shadowColor: Colors.blueAccent.withOpacity(0.4),
+                  minimumSize: const Size(double.infinity, 55),
                 ),
                 child: const Text(
-                  'Guardar Reserva',
-                  style: TextStyle(fontSize: 18),
+                  'CONFIRMAR RESERVA',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -571,7 +686,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   }
 }
 
-// Clase simple para coordenadas (sin Google Maps)
+/// Clase simple para representar coordenadas geográficas.
+/// Se usa para evitar la dependencia pesada de Google Maps si solo necesitamos guardar lat/lng.
 class LatLng {
   final double latitude;
   final double longitude;

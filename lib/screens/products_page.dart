@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/app_drawer.dart';
+import '../services/cart_service.dart';
+import 'cart_page.dart';
 
 class ProductsPage extends StatefulWidget {
   final String routeName;
@@ -56,6 +57,9 @@ class _ProductsPageState extends State<ProductsPage>
 
   void _addToCart(Map<String, dynamic>? product) {
     if (product == null) return;
+
+    CartService.instance.addToCart(product);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('✅ ${product['name']} agregado al carrito')),
     );
@@ -67,131 +71,189 @@ class _ProductsPageState extends State<ProductsPage>
         .collection('products')
         .doc(productId)
         .delete();
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Producto eliminado')));
   }
 
-  // 🎨 Widget de tarjeta de producto (dual-mode)
+  // 🎨 Widget de tarjeta de producto (Rediseñado)
   Widget _buildProductCard({
     required Map<String, dynamic> product,
     String? productId,
   }) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: Image.network(
-              product['image'] ??
-                  'https://via.placeholder.com/300x200?text=Sin+Imagen',
-              height: 160,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                height: 160,
-                color: Colors.grey[200],
-                child: const Center(child: Icon(Icons.broken_image, size: 40)),
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      elevation: 4,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🖼️ Imagen Centrada y Adaptada
+            Center(
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    product['image'] ??
+                        'https://via.placeholder.com/300x200?text=Sin+Imagen',
+                    fit: BoxFit
+                        .contain, // Adaptada al contenedor sin recorte excesivo
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[100],
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 16),
+
+            // 📝 Información del Producto
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  product['name'] ?? 'Sin nombre',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                    Text(
-                      '${product['rating'] ?? 4.5}',
-                      style: const TextStyle(fontSize: 14),
+                Expanded(
+                  child: Text(
+                    product['name'] ?? 'Sin nombre',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 8),
+                // ⭐ Rating
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${product['rating'] ?? 4.5}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // 📄 Descripción
+            if (product['description'] != null &&
+                product['description'].toString().isNotEmpty) ...[
+              Text(
+                product['description'],
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            Text(
+              product['specs'] ?? '',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+
+            // 💰 Precio y Acciones
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Text(
                   '\$${product['price'] ?? 0}',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF1976D2),
                   ),
                 ),
 
-                const SizedBox(height: 12),
-
-                // 👇 Modo Cliente: Botón "Agregar"
+                // 👇 Botones de Acción
                 if (!_isAdmin)
                   ElevatedButton.icon(
                     onPressed: () => _addToCart(product),
-                    icon: const Icon(Icons.shopping_cart, size: 16),
-                    label: const Text(
-                      'Agregar',
-                      style: TextStyle(fontSize: 14),
-                    ),
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                    label: const Text('Agregar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1976D2),
+                      backgroundColor: const Color(
+                        0xFFEEA508,
+                      ), // Naranja Accent
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      minimumSize: const Size(double.infinity, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  ),
-
-                // 👇 Modo Administrador: Botones Editar/Eliminar
-                if (_isAdmin && productId != null)
-                  Column(
+                  )
+                else if (productId != null)
+                  Row(
                     children: [
-                      ElevatedButton.icon(
+                      IconButton(
                         onPressed: () {
+                          // Navegar a editar (esto requeriría importar ProductFormPage o similar)
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Editar: ${product['name']}'),
+                            const SnackBar(
+                              content: Text('Usa el Panel Admin para editar'),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: const Text(
-                          'Editar',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[700],
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(double.infinity, 36),
-                        ),
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        tooltip: 'Editar',
                       ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
+                      IconButton(
                         onPressed: () => _deleteProduct(productId),
-                        icon: const Icon(Icons.delete, size: 16),
-                        label: const Text(
-                          'Eliminar',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(double.infinity, 36),
-                        ),
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        tooltip: 'Eliminar',
                       ),
                     ],
                   ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -252,6 +314,64 @@ class _ProductsPageState extends State<ProductsPage>
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: const Color(0xFF1976D2),
+          leading: IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+          actions: [
+            // 🛒 Botón del Carrito con Badge
+            AnimatedBuilder(
+              animation: CartService.instance,
+              builder: (context, child) {
+                final itemCount = CartService.instance.itemCount;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.shopping_cart,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CartPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (itemCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            '$itemCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -278,7 +398,7 @@ class _ProductsPageState extends State<ProductsPage>
                 .toList(),
           ),
         ),
-        drawer: AppDrawer(currentRoute: widget.routeName),
+        // drawer: AppDrawer(currentRoute: widget.routeName), // Removido
         body: TabBarView(
           controller: _tabController,
           children: _categoryIds.values.map((id) {

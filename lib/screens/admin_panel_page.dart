@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'product_form_page.dart';
@@ -79,6 +78,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
           .collection(collection)
           .doc(docId)
           .delete();
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('✅ Elemento eliminado')));
@@ -90,39 +90,24 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   }
 
   /// Construye los botones de Editar y Eliminar para las tarjetas de items.
+  /// Construye los botones de Editar y Eliminar (Iconos).
   Widget _buildActionButtons({
     required String collection,
     required String docId,
     required VoidCallback onEdit,
   }) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit, size: 16),
-            label: const Text('Editar', style: TextStyle(fontSize: 14)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(double.infinity, 36),
-            ),
-          ),
+        IconButton(
+          onPressed: onEdit,
+          icon: const Icon(Icons.edit, color: Colors.blue),
+          tooltip: 'Editar',
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _deleteDocument(collection, docId),
-            icon: const Icon(Icons.delete, size: 16),
-            label: const Text('Eliminar', style: TextStyle(fontSize: 14)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(double.infinity, 36),
-            ),
-          ),
+        IconButton(
+          onPressed: () => _deleteDocument(collection, docId),
+          icon: const Icon(Icons.delete, color: Colors.red),
+          tooltip: 'Eliminar',
         ),
       ],
     );
@@ -183,17 +168,20 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                data['image'] ??
-                    'https://via.placeholder.com/300x200?text=Producto',
-                height: 150,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  data['image'] ??
+                      'https://via.placeholder.com/300x200?text=Producto',
                   height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.broken_image)),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 150,
+                    width: 200,
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(Icons.broken_image)),
+                  ),
                 ),
               ),
             ),
@@ -202,10 +190,19 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               data['name'] ?? '—',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
+            if (data['description'] != null) ...[
+              Text(
+                data['description'],
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+            ],
             Text(
               data['specs'] ?? '',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Text(
@@ -660,6 +657,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
       final file = File('${output.path}/clientes_techservice.csv');
       await file.writeAsString(buffer.toString());
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ CSV guardado en documentos')),
       );

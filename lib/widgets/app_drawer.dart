@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../screens/my_orders_page.dart';
 
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
@@ -95,6 +96,19 @@ class AppDrawer extends StatelessWidget {
               selectedTileColor: Colors.orange[50],
               onTap: () => _navigateTo(context, '/admin'),
             ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long, color: Colors.blue),
+            title: const Text('Mis Pedidos'),
+            selected: currentRoute == '/my_orders',
+            selectedTileColor: Colors.blue[50],
+            onTap: () {
+              Navigator.pop(context); // Cerrar Drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyOrdersPage()),
+              );
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

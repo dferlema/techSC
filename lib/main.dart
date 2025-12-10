@@ -5,9 +5,6 @@ import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/register_page.dart';
-import 'screens/home_page.dart';
-import 'screens/products_page.dart';
-import 'screens/service_reservation_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/main_tabs_screen.dart';
@@ -42,9 +39,9 @@ class MyApp extends StatelessWidget {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
-        '/home': (context) => const HomePage(routeName: '/home'),
-        '/products': (context) => const ProductsPage(routeName: '/products'),
-        '/reserve-service': (context) => const ServiceReservationPage(),
+        '/home': (context) => const MainTabsScreen(),
+        '/products': (context) => const MainTabsScreen(),
+        '/reserve-service': (context) => const MainTabsScreen(),
         '/admin': (context) => const AdminPanelPage(),
         '/main': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
