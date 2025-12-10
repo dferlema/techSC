@@ -39,7 +39,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _searchController = TextEditingController();
 
     // Limpiar búsqueda al cambiar de pestaña
@@ -799,6 +799,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               Tab(text: 'Clientes'),
               Tab(text: 'Productos'),
               Tab(text: 'Servicios'),
+              Tab(text: 'Pedidos'), // Added Pedidos tab
             ],
           ),
         ),
@@ -819,6 +820,8 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               builder: _buildServiceCard,
               addButtonLabel: 'Agregar Servicio',
             ),
+            // 📦 Pedidos
+            _buildOrdersTab(),
           ],
         ),
       ),
@@ -919,5 +922,208 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         ],
       ),
     );
+  }
+
+  // 📦 Tab de Pedidos
+  Widget _buildOrdersTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              hintText: 'Buscar pedido por ID...',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) => setState(() => _searchQuery = value),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('orders')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.shopping_bag_outlined,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'No hay pedidos registrados',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final docs = snapshot.data!.docs.where((doc) {
+                final id = doc.id.toLowerCase();
+                final query = _searchQuery.toLowerCase();
+                return id.contains(query);
+              }).toList();
+
+              if (docs.isEmpty) {
+                return const Center(
+                  child: Text('No hay pedidos con ese criterio'),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  return _buildOrderCard(docs[index]);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 📦 Tarjeta de Pedido
+  Widget _buildOrderCard(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final date = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final total = data['total'] ?? 0.0;
+    final status = data['status'] ?? 'pendiente';
+    final items = (data['items'] as List<dynamic>? ?? []);
+    final userId = data['userId'] ?? 'Unknown';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: _getOrderStatusColor(status),
+          child: const Icon(Icons.receipt_long, color: Colors.white),
+        ),
+        title: Text(
+          'Pedido #${doc.id.substring(0, 5).toUpperCase()}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          '${date.day}/${date.month}/${date.year} - \$${total.toStringAsFixed(2)}',
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Estado:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    DropdownButton<String>(
+                      value:
+                          [
+                            'pendiente',
+                            'confirmado',
+                            'entregado',
+                            'cancelado',
+                          ].contains(status)
+                          ? status
+                          : 'pendiente',
+                      items:
+                          ['pendiente', 'confirmado', 'entregado', 'cancelado']
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(
+                                    s.toUpperCase(),
+                                    style: TextStyle(
+                                      color: _getOrderStatusColor(s),
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (newStatus) {
+                        if (newStatus != null) {
+                          FirebaseFirestore.instance
+                              .collection('orders')
+                              .doc(doc.id)
+                              .update({'status': newStatus});
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Cliente ID: $userId',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const Divider(),
+                const Text(
+                  'Productos:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...items.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text('${item['quantity']}x ${item['name']}'),
+                        ),
+                        Text('\$${(item['subtotal'] ?? 0).toStringAsFixed(2)}'),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => _deleteDocument('orders', doc.id),
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    label: const Text(
+                      'Eliminar Pedido',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getOrderStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendiente':
+        return Colors.orange;
+      case 'confirmado':
+        return Colors.blue;
+      case 'entregado':
+        return Colors.green;
+      case 'cancelado':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 }
