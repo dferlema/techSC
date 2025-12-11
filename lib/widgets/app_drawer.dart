@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/my_orders_page.dart';
+import '../services/theme_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
@@ -107,6 +108,17 @@ class AppDrawer extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (context) => const MyOrdersPage()),
               );
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Modo Oscuro'),
+            secondary: Icon(
+              themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+              color: themeService.isDarkMode ? Colors.yellow : Colors.grey,
+            ),
+            value: themeService.isDarkMode,
+            onChanged: (value) {
+              themeService.toggleTheme();
             },
           ),
           const Divider(),
