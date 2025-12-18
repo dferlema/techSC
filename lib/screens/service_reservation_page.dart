@@ -66,43 +66,107 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   /// Carga la información del usuario desde Firestore si está autenticado.
   /// Esto mejora la UX al no tener que escribir datos repetitivos.
   Future<void> _loadUserData() async {
-    if (_currentUser != null) {
-      // 1. Pre-llenar con datos básicos de la cuenta de autenticación
-      _nameController.text = _currentUser!.displayName ?? '';
-      _emailController.text = _currentUser!.email ?? '';
+    if (_currentUser == null) {
+      debugPrint('⚠️ No hay usuario logueado');
+      return;
+    }
 
-      try {
-        // 2. Consultar la colección 'users' usando el UID para obtener perfil completo
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_currentUser!.uid)
-            .get();
+    debugPrint('🔍 Cargando datos del usuario: ${_currentUser!.uid}');
+    debugPrint('📧 Email de Firebase Auth: ${_currentUser!.email}');
 
-        if (doc.exists && mounted) {
-          // Extraer datos del documento
-          final data = doc.data() as Map<String, dynamic>;
+    try {
+      // Consultar la colección 'users' usando el UID para obtener perfil completo
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .get();
 
-          setState(() {
-            // Asignar valores a los controladores si existen en la base de datos
-            // Priorizamos los datos de Firestore sobre los locales si están disponibles
-            if (data['name'] != null) _nameController.text = data['name'];
-            if (data['phone'] != null) _phoneController.text = data['phone'];
-            if (data['id'] != null) _idController.text = data['id']; // Cédula
-            if (data['address'] != null)
-              _addressController.text = data['address'];
-          });
+      debugPrint('📄 Documento existe: ${doc.exists}');
 
-          // Notificar al usuario que sus datos se cargaron
+      if (doc.exists && mounted) {
+        // Extraer datos del documento
+        final data = doc.data() as Map<String, dynamic>;
+
+        debugPrint('📦 Datos en Firestore: $data');
+        debugPrint('  ├─ name: ${data['name']}');
+        debugPrint('  ├─ email: ${data['email']}');
+        debugPrint('  ├─ phone: ${data['phone']}');
+        debugPrint('  ├─ id: ${data['id']}');
+        debugPrint('  └─ address: ${data['address']}');
+
+        setState(() {
+          // Asignar valores a los controladores si existen en la base de datos
+          _nameController.text = data['name'] ?? '';
+          _emailController.text = data['email'] ?? _currentUser!.email ?? '';
+          _phoneController.text = data['phone'] ?? '';
+          _idController.text = data['id'] ?? ''; // Cédula
+          _addressController.text = data['address'] ?? '';
+        });
+
+        // Contar campos llenados
+        int filledFields = 0;
+        if (data['name'] != null && data['name'].toString().isNotEmpty)
+          filledFields++;
+        if (data['phone'] != null && data['phone'].toString().isNotEmpty)
+          filledFields++;
+        if (data['id'] != null && data['id'].toString().isNotEmpty)
+          filledFields++;
+        if (data['address'] != null && data['address'].toString().isNotEmpty)
+          filledFields++;
+
+        // Notificar al usuario que sus datos se cargaron
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Tus datos se han autocompletado'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(
+                filledFields > 0
+                    ? '✅ Se autocompletaron $filledFields campos de tu perfil'
+                    : '⚠️ Tu perfil está incompleto. Completa tus datos para autocompletar.',
+              ),
+              duration: Duration(seconds: 3),
+              backgroundColor: filledFields > 0 ? Colors.green : Colors.orange,
             ),
           );
         }
-      } catch (e) {
-        // Manejo silencioso de errores para no interrumpir el flujo, pero logueamos en consola
-        debugPrint('Error cargando datos de usuario: $e');
+      } else {
+        debugPrint('⚠️ No existe documento en Firestore para este usuario');
+        // Si no existe el documento en Firestore, usar datos de Firebase Auth
+        setState(() {
+          _nameController.text = _currentUser!.displayName ?? '';
+          _emailController.text = _currentUser!.email ?? '';
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '⚠️ Perfil no encontrado. Por favor completa tus datos.',
+              ),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Manejo silencioso de errores para no interrumpir el flujo
+      debugPrint('❌ Error cargando datos de usuario: $e');
+      debugPrint('Stack trace: ${StackTrace.current}');
+
+      // Como respaldo, usar datos de Firebase Auth
+      if (mounted) {
+        setState(() {
+          _nameController.text = _currentUser!.displayName ?? '';
+          _emailController.text = _currentUser!.email ?? '';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Error cargando perfil: ${e.toString()}'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -371,19 +435,28 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   /// Limpia el formulario para una nueva entrada.
   void _resetForm() {
     _formKey.currentState?.reset();
-    _nameController.clear();
-    _phoneController.clear();
-    _idController.clear();
+
+    // Solo limpiar campos específicos de la reserva, no los datos personales
     _deviceController.clear();
-    _addressController.clear();
     _problemController.clear();
-    _loadUserData(); // Recargar datos base
+
     setState(() {
       _selectedService = null;
       _selectedDate = null;
       _selectedTime = null;
       _selectedLocation = null;
     });
+
+    // Los datos personales (nombre, email, teléfono, cédula, dirección)
+    // se mantienen para facilitar la siguiente reserva
+  }
+
+  /// Helper widget to build info items in the information card.
+  Widget _buildInfoItem(String text) {
+    return Text(
+      text,
+      style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+    );
   }
 
   @override
@@ -653,6 +726,56 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 ),
               ),
               const SizedBox(height: 32),
+
+              // --- Información Importante ---
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue[700],
+                            size: 28,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Información Importante',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[900],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildInfoItem(
+                        '• Te contactaremos para confirmar tu cita en las próximas 2 horas',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoItem(
+                        '• Si necesitas cancelar, hazlo con al menos 24 horas de anticipación',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoItem(
+                        '• Trae tu dispositivo con el cargador y accesorios necesarios',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildInfoItem('• El diagnóstico inicial es gratuito'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
 
               // --- Botón Principal de Guardado ---
               ElevatedButton(

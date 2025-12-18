@@ -69,6 +69,17 @@ class AuthService {
     }
   }
 
+  // 🔑 Recuperar contraseña
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw _handleFirebaseAuthError(e);
+    } catch (e) {
+      throw 'Error inesperado: $e';
+    }
+  }
+
   // 🚪 Cerrar Sesión
   Future<void> signOut() async {
     await _auth.signOut();
@@ -88,6 +99,12 @@ class AuthService {
         return 'La contraseña es demasiado débil (mínimo 6 caracteres).';
       case 'operation-not-allowed':
         return 'El registro con correo/contraseña está deshabilitado.';
+      case 'user-not-found':
+        return 'No existe una cuenta con este correo.';
+      case 'wrong-password':
+        return 'Contraseña incorrecta.';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Intenta más tarde.';
       default:
         return 'Error: ${e.code}';
     }

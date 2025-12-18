@@ -5,6 +5,7 @@ import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/register_page.dart';
+import 'screens/forgot_password_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/main_tabs_screen.dart';
@@ -59,6 +60,7 @@ class MyApp extends StatelessWidget {
             '/onboarding': (context) => const OnboardingScreen(),
             '/login': (context) => const LoginPage(),
             '/register': (context) => const RegisterPage(),
+            '/forgot-password': (context) => const ForgotPasswordPage(),
             '/home': (context) => const MainTabsScreen(),
             '/products': (context) => const MainTabsScreen(),
             '/reserve-service': (context) => const MainTabsScreen(),

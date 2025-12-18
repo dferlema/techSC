@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/preferences_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,8 +14,30 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _preferencesService = PreferencesService();
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  // Cargar email guardado si "Recordarme" está activado
+  Future<void> _loadSavedEmail() async {
+    final rememberMe = await _preferencesService.getRememberMe();
+    if (rememberMe) {
+      final savedEmail = await _preferencesService.getSavedEmail();
+      if (savedEmail != null && mounted) {
+        setState(() {
+          _emailController.text = savedEmail;
+          _rememberMe = true;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -28,8 +51,6 @@ class _LoginPageState extends State<LoginPage> {
       _obscurePassword = !_obscurePassword;
     });
   }
-
-  bool _isLoading = false;
 
   void _onLoginPressed() async {
     final email = _emailController.text.trim();
@@ -54,6 +75,14 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (user != null && mounted) {
+        // Guardar email si "Recordarme" está marcado
+        if (_rememberMe) {
+          await _preferencesService.saveRememberMe(true);
+          await _preferencesService.saveEmail(email);
+        } else {
+          await _preferencesService.clearSavedEmail();
+        }
+
         Navigator.pushReplacementNamed(context, '/main');
       }
     } catch (e) {
@@ -185,22 +214,22 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         Checkbox(
                           value: _rememberMe,
-                          onChanged: (value) {
+                          onChanged: (value) async {
                             setState(() {
                               _rememberMe = value ?? false;
                             });
+                            // Si se desmarca, limpiar email guardado
+                            if (!_rememberMe) {
+                              await _preferencesService.clearSavedEmail();
+                            }
                           },
                         ),
                         const Text('Recordarme'),
                         const Spacer(),
                         TextButton(
                           onPressed: () {
-                            // Acción para recuperar contraseña
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Funcionalidad en desarrollo'),
-                              ),
-                            );
+                            // Navegar a la página de recuperación de contraseña
+                            Navigator.pushNamed(context, '/forgot-password');
                           },
                           child: const Text(
                             '¿Olvidaste tu contraseña?',
