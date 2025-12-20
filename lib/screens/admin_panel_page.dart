@@ -9,6 +9,8 @@ import 'product_form_page.dart';
 import 'service_form_page.dart';
 import 'client_form_page.dart';
 import '../widgets/app_drawer.dart';
+import '../services/role_service.dart'; // 👈 Nuevo
+import '../widgets/role_assignment_dialog.dart'; // 👈 Nuevo
 
 /// Página principal del panel de administración.
 ///
@@ -39,6 +41,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   @override
   void initState() {
     super.initState();
+    _checkRole(); // 👈 Cargar rol al iniciar
     _tabController = TabController(length: 4, vsync: this);
     _searchController = TextEditingController();
 
@@ -62,13 +65,29 @@ class _AdminPanelPageState extends State<AdminPanelPage>
     super.dispose();
   }
 
-  /// Verifica si el usuario actual tiene rol de administrador.
-  /// Compara el UID del usuario con una lista permitida (o lógica de roles).
-  bool get _isAdmin {
+  String _userRole = RoleService.CLIENT;
+  bool _isLoadingRole = true;
+
+  /// Verifica si es admin o vendedor
+  bool get _canAccessPanel =>
+      _userRole == RoleService.ADMIN || _userRole == RoleService.SELLER;
+
+  /// Verifica si es admin
+  bool get _isAdminRole => _userRole == RoleService.ADMIN;
+
+  Future<void> _checkRole() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
-    // Para producción: return user.uid == 'TU_UID_AQUI';
-    return true;
+    if (user != null) {
+      final role = await RoleService().getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _userRole = role;
+          _isLoadingRole = false;
+        });
+      }
+    } else {
+      if (mounted) setState(() => _isLoadingRole = false);
+    }
   }
 
   /// Elimina un documento de Firestore dado su ID y nombre de colección.
@@ -116,23 +135,66 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   /// Construye una tarjeta visual para un Cliente en la lista.
   Widget _buildClientCard(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final role = data['role'] ?? RoleService.CLIENT;
+    final roleIcon = RoleService.getRoleIcon(role);
+    final roleName = RoleService.getRoleName(role);
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.person)),
+        leading: CircleAvatar(
+          child: Text(roleIcon, style: const TextStyle(fontSize: 20)),
+        ),
         title: Text(data['name'] ?? '—'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Cédula: ${data['id'] ?? '—'}'),
             Text('Tel: ${data['phone'] ?? '—'}'),
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getRoleColor(role).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                roleName,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: _getRoleColor(role),
+                ),
+              ),
+            ),
           ],
         ),
         trailing: Wrap(
           spacing: 4,
           children: [
+            // Botón Cambiar Rol
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings, size: 18),
+              color: Colors.orange,
+              tooltip: 'Cambiar rol',
+              onPressed: () async {
+                final result = await showRoleAssignmentDialog(
+                  context,
+                  userId: doc.id,
+                  currentRole: role,
+                  userName: data['name'] ?? '—',
+                  userEmail: data['email'] ?? '—',
+                );
+                if (result == true && mounted) {
+                  // Refrescar la lista
+                  setState(() {});
+                }
+              },
+            ),
+            // Botón Editar
             IconButton(
               icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+              tooltip: 'Editar',
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
@@ -148,14 +210,29 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                 }
               },
             ),
+            // Botón Eliminar
             IconButton(
               icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+              tooltip: 'Eliminar',
               onPressed: () => _deleteDocument('users', doc.id),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Retorna el color según el rol
+  Color _getRoleColor(String role) {
+    switch (role) {
+      case RoleService.ADMIN:
+        return Colors.purple;
+      case RoleService.SELLER:
+        return Colors.blue;
+      case RoleService.CLIENT:
+      default:
+        return Colors.green;
+    }
   }
 
   /// Construye una tarjeta visual para un Producto.
@@ -578,10 +655,16 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   // 👤 Widget de cliente para lista
   Widget _buildClientCardForList(Map<String, dynamic> client) {
     final createdAt = (client['createdAt'] as Timestamp?)?.toDate();
+    final role = client['role'] ?? RoleService.CLIENT;
+    final roleIcon = RoleService.getRoleIcon(role);
+    final roleName = RoleService.getRoleName(role);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.person, size: 18)),
+        leading: CircleAvatar(
+          child: Text(roleIcon, style: const TextStyle(fontSize: 16)),
+        ),
         title: Text(
           client['name'] ?? '—',
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -594,13 +677,47 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             Text('📧 ${client['email'] ?? '—'}'),
             if (createdAt != null)
               Text('📅 ${createdAt.day}/${createdAt.month}/${createdAt.year}'),
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getRoleColor(role).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                roleName,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: _getRoleColor(role),
+                ),
+              ),
+            ),
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
+              icon: const Icon(Icons.admin_panel_settings, size: 18),
+              color: Colors.orange,
+              tooltip: 'Cambiar rol',
+              onPressed: () async {
+                final result = await showRoleAssignmentDialog(
+                  context,
+                  userId: client['docId'],
+                  currentRole: role,
+                  userName: client['name'] ?? '—',
+                  userEmail: client['email'] ?? '—',
+                );
+                if (result == true && mounted) {
+                  setState(() {});
+                }
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+              tooltip: 'Editar',
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
@@ -620,6 +737,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             ),
             IconButton(
               icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+              tooltip: 'Eliminar',
               onPressed: () => _deleteDocument('users', client['docId']),
             ),
           ],
@@ -729,7 +847,11 @@ class _AdminPanelPageState extends State<AdminPanelPage>
 
   @override
   Widget build(BuildContext context) {
-    if (!_isAdmin) {
+    if (_isLoadingRole) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!_canAccessPanel) {
       return Scaffold(
         appBar: AppBar(title: const Text('Acceso Denegado')),
         body: Center(
@@ -739,7 +861,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               const Icon(Icons.lock, size: 60, color: Colors.red),
               const SizedBox(height: 16),
               const Text(
-                'Solo administradores pueden acceder.',
+                'Solo personal autorizado puede acceder.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16),
               ),
@@ -800,7 +922,18 @@ class _AdminPanelPageState extends State<AdminPanelPage>
           controller: _tabController,
           children: [
             // 👤 Clientes (versión mejorada)
-            _buildClientsTab(),
+            _isAdminRole
+                ? _buildClientsTab()
+                : const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.security, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('Solo administradores pueden gestionar clientes'),
+                      ],
+                    ),
+                  ),
             // 🛒 Productos
             _buildTabContent(
               collection: 'products',

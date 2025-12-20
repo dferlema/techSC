@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/my_orders_page.dart';
-import '../services/theme_service.dart';
+import '../services/role_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
@@ -92,16 +92,40 @@ class AppDrawer extends StatelessWidget {
             selectedTileColor: Colors.blue[50],
             onTap: () => _navigateTo(context, '/reserve-service'),
           ),
-          if (_isAdmin(user))
-            ListTile(
-              leading: const Icon(
-                Icons.admin_panel_settings,
-                color: Colors.orange,
-              ),
-              title: const Text('Panel de Administración'),
-              selected: currentRoute == '/admin',
-              selectedTileColor: Colors.orange[50],
-              onTap: () => _navigateTo(context, '/admin'),
+          if (user != null)
+            FutureBuilder<String>(
+              future: RoleService().getUserRole(user.uid),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                final role = snapshot.data!;
+
+                // Opción para Administradores
+                if (role == RoleService.ADMIN) {
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.admin_panel_settings,
+                      color: Colors.orange,
+                    ),
+                    title: const Text('Panel de Administración'),
+                    selected: currentRoute == '/admin',
+                    selectedTileColor: Colors.orange[50],
+                    onTap: () => _navigateTo(context, '/admin'),
+                  );
+                }
+
+                // Opción para Vendedores
+                if (role == RoleService.SELLER) {
+                  return ListTile(
+                    leading: const Icon(Icons.store, color: Colors.green),
+                    title: const Text('Gestión de Ventas'),
+                    selected: currentRoute == '/admin',
+                    selectedTileColor: Colors.green[50],
+                    onTap: () => _navigateTo(context, '/admin'),
+                  );
+                }
+
+                return const SizedBox.shrink();
+              },
             ),
           ListTile(
             leading: const Icon(Icons.receipt_long, color: Colors.blue),
@@ -114,17 +138,6 @@ class AppDrawer extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (context) => const MyOrdersPage()),
               );
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Modo Oscuro'),
-            secondary: Icon(
-              themeService.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-              color: themeService.isDarkMode ? Colors.yellow : Colors.grey,
-            ),
-            value: themeService.isDarkMode,
-            onChanged: (value) {
-              themeService.toggleTheme();
             },
           ),
           const Divider(),
@@ -146,12 +159,5 @@ class AppDrawer extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  bool _isAdmin(User? user) {
-    if (user == null) return false;
-    // 👇 Reemplaza con tu UID real de Firebase Auth
-    final adminUids = {'zGgGzJixMIbupS5GgVRNRxDY6292', 'UID_DEL_USUARIO_ADMIN'};
-    return adminUids.contains(user.uid);
   }
 }

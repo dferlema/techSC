@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/cart_service.dart';
+import '../services/role_service.dart'; // 👈 Nuevo
 import 'cart_page.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -25,8 +26,8 @@ class _ProductsPageState extends State<ProductsPage>
     'Repuestos': 'repuestos',
   };
 
-  // Determinar si es admin
-  bool _isAdmin = false;
+  // Permisos de gestión
+  bool _canManage = false;
 
   @override
   void initState() {
@@ -35,23 +36,17 @@ class _ProductsPageState extends State<ProductsPage>
     _checkUserRole();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _isAdmin = false);
-      return;
-    }
-
-    // 🔐 Verificación segura: leer rol desde Firestore
-    try {
-      final userData = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final role = userData.data()?['role'] ?? 'cliente';
-      setState(() => _isAdmin = (role == 'admin'));
-    } catch (e) {
-      setState(() => _isAdmin = false);
+    if (user != null) {
+      final canManage = await RoleService().canManageProducts(user.uid);
+      if (mounted) setState(() => _canManage = canManage);
     }
   }
 
@@ -208,7 +203,7 @@ class _ProductsPageState extends State<ProductsPage>
                 ),
 
                 // 👇 Botones de Acción
-                if (!_isAdmin)
+                if (!_canManage)
                   ElevatedButton.icon(
                     onPressed: () => _addToCart(product),
                     icon: const Icon(Icons.shopping_cart_outlined, size: 18),
@@ -405,8 +400,8 @@ class _ProductsPageState extends State<ProductsPage>
             );
           }).toList(),
         ),
-        // 👇 Botón flotante SOLO para administradores
-        floatingActionButton: _isAdmin
+        // 👇 Botones flotantes SOLO para administradores/vendedores
+        floatingActionButton: _canManage
             ? FloatingActionButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(

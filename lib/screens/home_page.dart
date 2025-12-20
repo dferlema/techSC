@@ -297,7 +297,7 @@ class HomePage extends StatelessWidget {
                 Icons.build,
               ),
               _buildTeamCard(context, 'María G.', 'Software', Icons.code),
-              _buildTeamCard(context, 'Juan M.', 'Ventas', Icons.store),
+              _buildTeamCard(context, 'Mary Ch.', 'Ventas', Icons.store),
             ],
           ),
         ),

@@ -27,7 +27,7 @@ class AppColors {
   static const Color black = Color.fromARGB(255, 0, 0, 0);
   static const Color error = Color.fromARGB(255, 211, 47, 47);
   static const Color success = Color.fromARGB(255, 41, 107, 45);
-  static const Color warning = Color.fromARGB(255, 184, 126, 20);
+  static const Color warning = Color.fromARGB(255, 63, 179, 108);
 
   // Variaciones para modo oscuro
   static const Color primaryBlueDark = Color(
@@ -48,18 +48,65 @@ class AppColors {
 /// Extensión para acceder fácilmente a colores personalizados desde el tema
 extension AppColorScheme on ColorScheme {
   /// Color naranja de acento del logo
-  Color get accentOrange => brightness == Brightness.light
-      ? AppColors.accentOrange
-      : AppColors.accentOrangeDark;
+  Color get accentOrange => AppColors.accentOrange;
 
   /// Color de fondo gris claro
-  Color get backgroundGray => brightness == Brightness.light
-      ? AppColors.backgroundGray
-      : AppColors.surfaceDark;
+  Color get backgroundGray => AppColors.backgroundGray;
 }
 
 /// Tema centralizado de la aplicación
 class AppTheme {
+  /// Helper para construir el TextTheme consistente
+  static TextTheme _buildTextTheme(Color primaryColor, Color secondaryColor) {
+    return TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: primaryColor,
+      ),
+      displayMedium: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+        color: primaryColor,
+      ),
+      displaySmall: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: primaryColor,
+      ),
+      headlineMedium: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: primaryColor,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: primaryColor,
+      ),
+      titleMedium: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: primaryColor,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.normal,
+        color: primaryColor,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.normal,
+        color: primaryColor,
+      ),
+      bodySmall: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.normal,
+        color: secondaryColor,
+      ),
+    );
+  }
+
   /// Tema claro (Light Mode)
   static ThemeData get lightTheme {
     return ThemeData(
@@ -195,52 +242,10 @@ class AppTheme {
       iconTheme: const IconThemeData(color: AppColors.primaryBlue, size: 24),
 
       // Text Theme
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary,
-        ),
-        displayMedium: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary,
-        ),
-        displaySmall: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textPrimary,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.normal,
-          color: AppColors.textPrimary,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.normal,
-          color: AppColors.textPrimary,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.normal,
-          color: AppColors.textSecondary,
-        ),
+      // Text Theme Centralizado
+      textTheme: _buildTextTheme(
+        AppColors.textPrimary,
+        AppColors.textSecondary,
       ),
     );
   }
@@ -335,6 +340,9 @@ class AppTheme {
           ),
         ),
       ),
+
+      // Text Theme Centralizado (Para consistencia)
+      textTheme: _buildTextTheme(AppColors.white, Colors.white70),
     );
   }
 }
