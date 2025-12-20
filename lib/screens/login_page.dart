@@ -104,7 +104,6 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1976D2),
         title: Row(
           children: [
             Icon(Icons.computer, color: Colors.white),
@@ -143,12 +142,14 @@ class _LoginPageState extends State<LoginPage> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE3F2FD),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_forward,
-                        color: Color(0xFF1976D2),
+                        color: Theme.of(context).colorScheme.primary,
                         size: 40,
                       ),
                     ),
@@ -231,9 +232,11 @@ class _LoginPageState extends State<LoginPage> {
                             // Navegar a la página de recuperación de contraseña
                             Navigator.pushNamed(context, '/forgot-password');
                           },
-                          child: const Text(
+                          child: Text(
                             '¿Olvidaste tu contraseña?',
-                            style: TextStyle(color: Colors.blue),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
                         ),
                       ],
@@ -244,8 +247,6 @@ class _LoginPageState extends State<LoginPage> {
                     ElevatedButton(
                       onPressed: _onLoginPressed,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1976D2),
-                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -270,10 +271,10 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: () {
                             Navigator.pushNamed(context, '/register');
                           },
-                          child: const Text(
+                          child: Text(
                             'Regístrate aquí',
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: Theme.of(context).colorScheme.primary,
                               decoration: TextDecoration.underline,
                             ),
                           ),

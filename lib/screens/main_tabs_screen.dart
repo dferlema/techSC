@@ -126,7 +126,8 @@ class _MainTabsScreenState extends State<MainTabsScreen>
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        selectedItemColor: const Color(0xFF1976D2),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey[600],
         showSelectedLabels: true,
         showUnselectedLabels: true,

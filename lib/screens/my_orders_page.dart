@@ -22,7 +22,6 @@ class MyOrdersPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Pedidos'),
-        backgroundColor: const Color(0xFF1976D2),
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(

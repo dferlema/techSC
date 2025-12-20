@@ -164,7 +164,6 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1976D2),
         title: Row(
           children: [
             Icon(Icons.computer, color: Colors.white),
@@ -204,12 +203,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE3F2FD),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.person_add,
-                          color: Color(0xFF1976D2),
+                          color: Theme.of(context).colorScheme.primary,
                           size: 40,
                         ),
                       ),
@@ -443,8 +444,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                 children: [
                                   TextSpan(
                                     text: 'términos y condiciones',
-                                    style: const TextStyle(
-                                      color: Colors.blue,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                       decoration: TextDecoration.underline,
                                     ),
                                     recognizer: _termsRecognizer,
@@ -452,8 +455,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                   const TextSpan(text: ' y la '),
                                   TextSpan(
                                     text: 'política de privacidad',
-                                    style: const TextStyle(
-                                      color: Colors.blue,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                       decoration: TextDecoration.underline,
                                     ),
                                     recognizer: _privacyRecognizer,
@@ -470,8 +475,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       ElevatedButton(
                         onPressed: _onRegisterPressed,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1976D2),
-                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -498,10 +501,10 @@ class _RegisterPageState extends State<RegisterPage> {
                             onPressed: () {
                               Navigator.pushReplacementNamed(context, '/login');
                             },
-                            child: const Text(
+                            child: Text(
                               'Inicia sesión',
                               style: TextStyle(
-                                color: Colors.blue,
+                                color: Theme.of(context).colorScheme.primary,
                                 decoration: TextDecoration.underline,
                               ),
                             ),

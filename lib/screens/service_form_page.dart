@@ -287,7 +287,6 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1976D2),
         title: Text(
           widget.serviceId == null ? 'Nuevo Servicio' : 'Editar Servicio',
         ),

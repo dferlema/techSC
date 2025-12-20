@@ -193,7 +193,6 @@ class _ClientFormPageState extends State<ClientFormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1976D2),
         title: Text(
           widget.clientId == null ? 'Nuevo Cliente' : 'Editar Cliente',
         ),

@@ -9,7 +9,7 @@ class CartPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Carrito'),
-        backgroundColor: const Color(0xFF1976D2),
+
         foregroundColor: Colors.white,
       ),
       body: AnimatedBuilder(
@@ -96,8 +96,10 @@ class CartPage extends StatelessWidget {
                                   ),
                                   Text(
                                     '\$${item.price.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF1976D2),
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -162,10 +164,10 @@ class CartPage extends StatelessWidget {
                         ),
                         Text(
                           '\$${cart.total.toStringAsFixed(2)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1976D2),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ],
@@ -200,7 +202,9 @@ class CartPage extends StatelessWidget {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1976D2),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.secondary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(

@@ -200,10 +200,10 @@ class _ProductsPageState extends State<ProductsPage>
               children: [
                 Text(
                   '\$${product['price'] ?? 0}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1976D2),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
 
@@ -214,9 +214,7 @@ class _ProductsPageState extends State<ProductsPage>
                     icon: const Icon(Icons.shopping_cart_outlined, size: 18),
                     label: const Text('Agregar'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(
-                        0xFFEEA508,
-                      ), // Naranja Accent
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
                       foregroundColor: Colors.white,
                       elevation: 2,
                       padding: const EdgeInsets.symmetric(
@@ -313,7 +311,6 @@ class _ProductsPageState extends State<ProductsPage>
       length: _categoryIds.length,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1976D2),
           leading: IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
             onPressed: () => Scaffold.of(context).openDrawer(),
@@ -411,7 +408,6 @@ class _ProductsPageState extends State<ProductsPage>
         // 👇 Botón flotante SOLO para administradores
         floatingActionButton: _isAdmin
             ? FloatingActionButton(
-                backgroundColor: const Color(0xFF1976D2),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Crear nuevo producto')),

@@ -74,7 +74,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1976D2),
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           'Recuperar Contraseña',
@@ -100,13 +99,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     Container(
                       width: 80,
                       height: 80,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE3F2FD),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.lock_reset,
-                        color: Color(0xFF1976D2),
+                        color: Theme.of(context).colorScheme.primary,
                         size: 40,
                       ),
                     ),
@@ -150,8 +151,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ElevatedButton(
                         onPressed: _isLoading ? null : _onSendResetEmail,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1976D2),
-                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -191,9 +190,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       },
                       icon: const Icon(Icons.arrow_back),
                       label: const Text('Volver al Inicio de Sesión'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF1976D2),
-                      ),
                     ),
                   ],
                 ),

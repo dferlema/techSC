@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 // import 'package:techsc/widgets/app_drawer.dart'; // Ya no se usa aquí directamente
 
 class HomePage extends StatelessWidget {
   final String routeName;
   const HomePage({super.key, this.routeName = '/home'});
 
-  // Colores del tema para esta página
-  static const Color kPrimaryBlue = Color(0xFF1976D2);
-  static const Color kAccentOrange = Color(0xFFEEA508);
-  static const Color kBackgroundColor = Color(0xFFF5F5F5);
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: kBackgroundColor,
+      backgroundColor: colorScheme.backgroundGray,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
@@ -42,12 +41,12 @@ class HomePage extends StatelessWidget {
         child: Column(
           children: [
             // Sección 1: Hero / Sobre Nosotros
-            _buildHeroSection(),
+            _buildHeroSection(context),
 
             const SizedBox(height: 24),
 
             // Sección 2: Estadísticas
-            _buildStatsSection(),
+            _buildStatsSection(context),
 
             const SizedBox(height: 32),
 
@@ -57,12 +56,12 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Sección 4: Nuestro Equipo
-            _buildTeamSection(),
+            _buildTeamSection(context),
 
             const SizedBox(height: 32),
 
             // Sección 5: Misión y Valores
-            _buildMissionValuesSection(),
+            _buildMissionValuesSection(context),
 
             const SizedBox(height: 32),
 
@@ -76,11 +75,12 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeroSection() {
+  Widget _buildHeroSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: kPrimaryBlue,
+        color: colorScheme.primary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
@@ -120,7 +120,8 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsSection() {
+  Widget _buildStatsSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
@@ -139,28 +140,39 @@ class HomePage extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildStatItem(Icons.people, '5000+', 'Clientes'),
+            _buildStatItem(context, Icons.people, '5000+', 'Clientes'),
             Container(height: 40, width: 1, color: Colors.grey[300]),
-            _buildStatItem(Icons.workspace_premium, '15+', 'Años Exp.'),
+            _buildStatItem(
+              context,
+              Icons.workspace_premium,
+              '15+',
+              'Años Exp.',
+            ),
             Container(height: 40, width: 1, color: Colors.grey[300]),
-            _buildStatItem(Icons.thumb_up, '100%', 'Garantía'),
+            _buildStatItem(context, Icons.thumb_up, '100%', 'Garantía'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatItem(IconData icon, String value, String label) {
+  Widget _buildStatItem(
+    BuildContext context,
+    IconData icon,
+    String value,
+    String label,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        Icon(icon, color: kAccentOrange, size: 28),
+        Icon(icon, color: colorScheme.accentOrange, size: 28),
         const SizedBox(height: 8),
         Text(
           value,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: kPrimaryBlue,
+            color: colorScheme.primary,
           ),
         ),
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
@@ -169,12 +181,13 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildProductCTA(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [const Color(0xFF1976D2), const Color(0xFF42A5F5)],
+            colors: [colorScheme.primary, colorScheme.primary.withOpacity(0.7)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -232,7 +245,7 @@ class HomePage extends StatelessWidget {
                           child: Text(
                             'Ver Catálogo',
                             style: TextStyle(
-                              color: kPrimaryBlue,
+                              color: colorScheme.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -255,7 +268,8 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildTeamSection() {
+  Widget _buildTeamSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -276,9 +290,14 @@ class HomePage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              _buildTeamCard('Diego Lema', 'Director Técnico', Icons.build),
-              _buildTeamCard('María G.', 'Software', Icons.code),
-              _buildTeamCard('Juan M.', 'Ventas', Icons.store),
+              _buildTeamCard(
+                context,
+                'Diego Lema',
+                'Director Técnico',
+                Icons.build,
+              ),
+              _buildTeamCard(context, 'María G.', 'Software', Icons.code),
+              _buildTeamCard(context, 'Juan M.', 'Ventas', Icons.store),
             ],
           ),
         ),
@@ -286,7 +305,13 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildTeamCard(String name, String role, IconData icon) {
+  Widget _buildTeamCard(
+    BuildContext context,
+    String name,
+    String role,
+    IconData icon,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: 140,
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -306,8 +331,8 @@ class HomePage extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: kPrimaryBlue.withOpacity(0.1),
-            child: Icon(icon, color: kPrimaryBlue, size: 30),
+            backgroundColor: colorScheme.primary.withOpacity(0.1),
+            child: Icon(icon, color: colorScheme.primary, size: 30),
           ),
           const SizedBox(height: 12),
           Text(
@@ -326,7 +351,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  Widget _buildMissionValuesSection() {
+  Widget _buildMissionValuesSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -395,6 +420,7 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildSupportCTA(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
@@ -412,7 +438,7 @@ class HomePage extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(Icons.support_agent, size: 50, color: kPrimaryBlue),
+            Icon(Icons.support_agent, size: 50, color: colorScheme.primary),
             const SizedBox(height: 16),
             Text(
               '¿Necesitas ayuda inmediata?',
@@ -437,14 +463,14 @@ class HomePage extends StatelessWidget {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kAccentOrange,
+                  backgroundColor: colorScheme.accentOrange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 5,
-                  shadowColor: kAccentOrange.withOpacity(0.5),
+                  shadowColor: colorScheme.accentOrange.withOpacity(0.5),
                 ),
                 child: const Text(
                   'Reservar Servicio Técnico',

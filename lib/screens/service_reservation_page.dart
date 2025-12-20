@@ -105,14 +105,18 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
         // Contar campos llenados
         int filledFields = 0;
-        if (data['name'] != null && data['name'].toString().isNotEmpty)
+        if (data['name'] != null && data['name'].toString().isNotEmpty) {
           filledFields++;
-        if (data['phone'] != null && data['phone'].toString().isNotEmpty)
+        }
+        if (data['phone'] != null && data['phone'].toString().isNotEmpty) {
           filledFields++;
-        if (data['id'] != null && data['id'].toString().isNotEmpty)
+        }
+        if (data['id'] != null && data['id'].toString().isNotEmpty) {
           filledFields++;
-        if (data['address'] != null && data['address'].toString().isNotEmpty)
+        }
+        if (data['address'] != null && data['address'].toString().isNotEmpty) {
           filledFields++;
+        }
 
         // Notificar al usuario que sus datos se cargaron
         if (mounted) {
@@ -463,7 +467,6 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1976D2),
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
           onPressed: () => Scaffold.of(context).openDrawer(),
@@ -781,7 +784,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ElevatedButton(
                 onPressed: _saveReservation,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1976D2), // Azul principal
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

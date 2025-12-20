@@ -83,10 +83,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: [
                   TextButton(
                     onPressed: _skipOnboarding,
-                    child: const Text(
+                    child: Text(
                       'Saltar',
                       style: TextStyle(
-                        color: Color(0xFF1976D2),
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -115,12 +115,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE3F2FD),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             page['icon'] as IconData,
-                            color: const Color(0xFF1976D2),
+                            color: Theme.of(context).colorScheme.primary,
                             size: 60,
                           ),
                         ),
@@ -188,7 +190,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           color: _currentPage == index
-                              ? const Color(0xFF1976D2)
+                              ? Theme.of(context).colorScheme.primary
                               : Colors.grey[300],
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -201,8 +203,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ElevatedButton(
                     onPressed: _nextPage,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1976D2),
-                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

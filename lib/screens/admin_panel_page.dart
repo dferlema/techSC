@@ -442,10 +442,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
           },
           icon: const Icon(Icons.person_add),
           label: const Text('Agregar Cliente'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1976D2),
-            foregroundColor: Colors.white,
-          ),
+          style: ElevatedButton.styleFrom(foregroundColor: Colors.white),
         ),
         const SizedBox(height: 24),
 
@@ -734,10 +731,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   Widget build(BuildContext context) {
     if (!_isAdmin) {
       return Scaffold(
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF1976D2),
-          title: const Text('Acceso Denegado'),
-        ),
+        appBar: AppBar(title: const Text('Acceso Denegado')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -769,7 +763,6 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               FirebaseAuth.instance.currentUser?.displayName ?? 'Administrador',
         ),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF1976D2),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -876,7 +869,6 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             icon: const Icon(Icons.add),
             label: Text(addButtonLabel),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1976D2),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),

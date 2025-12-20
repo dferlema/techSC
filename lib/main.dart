@@ -11,6 +11,7 @@ import 'firebase_options.dart';
 import 'screens/main_tabs_screen.dart';
 import 'screens/admin_panel_page.dart';
 import 'services/theme_service.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,29 +30,8 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Tech Service Computer',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF1976D2),
-              brightness: Brightness.light,
-            ),
-            useMaterial3: true,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFF1976D2),
-              foregroundColor: Colors.white,
-            ),
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF1976D2),
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.grey[900],
-              foregroundColor: Colors.white,
-            ),
-            scaffoldBackgroundColor: Colors.grey[900],
-          ),
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
           themeMode: themeService.isDarkMode ? ThemeMode.dark : ThemeMode.light,
           // 🚀 Flujo inicial: Splash → Onboarding → Login
           initialRoute: '/',
