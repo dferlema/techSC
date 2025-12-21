@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/cart_service.dart';
 import '../services/role_service.dart'; // 👈 Nuevo
 import 'cart_page.dart';
+import 'product_detail_page.dart';
 
 class ProductsPage extends StatefulWidget {
   final String routeName;
@@ -89,27 +90,44 @@ class _ProductsPageState extends State<ProductsPage>
           children: [
             // 🖼️ Imagen Centrada y Adaptada
             Center(
-              child: Container(
-                height: 180,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    product['image'] ??
-                        'https://via.placeholder.com/300x200?text=Sin+Imagen',
-                    fit: BoxFit
-                        .contain, // Adaptada al contenedor sin recorte excesivo
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[100],
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          size: 50,
-                          color: Colors.grey,
+              child: GestureDetector(
+                onTap: () {
+                  if (productId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProductDetailPage(
+                          product: product,
+                          productId: productId,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Hero(
+                    tag: 'product-image-${productId ?? "unknown"}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        product['image'] ??
+                            'https://via.placeholder.com/300x200?text=Sin+Imagen',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey[100],
+                          child: const Center(
+                            child: Icon(
+                              Icons.image_not_supported,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
+                          ),
                         ),
                       ),
                     ),

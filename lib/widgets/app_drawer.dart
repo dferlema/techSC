@@ -168,6 +168,19 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.support_agent, color: Colors.teal),
+            title: const Text('Contáctanos'),
+            selected: currentRoute == '/contact',
+            selectedTileColor: Colors.teal.withOpacity(0.1),
+            onTap: () {
+              Navigator.pop(context); // Close drawer first
+              Navigator.pushNamed(
+                context,
+                '/contact',
+              ); // Push to stack to allow back nav
+            },
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

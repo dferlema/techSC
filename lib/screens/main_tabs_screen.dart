@@ -8,6 +8,8 @@ import 'home_page.dart';
 import 'products_page.dart';
 import 'service_reservation_page.dart';
 
+import 'contact_page.dart'; // Import
+
 class MainTabsScreen extends StatefulWidget {
   const MainTabsScreen({super.key});
 
@@ -24,6 +26,7 @@ class _MainTabsScreenState extends State<MainTabsScreen>
     const HomePage(), // Índice 0 → Inicio
     const ProductsPage(), // Índice 1 → Productos
     const ServiceReservationPage(), // Índice 2 → Reservar
+    const ContactPage(), // Índice 3 → Contacto
   ];
 
   bool _isInit = true;
@@ -80,6 +83,8 @@ class _MainTabsScreenState extends State<MainTabsScreen>
         return 1;
       case '/reserve-service':
         return 2;
+      case '/contact':
+        return 3;
       default:
         return 0; // /home
     }
@@ -92,6 +97,8 @@ class _MainTabsScreenState extends State<MainTabsScreen>
         return '/products';
       case 2:
         return '/reserve-service';
+      case 3:
+        return '/contact';
       default:
         return '/home';
     }
@@ -147,6 +154,11 @@ class _MainTabsScreenState extends State<MainTabsScreen>
             icon: Icon(Icons.build_outlined),
             activeIcon: Icon(Icons.build),
             label: 'Reservar',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.support_agent_outlined),
+            activeIcon: Icon(Icons.support_agent),
+            label: 'Contacto',
           ),
         ],
       ),
