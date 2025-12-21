@@ -10,6 +10,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/main_tabs_screen.dart';
 import 'screens/admin_panel_page.dart';
+import 'screens/technician_dashboard.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tech Service Computer',
+      title: 'TechService Pro',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: '/',
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
         '/products': (context) => const MainTabsScreen(),
         '/reserve-service': (context) => const MainTabsScreen(),
         '/admin': (context) => const AdminPanelPage(),
+        '/technician': (context) => const TechnicianDashboard(),
         '/main': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           return MainTabsScreen();

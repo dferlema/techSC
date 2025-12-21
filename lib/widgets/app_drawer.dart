@@ -101,15 +101,29 @@ class AppDrawer extends StatelessWidget {
 
                 // Opción para Administradores
                 if (role == RoleService.ADMIN) {
-                  return ListTile(
-                    leading: const Icon(
-                      Icons.admin_panel_settings,
-                      color: Colors.orange,
-                    ),
-                    title: const Text('Panel de Administración'),
-                    selected: currentRoute == '/admin',
-                    selectedTileColor: Colors.orange[50],
-                    onTap: () => _navigateTo(context, '/admin'),
+                  return Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(
+                          Icons.admin_panel_settings,
+                          color: Colors.orange,
+                        ),
+                        title: const Text('Panel de Administración'),
+                        selected: currentRoute == '/admin',
+                        selectedTileColor: Colors.orange[50],
+                        onTap: () => _navigateTo(context, '/admin'),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.build_circle,
+                          color: Colors.blueGrey,
+                        ),
+                        title: const Text('Panel Técnico'),
+                        selected: currentRoute == '/technician',
+                        selectedTileColor: Colors.blueGrey[50],
+                        onTap: () => _navigateTo(context, '/technician'),
+                      ),
+                    ],
                   );
                 }
 
@@ -121,6 +135,20 @@ class AppDrawer extends StatelessWidget {
                     selected: currentRoute == '/admin',
                     selectedTileColor: Colors.green[50],
                     onTap: () => _navigateTo(context, '/admin'),
+                  );
+                }
+
+                // Opción para Técnicos
+                if (role == RoleService.TECHNICIAN) {
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.build_circle,
+                      color: Colors.blueGrey,
+                    ),
+                    title: const Text('Panel Técnico'),
+                    selected: currentRoute == '/technician',
+                    selectedTileColor: Colors.blueGrey[50],
+                    onTap: () => _navigateTo(context, '/technician'),
                   );
                 }
 

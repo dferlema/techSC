@@ -46,6 +46,7 @@ dependencies:
   firebase_storage: ^13.0.4     # 👈 Necesario para subir imágenes
   image_picker: ^1.1.2
   intl: ^0.20.1     
+  url_launcher: ^6.3.2
  
 
 dev_dependencies:

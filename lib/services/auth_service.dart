@@ -88,6 +88,9 @@ class AuthService {
   // 👂 Escuchar cambios en el estado de autenticación
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  // 👤 Obtener usuario actual
+  User? get currentUser => _auth.currentUser;
+
   // 🧠 Manejo de errores comunes
   String _handleFirebaseAuthError(FirebaseAuthException e) {
     switch (e.code) {

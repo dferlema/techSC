@@ -6,6 +6,7 @@ class RoleService {
   // Constantes de roles
   static const String ADMIN = 'administrador';
   static const String SELLER = 'vendedor';
+  static const String TECHNICIAN = 'tecnico';
   static const String CLIENT = 'cliente';
 
   static final RoleService _instance = RoleService._internal();
@@ -26,6 +27,8 @@ class RoleService {
         if (role == 'administrador') return ADMIN;
         if (role == 'seller') return SELLER;
         if (role == 'vendedor') return SELLER;
+        if (role == 'technician') return TECHNICIAN;
+        if (role == 'tecnico') return TECHNICIAN;
         if (role == 'client') return CLIENT;
         if (role == 'cliente') return CLIENT;
 
@@ -42,6 +45,14 @@ class RoleService {
   Future<bool> isAdmin(String uid) async {
     final role = await getUserRole(uid);
     return role == ADMIN;
+  }
+
+  /// Verifica si el usuario es técnico
+  Future<bool> isTechnician(String uid) async {
+    final role = await getUserRole(uid);
+    return role == TECHNICIAN ||
+        role ==
+            ADMIN; // Admins also have technician access usually, or strictly TECHNICIAN
   }
 
   /// Verifica si el usuario puede gestionar productos (vendedor o admin)
@@ -74,7 +85,10 @@ class RoleService {
       }
 
       // Validar el nuevo rol
-      if (newRole != ADMIN && newRole != SELLER && newRole != CLIENT) {
+      if (newRole != ADMIN &&
+          newRole != SELLER &&
+          newRole != TECHNICIAN &&
+          newRole != CLIENT) {
         throw Exception('Rol inválido: $newRole');
       }
 
@@ -124,6 +138,8 @@ class RoleService {
         return 'Administrador';
       case SELLER:
         return 'Vendedor';
+      case TECHNICIAN:
+        return 'Técnico';
       case CLIENT:
         return 'Cliente';
       default:
@@ -138,6 +154,8 @@ class RoleService {
         return '👑';
       case SELLER:
         return '💼';
+      case TECHNICIAN:
+        return '🔧';
       case CLIENT:
         return '👤';
       default:
@@ -152,6 +170,8 @@ class RoleService {
         return 'Acceso completo: gestionar usuarios, productos, servicios y pedidos';
       case SELLER:
         return 'Gestionar productos, servicios y ver todos los pedidos';
+      case TECHNICIAN:
+        return 'Gestionar reservas, contactar clientes y registrar reparaciones';
       case CLIENT:
         return 'Comprar productos, reservar servicios y ver pedidos propios';
       default:
