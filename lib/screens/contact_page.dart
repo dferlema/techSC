@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
@@ -21,7 +22,7 @@ class ContactPage extends StatelessWidget {
   }
 
   Future<void> _sendEmail() async {
-    final Uri url = Uri.parse('mailto:contacto@techsc.com');
+    final Uri url = Uri.parse('mailto:techservicecomputer@hotmail.com');
     if (!await launchUrl(url)) {
       debugPrint('No se pudo abrir el correo');
     }
@@ -29,220 +30,333 @@ class ContactPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final theme = Theme.of(context); // Unused
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: Navigator.canPop(context)
-            ? IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios_new,
-                  color: Colors.black87,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu, color: Colors.black87),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 10),
-            // 👋 Friendly Header
-            const Text(
-              '¡Hola! 👋',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '¿En qué podemos ayudarte hoy?',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // 💬 WhatsApp Highlight (Hero Interaction)
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [const Color(0xFF25D366), const Color(0xFF128C7E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF25D366).withOpacity(0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+      backgroundColor: colorScheme.background,
+      body: CustomScrollView(
+        slivers: [
+          _buildSliverAppBar(context, colorScheme),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 20,
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.chat, size: 48, color: Colors.white),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Chat Directo',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
+                  _buildHeader(colorScheme),
+                  const SizedBox(height: 32),
+                  _buildWhatsAppHero(context, colorScheme),
+                  const SizedBox(height: 40),
+                  Text(
+                    'Otros canales de atención',
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'La forma más rápida de obtener respuestas.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _launchWhatsApp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF128C7E),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Iniciar Chat',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 16),
+                  _buildContactOptions(colorScheme),
+                  const SizedBox(height: 48),
+                  _buildFooter(theme),
                 ],
               ),
             ),
-
-            const SizedBox(height: 40),
-
-            // ℹ️ Other Contact Options
-            const Text(
-              'Otras formas de contactarnos',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            _buildFriendlyOption(
-              icon: Icons.phone_in_talk_rounded,
-              color: Colors.blueAccent,
-              title: 'Llámanos',
-              subtitle: _whatsappNumber,
-              onTap: _makePhoneCall,
-            ),
-            const SizedBox(height: 16),
-            _buildFriendlyOption(
-              icon: Icons.mail_rounded,
-              color: Colors.orangeAccent,
-              title: 'Envíanos un correo',
-              subtitle: 'contacto@techsc.com',
-              onTap: _sendEmail,
-            ),
-            const SizedBox(height: 16),
-            _buildFriendlyOption(
-              icon: Icons.store_rounded,
-              color: Colors.purpleAccent,
-              title: 'Visítanos',
-              subtitle: 'Av. Principal 123, Quito',
-              onTap: () {}, // Map implementation later
-            ),
-
-            const SizedBox(height: 48),
-            Center(
-              child: Text(
-                'TechService Pro v2.1',
-                style: TextStyle(color: Colors.grey[400], fontSize: 12),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFriendlyOption({
+  Widget _buildSliverAppBar(BuildContext context, ColorScheme colorScheme) {
+    return SliverAppBar(
+      expandedHeight: 0,
+      floating: true,
+      backgroundColor: colorScheme.background,
+      elevation: 0,
+      leading: Navigator.canPop(context)
+          ? IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                color: colorScheme.primary,
+                size: 20,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          : IconButton(
+              icon: Icon(Icons.menu, color: colorScheme.primary),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+    );
+  }
+
+  Widget _buildHeader(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '¡Hola! 👋',
+          style: TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.w900,
+            color: colorScheme.primary,
+            letterSpacing: -1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '¿Cómo podemos ayudarte hoy?',
+          style: TextStyle(
+            fontSize: 20,
+            color: colorScheme.onSurface.withOpacity(0.6),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWhatsAppHero(BuildContext context, ColorScheme colorScheme) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [colorScheme.primary, colorScheme.primary.withBlue(200)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withOpacity(0.3),
+            blurRadius: 25,
+            offset: const Offset(0, 15),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -20,
+            right: -20,
+            child: Icon(
+              Icons.bolt_rounded,
+              size: 150,
+              color: Colors.white.withOpacity(0.1),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(28.0),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: SvgPicture.network(
+                    'https://static.whatsapp.net/rsrc.php/yZ/r/JvsnINJ2CZv.svg',
+                    width: 50,
+                    height: 50,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                    placeholderBuilder: (context) => const Icon(
+                      Icons.chat_bubble_rounded,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Asistencia Inmediata',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Resolvemos tus dudas técnicas por WhatsApp en tiempo real.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _launchWhatsApp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 18,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Iniciar Chat Ahora',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactOptions(ColorScheme colorScheme) {
+    return Column(
+      children: [
+        _buildModernOption(
+          icon: Icons.phone_forwarded_rounded,
+          color: Colors.blue,
+          title: 'Línea Directa',
+          subtitle: _whatsappNumber,
+          onTap: _makePhoneCall,
+          colorScheme: colorScheme,
+        ),
+        const SizedBox(height: 16),
+        _buildModernOption(
+          icon: Icons.alternate_email_rounded,
+          color: Colors.orange,
+          title: 'Correo Electrónico',
+          subtitle: 'techservicecomputer@hotmail.com',
+          onTap: _sendEmail,
+          colorScheme: colorScheme,
+        ),
+        const SizedBox(height: 16),
+        _buildModernOption(
+          icon: Icons.location_on_rounded,
+          color: Colors.redAccent,
+          title: 'Ubicación Central',
+          subtitle: 'De los Guabos n47-313, Quito',
+          onTap: () {},
+          colorScheme: colorScheme,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModernOption({
     required IconData icon,
     required Color color,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    required ColorScheme colorScheme,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colorScheme.outline.withOpacity(0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.black87,
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withOpacity(0.5),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: colorScheme.onSurface.withOpacity(0.2),
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter(ThemeData theme) {
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Estamos disponibles 24/7 para ti',
+              style: TextStyle(
+                color: theme.colorScheme.primary.withOpacity(0.6),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.grey[400]),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'TechService Pro v2.1.1',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withOpacity(0.3),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }

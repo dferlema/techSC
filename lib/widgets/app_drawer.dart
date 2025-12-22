@@ -14,14 +14,20 @@ class AppDrawer extends StatelessWidget {
   });
 
   void _navigateTo(BuildContext context, String route) {
-    if (route != '/main' && route != currentRoute) {
+    if (route == '/products' ||
+        route == '/admin' ||
+        route == '/technician' ||
+        route == '/contact' ||
+        route == '/my-reservations') {
+      if (currentRoute == route) {
+        Navigator.pop(context);
+        return;
+      }
       Navigator.pushReplacementNamed(context, route);
       return;
     }
 
-    if (route == '/home' ||
-        route == '/products' ||
-        route == '/reserve-service') {
+    if (route == '/home' || route == '/reserve-service') {
       Navigator.pushReplacementNamed(context, '/main', arguments: route);
       return;
     }
@@ -155,6 +161,13 @@ class AppDrawer extends StatelessWidget {
                 return const SizedBox.shrink();
               },
             ),
+          ListTile(
+            leading: const Icon(Icons.history, color: Colors.indigo),
+            title: const Text('Mis Reservas'),
+            selected: currentRoute == '/my-reservations',
+            selectedTileColor: Colors.indigo[50],
+            onTap: () => _navigateTo(context, '/my-reservations'),
+          ),
           ListTile(
             leading: const Icon(Icons.receipt_long, color: Colors.blue),
             title: const Text('Mis Pedidos'),

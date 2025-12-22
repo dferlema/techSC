@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../models/reservation_model.dart';
 import '../services/auth_service.dart';
+import '../services/role_service.dart';
 
 class ReservationDetailPage extends StatefulWidget {
   final ReservationModel reservation;
@@ -20,6 +22,7 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
   late TextEditingController _costController;
   late TextEditingController _partsController;
   late String _currentStatus;
+  String _userRole = RoleService.CLIENT; // Default to client
   bool _isLoading = false;
 
   @override
@@ -38,6 +41,19 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
       text: widget.reservation.spareParts,
     );
     _currentStatus = widget.reservation.status;
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final user = AuthService().currentUser;
+    if (user != null) {
+      final role = await RoleService().getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _userRole = role;
+        });
+      }
+    }
   }
 
   @override
@@ -115,27 +131,25 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
   }
 
   Future<void> _launchWhatsApp() async {
-    // Basic cleaning of phone number (remove leading 0 if 10 digits, add country code)
-    // Assuming Ecuador (+593) based on context (coordinates/currency implies basic integration)
-    String phone = widget.reservation.clientPhone;
-    if (phone.startsWith('0')) {
-      phone = phone.substring(1);
+    String phone = widget.reservation.clientPhone.replaceAll(RegExp(r'\D'), '');
+
+    // Add default country code if missing (assuming Ecuador +593 if starts with 0 or has 9 digits)
+    if (phone.length == 9 && phone.startsWith('9')) {
+      phone = '593$phone';
+    } else if (phone.length == 10 && phone.startsWith('0')) {
+      phone = '593${phone.substring(1)}';
     }
-    const countryCode = '593';
-    final fullPhone = '$countryCode$phone';
 
     final message = Uri.encodeComponent(
       'Hola ${widget.reservation.clientName}, soy el técnico asignado a su caso de ${widget.reservation.device}...',
     );
 
-    final url = Uri.parse('https://wa.me/$fullPhone?text=$message');
+    // Using the official universal link format
+    final url = Uri.parse('https://wa.me/$phone?text=$message');
 
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'No se pudo abrir WhatsApp';
-      }
+      // For mobile apps, externalApplication mode is preferred for WhatsApp
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -150,13 +164,17 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle de Reserva'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _saveTechDetails,
-            tooltip: 'Guardar cambios',
-          ),
-        ],
+        actions:
+            _userRole == RoleService.TECHNICIAN ||
+                _userRole == RoleService.ADMIN
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.save),
+                  onPressed: _saveTechDetails,
+                  tooltip: 'Guardar cambios',
+                ),
+              ]
+            : null,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -171,16 +189,18 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
                   const SizedBox(height: 20),
                   _buildServiceInfoCard(),
                   const SizedBox(height: 20),
-                  const Divider(),
                   const SizedBox(height: 10),
                   const Text(
-                    'Gestión Técnica',
+                    'Gestión y Seguimiento',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   _buildTechForm(),
                   const SizedBox(height: 30),
-                  _buildActionButtons(),
+                  _userRole == RoleService.TECHNICIAN ||
+                          _userRole == RoleService.ADMIN
+                      ? _buildActionButtons()
+                      : _buildClientActionButtons(),
                 ],
               ),
             ),
@@ -196,14 +216,16 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
       case 'confirmado':
         color = Colors.blue;
         break;
-      case 'rechazado':
-        color = Colors.red;
-        break;
       case 'en_proceso':
         color = Colors.purple;
         break;
       case 'completado':
+      case 'aprobado':
         color = Colors.green;
+        break;
+      case 'rechazado':
+      case 'cancelado':
+        color = Colors.red;
         break;
       default:
         color = Colors.grey;
@@ -244,11 +266,22 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
                   'Datos del Cliente',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.phone, color: Colors.green),
-                  onPressed: _launchWhatsApp,
-                  tooltip: 'Contactar por WhatsApp',
-                ),
+                if (_userRole == RoleService.TECHNICIAN ||
+                    _userRole == RoleService.ADMIN)
+                  InkWell(
+                    onTap: _launchWhatsApp,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: SvgPicture.network(
+                        'https://static.whatsapp.net/rsrc.php/yZ/r/JvsnINJ2CZv.svg',
+                        width: 32,
+                        height: 32,
+                        placeholderBuilder: (BuildContext context) =>
+                            const Icon(Icons.phone, color: Colors.green),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const Divider(),
@@ -294,6 +327,31 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
   }
 
   Widget _buildTechForm() {
+    if (_userRole != RoleService.TECHNICIAN && _userRole != RoleService.ADMIN) {
+      return Column(
+        children: [
+          _buildInfoRow(
+            'Comentarios:',
+            widget.reservation.technicianComments ?? 'Pendiente',
+          ),
+          _buildInfoRow(
+            'Solución:',
+            widget.reservation.solution ?? 'Pendiente',
+          ),
+          _buildInfoRow(
+            'Costo:',
+            widget.reservation.repairCost != null
+                ? '\$${widget.reservation.repairCost}'
+                : 'Pendiente',
+          ),
+          _buildInfoRow(
+            'Repuestos:',
+            widget.reservation.spareParts ?? 'Ninguno',
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         TextField(
@@ -402,6 +460,55 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
               ),
             ],
           ),
+      ],
+    );
+  }
+
+  Widget _buildClientActionButtons() {
+    // Only show if there's a cost and technical comments (implying a diagnosis was made)
+    // and status is not already finalized/cancelled
+    bool canAct =
+        (_currentStatus == 'pendiente' ||
+            _currentStatus == 'confirmado' ||
+            _currentStatus == 'en_proceso') &&
+        widget.reservation.repairCost != null;
+
+    if (!canAct) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        const Text(
+          '¿Deseas proceder con el trabajo propuesto?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _updateStatus('cancelado'),
+                icon: const Icon(Icons.close),
+                label: const Text('Rechazar Trabajo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[50],
+                  foregroundColor: Colors.red,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _updateStatus('aprobado'),
+                icon: const Icon(Icons.thumb_up),
+                label: const Text('Aprobar Trabajo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[50],
+                  foregroundColor: Colors.green,
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

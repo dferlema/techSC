@@ -34,6 +34,11 @@ class _ProductsPageState extends State<ProductsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _categoryIds.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
     _checkUserRole();
   }
 
@@ -319,117 +324,137 @@ class _ProductsPageState extends State<ProductsPage>
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: _categoryIds.length,
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-          actions: [
-            // 🛒 Botón del Carrito con Badge
-            AnimatedBuilder(
-              animation: CartService.instance,
-              builder: (context, child) {
-                final itemCount = CartService.instance.itemCount;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        Icons.shopping_cart,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CartPage(),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/main');
+            }
+          },
+        ),
+        actions: [
+          // 🛒 Botón del Carrito con Badge
+          AnimatedBuilder(
+            animation: CartService.instance,
+            builder: (context, child) {
+              final itemCount = CartService.instance.itemCount;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart, color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CartPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (itemCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '$itemCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
-                        );
-                      },
-                    ),
-                    if (itemCount > 0)
-                      Positioned(
-                        right: 8,
-                        top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            '$itemCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                  ],
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nuestros Productos',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'Encuentra las mejores computadoras, accesorios y repuestos',
+              style: TextStyle(fontSize: 13, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+      // drawer: AppDrawer(currentRoute: widget.routeName), // Removido
+      body: TabBarView(
+        controller: _tabController,
+        children: _categoryIds.values.map((id) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _buildProductList(id),
+          );
+        }).toList(),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tabController.index,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _tabController.animateTo(index);
+          });
+        },
+        destinations: const <NavigationDestination>[
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view),
+            label: 'Todos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.computer_outlined),
+            selectedIcon: Icon(Icons.computer),
+            label: 'Computadoras',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.headphones_outlined),
+            selectedIcon: Icon(Icons.headphones),
+            label: 'Accesorios',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.memory_outlined),
+            selectedIcon: Icon(Icons.memory),
+            label: 'Repuestos',
+          ),
+        ],
+      ),
+      // 👇 Botones flotantes SOLO para administradores/vendedores
+      floatingActionButton: _canManage
+          ? FloatingActionButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Crear nuevo producto')),
                 );
               },
-            ),
-            const SizedBox(width: 8),
-          ],
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nuestros Productos',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'Encuentra las mejores computadoras, accesorios y repuestos',
-                style: TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-            ],
-          ),
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            indicatorWeight: 3,
-            tabs: _categoryIds.keys
-                .map((category) => Tab(text: category))
-                .toList(),
-          ),
-        ),
-        // drawer: AppDrawer(currentRoute: widget.routeName), // Removido
-        body: TabBarView(
-          controller: _tabController,
-          children: _categoryIds.values.map((id) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildProductList(id),
-            );
-          }).toList(),
-        ),
-        // 👇 Botones flotantes SOLO para administradores/vendedores
-        floatingActionButton: _canManage
-            ? FloatingActionButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Crear nuevo producto')),
-                  );
-                },
-                child: const Icon(Icons.add),
-              )
-            : null,
-      ),
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

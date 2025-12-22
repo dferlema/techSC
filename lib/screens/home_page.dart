@@ -1,10 +1,26 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-// import 'package:techsc/widgets/app_drawer.dart'; // Ya no se usa aquí directamente
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final String routeName;
   const HomePage({super.key, this.routeName = '/home'});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +34,6 @@ class HomePage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.menu, color: Colors.white),
           onPressed: () {
-            // Abre el Drawer del Scaffold padre (MainTabsScreen)
             Scaffold.of(context).openDrawer();
           },
         ),
@@ -36,22 +51,16 @@ class HomePage extends StatelessWidget {
           ],
         ),
       ),
-      // drawer: AppDrawer(currentRoute: routeName), // Removido
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Sección 1: Hero / Sobre Nosotros
-            _buildHeroSection(context),
+            // Sección 1: Carrusel Dinámico
+            _buildCarouselSection(context),
 
             const SizedBox(height: 24),
 
             // Sección 2: Estadísticas
             _buildStatsSection(context),
-
-            const SizedBox(height: 32),
-
-            // Sección 3: Servicios / CTA Productos
-            _buildProductCTA(context),
 
             const SizedBox(height: 32),
 
@@ -75,10 +84,32 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Widget _buildCarouselSection(BuildContext context) {
+    return SizedBox(
+      height: 250,
+      width: double.infinity,
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('banners').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return _buildHeroSection(context);
+          }
+
+          return BannerCarousel(banners: snapshot.data!.docs);
+        },
+      ),
+    );
+  }
+
   Widget _buildHeroSection(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
+      height: 250,
       decoration: BoxDecoration(
         color: colorScheme.primary,
         borderRadius: const BorderRadius.only(
@@ -96,6 +127,7 @@ class HomePage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 10),
           Text(
@@ -177,94 +209,6 @@ class HomePage extends StatelessWidget {
         ),
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
-    );
-  }
-
-  Widget _buildProductCTA(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [colorScheme.primary, colorScheme.primary.withOpacity(0.7)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.3),
-              blurRadius: 10,
-              offset: Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              Navigator.pushReplacementNamed(
-                context,
-                '/main',
-                arguments: '/products',
-              );
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Nuestros Productos',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Equipos y accesorios de última tecnología.',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Text(
-                            'Ver Catálogo',
-                            style: TextStyle(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.shopping_bag_outlined,
-                    color: Colors.white,
-                    size: 60,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -481,6 +425,114 @@ class HomePage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class BannerCarousel extends StatefulWidget {
+  final List<QueryDocumentSnapshot> banners;
+  const BannerCarousel({super.key, required this.banners});
+
+  @override
+  State<BannerCarousel> createState() => _BannerCarouselState();
+}
+
+class _BannerCarouselState extends State<BannerCarousel> {
+  late PageController _pageController;
+  Timer? _timer;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Determinamos un punto medio que sea múltiplo del número de banners
+    // para que la imagen inicial sea la del índice 0.
+    final int middle = 5000;
+    final int initialPage = middle - (middle % widget.banners.length);
+    _pageController = PageController(initialPage: initialPage);
+    _startAutoPlay();
+  }
+
+  @override
+  void didUpdateWidget(BannerCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.banners.length != widget.banners.length) {
+      _startAutoPlay();
+    }
+  }
+
+  void _startAutoPlay() {
+    _timer?.cancel();
+    if (widget.banners.length <= 1) return;
+
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_pageController.hasClients) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: 10000,
+          onPageChanged: (index) {
+            setState(() {
+              _currentPage = index % widget.banners.length;
+            });
+          },
+          itemBuilder: (context, index) {
+            final banner = widget.banners[index % widget.banners.length];
+            final data = banner.data() as Map<String, dynamic>;
+            return Image.network(
+              data['imageUrl'] ?? '',
+              fit: BoxFit.cover,
+              width: double.infinity,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.grey,
+                child: const Center(
+                  child: Icon(Icons.broken_image, color: Colors.white),
+                ),
+              ),
+            );
+          },
+        ),
+        // Indicadores
+        Positioned(
+          bottom: 16,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(widget.banners.length, (index) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                width: _currentPage == index ? 12 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentPage == index
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.white.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 }

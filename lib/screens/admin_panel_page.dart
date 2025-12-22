@@ -42,7 +42,12 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   void initState() {
     super.initState();
     _checkRole(); // 👈 Cargar rol al iniciar
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
     _searchController = TextEditingController();
 
     // Limpiar búsqueda al cambiar de pestaña
@@ -876,80 +881,274 @@ class _AdminPanelPageState extends State<AdminPanelPage>
       );
     }
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        drawer: AppDrawer(
-          currentRoute: '/admin',
-          userName:
-              FirebaseAuth.instance.currentUser?.displayName ?? 'Administrador',
+    return Scaffold(
+      drawer: AppDrawer(
+        currentRoute: '/admin',
+        userName:
+            FirebaseAuth.instance.currentUser?.displayName ?? 'Administrador',
+      ),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Panel de Administración',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Gestiona clientes, productos, servicios y banners',
+              style: TextStyle(fontSize: 13, color: Colors.white70),
+            ),
+          ],
         ),
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Panel de Administración',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      ),
+      body: _buildBody(),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tabController.index,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _tabController.animateTo(index);
+          });
+        },
+        destinations: const <NavigationDestination>[
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Clientes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: 'Productos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.build_outlined),
+            selectedIcon: Icon(Icons.build),
+            label: 'Servicios',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Pedidos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.image_outlined),
+            selectedIcon: Icon(Icons.image),
+            label: 'Banners',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return TabBarView(
+      controller: _tabController,
+      physics:
+          const NeverScrollableScrollPhysics(), // Disable swipe to avoid conflict with bottom nav logic if wanted, or keep it.
+      // Actually, if I use TabController, I need to listen to it to update NavBar.
+      // Better to just use PageView or IndexedStack.
+      // Let's stick to using the existing TabController for minimal refactor of logic, but update UI.
+      // To sync TabController and NavBar, I need setState in listener.
+      children: [
+        // 1. Clientes
+        _isAdminRole
+            ? _buildClientsTab()
+            : const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.security, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text('Solo administradores pueden gestionar clientes'),
+                  ],
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Gestiona clientes, productos y servicios',
-                style: TextStyle(fontSize: 13, color: Colors.white70),
-              ),
-            ],
-          ),
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
-            indicatorWeight: 3,
-            tabs: const [
-              Tab(text: 'Clientes'),
-              Tab(text: 'Productos'),
-              Tab(text: 'Servicios'),
-              Tab(text: 'Pedidos'), // Added Pedidos tab
-            ],
-          ),
+        // 2. Productos
+        _buildTabContent(
+          collection: 'products',
+          builder: _buildProductCard,
+          addButtonLabel: 'Agregar Producto',
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            // 👤 Clientes (versión mejorada)
-            _isAdminRole
-                ? _buildClientsTab()
-                : const Center(
+        // 3. Servicios
+        _buildTabContent(
+          collection: 'services',
+          builder: _buildServiceCard,
+          addButtonLabel: 'Agregar Servicio',
+        ),
+        // 4. Pedidos
+        _buildOrdersTab(),
+        // 5. Banners
+        _buildBannersTab(),
+      ],
+    );
+  }
+
+  // 🖼️ Tab de Banners
+  Widget _buildBannersTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          // Input para agregar banner
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Agregar Nuevo Banner',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller:
+                              _searchController, // Reusing controller for URL input temporarily
+                          decoration: const InputDecoration(
+                            labelText: 'URL de la Imagen',
+                            hintText: 'https://ejemplo.com/imagen.jpg',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.link),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final url = _searchController.text.trim();
+                          if (url.isNotEmpty) {
+                            await FirebaseFirestore.instance
+                                .collection('banners')
+                                .add({
+                                  'imageUrl': url,
+                                  'createdAt': FieldValue.serverTimestamp(),
+                                });
+                            _searchController.clear();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Banner agregado'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.add_photo_alternate),
+                        label: const Text('Agregar'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Banners Activos',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Lista de banners
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('banners')
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.data!.docs.isEmpty) {
+                  return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.security, size: 64, color: Colors.grey),
+                        Icon(
+                          Icons.image_not_supported,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 16),
-                        Text('Solo administradores pueden gestionar clientes'),
+                        Text(
+                          'No hay banners activos',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
+                  );
+                }
+
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 1, // Full width items for better view
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 16 / 9,
                   ),
-            // 🛒 Productos
-            _buildTabContent(
-              collection: 'products',
-              builder: _buildProductCard,
-              addButtonLabel: 'Agregar Producto',
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = snapshot.data!.docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            data['imageUrl'] ?? '',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey[200],
+                              child: const Icon(
+                                Icons.broken_image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white.withOpacity(0.8),
+                            child: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () =>
+                                  _deleteDocument('banners', doc.id),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
             ),
-            // 🛠️ Servicios
-            _buildTabContent(
-              collection: 'services',
-              builder: _buildServiceCard,
-              addButtonLabel: 'Agregar Servicio',
-            ),
-            // 📦 Pedidos
-            _buildOrdersTab(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

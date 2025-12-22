@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_drawer.dart';
 import 'home_page.dart';
-import 'products_page.dart';
 import 'service_reservation_page.dart';
 
 import 'contact_page.dart'; // Import
@@ -24,9 +23,8 @@ class _MainTabsScreenState extends State<MainTabsScreen>
 
   final List<Widget> _screens = [
     const HomePage(), // Índice 0 → Inicio
-    const ProductsPage(), // Índice 1 → Productos
-    const ServiceReservationPage(), // Índice 2 → Reservar
-    const ContactPage(), // Índice 3 → Contacto
+    const ServiceReservationPage(), // Índice 1 → Reservar
+    const ContactPage(), // Índice 2 → Contacto
   ];
 
   bool _isInit = true;
@@ -79,12 +77,10 @@ class _MainTabsScreenState extends State<MainTabsScreen>
   // Convierte ruta a índice
   int _routeToIndex(String route) {
     switch (route) {
-      case '/products':
-        return 1;
       case '/reserve-service':
-        return 2;
+        return 1;
       case '/contact':
-        return 3;
+        return 2;
       default:
         return 0; // /home
     }
@@ -94,10 +90,8 @@ class _MainTabsScreenState extends State<MainTabsScreen>
   String _indexToRoute(int index) {
     switch (index) {
       case 1:
-        return '/products';
-      case 2:
         return '/reserve-service';
-      case 3:
+      case 2:
         return '/contact';
       default:
         return '/home';
@@ -144,11 +138,6 @@ class _MainTabsScreenState extends State<MainTabsScreen>
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
             label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.computer_outlined),
-            activeIcon: Icon(Icons.computer),
-            label: 'Productos',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.build_outlined),
