@@ -15,6 +15,7 @@ class AppDrawer extends StatelessWidget {
 
   void _navigateTo(BuildContext context, String route) {
     if (route == '/products' ||
+        route == '/services' ||
         route == '/admin' ||
         route == '/technician' ||
         route == '/contact' ||
@@ -90,6 +91,13 @@ class AppDrawer extends StatelessWidget {
             selected: currentRoute == '/products',
             selectedTileColor: Colors.blue[50],
             onTap: () => _navigateTo(context, '/products'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.build_circle),
+            title: const Text('Nuestros Servicios'),
+            selected: currentRoute == '/services',
+            selectedTileColor: Colors.blue[50],
+            onTap: () => _navigateTo(context, '/services'),
           ),
           ListTile(
             leading: const Icon(Icons.build),

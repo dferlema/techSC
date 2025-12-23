@@ -1,22 +1,20 @@
-// lib/screens/products_page.dart
+// lib/screens/services_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/cart_service.dart';
-import '../services/role_service.dart'; // 👈 Nuevo
-import 'cart_page.dart';
-import 'product_detail_page.dart';
+import '../services/role_service.dart';
+import 'service_detail_page.dart';
 
-class ProductsPage extends StatefulWidget {
+class ServicesPage extends StatefulWidget {
   final String routeName;
-  const ProductsPage({super.key, this.routeName = '/products'});
+  const ServicesPage({super.key, this.routeName = '/services'});
 
   @override
-  State<ProductsPage> createState() => _ProductsPageState();
+  State<ServicesPage> createState() => _ServicesPageState();
 }
 
-class _ProductsPageState extends State<ProductsPage>
+class _ServicesPageState extends State<ServicesPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isSearching = false;
@@ -25,12 +23,12 @@ class _ProductsPageState extends State<ProductsPage>
 
   final Map<String, String> _categoryIds = {
     'Todos': '',
-    'Computadoras': 'computadoras',
-    'Accesorios': 'accesorios',
-    'Repuestos': 'repuestos',
+    'Reparación': 'reparacion',
+    'Instalación': 'instalacion',
+    'Diagnóstico': 'diagnostico',
+    'Mantenimiento': 'mantenimiento',
   };
 
-  // Permisos de gestión
   bool _canManage = false;
 
   @override
@@ -54,37 +52,30 @@ class _ProductsPageState extends State<ProductsPage>
   Future<void> _checkUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final canManage = await RoleService().canManageProducts(user.uid);
-      if (mounted) setState(() => _canManage = canManage);
+      final role = await RoleService().getUserRole(user.uid);
+      if (mounted) {
+        setState(
+          () => _canManage =
+              (role == RoleService.ADMIN || role == RoleService.TECHNICIAN),
+        );
+      }
     }
   }
 
-  void _addToCart(Map<String, dynamic>? product) {
-    if (product == null) return;
-
-    CartService.instance.addToCart(product);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('✅ ${product['name']} agregado al carrito')),
-    );
-  }
-
-  // 🗑️ Eliminar producto
-  Future<void> _deleteProduct(String productId) async {
+  Future<void> _deleteService(String serviceId) async {
     await FirebaseFirestore.instance
-        .collection('products')
-        .doc(productId)
+        .collection('services')
+        .doc(serviceId)
         .delete();
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Producto eliminado')));
+    ).showSnackBar(const SnackBar(content: Text('Servicio eliminado')));
   }
 
-  // 🎨 Widget de tarjeta de producto (Rediseñado)
-  Widget _buildProductCard({
-    required Map<String, dynamic> product,
-    String? productId,
+  Widget _buildServiceCard({
+    required Map<String, dynamic> service,
+    String? serviceId,
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
@@ -96,17 +87,16 @@ class _ProductsPageState extends State<ProductsPage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🖼️ Imagen Centrada y Adaptada
             Center(
               child: GestureDetector(
                 onTap: () {
-                  if (productId != null) {
+                  if (serviceId != null) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => ProductDetailPage(
-                          product: product,
-                          productId: productId,
+                        builder: (context) => ServiceDetailPage(
+                          service: service,
+                          serviceId: serviceId,
                         ),
                       ),
                     );
@@ -120,18 +110,18 @@ class _ProductsPageState extends State<ProductsPage>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Hero(
-                    tag: 'product-image-${productId ?? "unknown"}',
+                    tag: 'service-image-${serviceId ?? "unknown"}',
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
-                        product['image'] ??
+                        service['imageUrl'] ??
                             'https://via.placeholder.com/300x200?text=Sin+Imagen',
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => Container(
                           color: Colors.grey[100],
                           child: const Center(
                             child: Icon(
-                              Icons.image_not_supported,
+                              Icons.build_circle_outlined,
                               size: 50,
                               color: Colors.grey,
                             ),
@@ -144,14 +134,12 @@ class _ProductsPageState extends State<ProductsPage>
               ),
             ),
             const SizedBox(height: 16),
-
-            // 📝 Información del Producto
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
-                    product['name'] ?? 'Sin nombre',
+                    service['title'] ?? 'Sin nombre',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -159,7 +147,6 @@ class _ProductsPageState extends State<ProductsPage>
                     ),
                   ),
                 ),
-                // ⭐ Rating
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -174,7 +161,7 @@ class _ProductsPageState extends State<ProductsPage>
                       const Icon(Icons.star, size: 16, color: Colors.amber),
                       const SizedBox(width: 4),
                       Text(
-                        '${product['rating'] ?? 4.5}',
+                        '${service['rating'] ?? 4.8}',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -187,12 +174,10 @@ class _ProductsPageState extends State<ProductsPage>
               ],
             ),
             const SizedBox(height: 8),
-
-            // 📄 Descripción
-            if (product['description'] != null &&
-                product['description'].toString().isNotEmpty) ...[
+            if (service['description'] != null &&
+                service['description'].toString().isNotEmpty) ...[
               Text(
-                product['description'],
+                service['description'],
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -203,41 +188,43 @@ class _ProductsPageState extends State<ProductsPage>
               ),
               const SizedBox(height: 8),
             ],
-
-            Text(
-              product['specs'] ?? '',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-
+            if (service['duration'] != null)
+              Text(
+                'Estimado: ${service['duration']}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-
-            // 💰 Precio y Acciones
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '\$${product['price'] ?? 0}',
+                  '\$${service['price'] ?? 0}',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
-
-                // 👇 Botones de Acción
                 if (!_canManage)
-                  ElevatedButton.icon(
-                    onPressed: () => _addToCart(product),
-                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                    label: const Text('Agregar'),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (serviceId != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ServiceDetailPage(
+                              service: service,
+                              serviceId: serviceId,
+                            ),
+                          ),
+                        );
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
-                      elevation: 2,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 10,
@@ -246,13 +233,13 @@ class _ProductsPageState extends State<ProductsPage>
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
+                    child: const Text('Ver Detalles'),
                   )
-                else if (productId != null)
+                else if (serviceId != null)
                   Row(
                     children: [
                       IconButton(
                         onPressed: () {
-                          // Navegar a editar (esto requeriría importar ProductFormPage o similar)
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Usa el Panel Admin para editar'),
@@ -260,12 +247,10 @@ class _ProductsPageState extends State<ProductsPage>
                           );
                         },
                         icon: const Icon(Icons.edit, color: Colors.blue),
-                        tooltip: 'Editar',
                       ),
                       IconButton(
-                        onPressed: () => _deleteProduct(productId),
+                        onPressed: () => _deleteService(serviceId),
                         icon: const Icon(Icons.delete, color: Colors.red),
-                        tooltip: 'Eliminar',
                       ),
                     ],
                   ),
@@ -277,35 +262,35 @@ class _ProductsPageState extends State<ProductsPage>
     );
   }
 
-  // 📦 Lista de productos (por categoría y búsqueda)
-  Widget _buildProductList(String categoryId) {
+  Widget _buildServiceList(String type) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      stream: FirebaseFirestore.instance.collection('services').snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final allProducts = snapshot.data!.docs.map((doc) {
+        final allServices = snapshot.data!.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
           return {...data, 'id': doc.id};
         }).toList();
 
-        // 1. Filtrar por categoría (si no es "Todos")
-        var filtered = categoryId.isEmpty
-            ? allProducts
-            : allProducts.where((p) => p['category'] == categoryId).toList();
+        // 1. Filtrar por tipo (si no es "Todos")
+        var filtered = type.isEmpty
+            ? allServices
+            : allServices.where((s) => s['type'] == type).toList();
 
         // 2. Filtrar por búsqueda inteligente
         if (_searchQuery.isNotEmpty) {
           final query = _searchQuery.toLowerCase();
-          filtered = filtered.where((p) {
-            final name = (p['name'] ?? '').toString().toLowerCase();
-            final desc = (p['description'] ?? '').toString().toLowerCase();
-            final specs = (p['specs'] ?? '').toString().toLowerCase();
-            return name.contains(query) ||
+          filtered = filtered.where((s) {
+            final title = (s['title'] ?? '').toString().toLowerCase();
+            final desc = (s['description'] ?? '').toString().toLowerCase();
+            final components =
+                (s['components'] as List?)?.join(' ').toLowerCase() ?? '';
+            return title.contains(query) ||
                 desc.contains(query) ||
-                specs.contains(query);
+                components.contains(query);
           }).toList();
         }
 
@@ -314,10 +299,14 @@ class _ProductsPageState extends State<ProductsPage>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.inventory_2, size: 60, color: Colors.grey[400]),
+                Icon(
+                  Icons.build_circle_outlined,
+                  size: 60,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(height: 16),
                 const Text(
-                  'No hay productos en esta categoría',
+                  'No hay servicios en esta categoría',
                   style: TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               ],
@@ -328,10 +317,10 @@ class _ProductsPageState extends State<ProductsPage>
         return ListView.builder(
           itemCount: filtered.length,
           itemBuilder: (context, index) {
-            final product = filtered[index];
-            return _buildProductCard(
-              product: product,
-              productId: product['id'],
+            final service = filtered[index];
+            return _buildServiceCard(
+              service: service,
+              serviceId: service['id'],
             );
           },
         );
@@ -339,7 +328,6 @@ class _ProductsPageState extends State<ProductsPage>
     );
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -365,7 +353,7 @@ class _ProductsPageState extends State<ProductsPage>
                 controller: _searchController,
                 autofocus: true,
                 decoration: const InputDecoration(
-                  hintText: 'Buscar productos...',
+                  hintText: 'Buscar servicios...',
                   hintStyle: TextStyle(color: Colors.white70),
                   border: InputBorder.none,
                 ),
@@ -376,16 +364,16 @@ class _ProductsPageState extends State<ProductsPage>
                   });
                 },
               )
-            : Column(
+            : const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Nuestros Productos',
+                  Text(
+                    'Nuestros Servicios',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Encuentra las mejores computadoras, accesorios y repuestos',
+                  SizedBox(height: 2),
+                  Text(
+                    'Servicio técnico experto para tus dispositivos',
                     style: TextStyle(fontSize: 13, color: Colors.white70),
                   ),
                 ],
@@ -406,64 +394,14 @@ class _ProductsPageState extends State<ProductsPage>
               });
             },
           ),
-          // 🛒 Botón del Carrito con Badge
-          AnimatedBuilder(
-            animation: CartService.instance,
-            builder: (context, child) {
-              final itemCount = CartService.instance.itemCount;
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.shopping_cart, color: Colors.white),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CartPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  if (itemCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '$itemCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(width: 8),
         ],
       ),
-      // drawer: AppDrawer(currentRoute: widget.routeName), // Removido
       body: TabBarView(
         controller: _tabController,
         children: _categoryIds.values.map((id) {
           return Padding(
             padding: const EdgeInsets.all(16.0),
-            child: _buildProductList(id),
+            child: _buildServiceList(id),
           );
         }).toList(),
       ),
@@ -481,28 +419,32 @@ class _ProductsPageState extends State<ProductsPage>
             label: 'Todos',
           ),
           NavigationDestination(
-            icon: Icon(Icons.computer_outlined),
-            selectedIcon: Icon(Icons.computer),
-            label: 'Computadoras',
+            icon: Icon(Icons.build_outlined),
+            selectedIcon: Icon(Icons.build),
+            label: 'Reparación',
           ),
           NavigationDestination(
-            icon: Icon(Icons.headphones_outlined),
-            selectedIcon: Icon(Icons.headphones),
-            label: 'Accesorios',
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Instalación',
           ),
           NavigationDestination(
-            icon: Icon(Icons.memory_outlined),
-            selectedIcon: Icon(Icons.memory),
-            label: 'Repuestos',
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search),
+            label: 'Diagnóstico',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.handyman_outlined),
+            selectedIcon: Icon(Icons.handyman),
+            label: 'Mantenimiento',
           ),
         ],
       ),
-      // 👇 Botones flotantes SOLO para administradores/vendedores
       floatingActionButton: _canManage
           ? FloatingActionButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Crear nuevo producto')),
+                  const SnackBar(content: Text('Crear nuevo servicio')),
                 );
               },
               child: const Icon(Icons.add),

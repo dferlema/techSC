@@ -15,6 +15,7 @@ import 'theme/app_theme.dart';
 import 'screens/contact_page.dart';
 import 'screens/products_page.dart';
 import 'screens/my_reservations_page.dart';
+import 'screens/services_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,7 @@ class MyApp extends StatelessWidget {
         '/forgot-password': (context) => const ForgotPasswordPage(),
         '/home': (context) => const MainTabsScreen(),
         '/products': (context) => const ProductsPage(),
+        '/services': (context) => const ServicesPage(),
         '/reserve-service': (context) => const MainTabsScreen(),
         '/admin': (context) => const AdminPanelPage(),
         '/technician': (context) => const TechnicianDashboard(),
