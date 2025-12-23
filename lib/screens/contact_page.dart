@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../widgets/notification_icon.dart';
 
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
@@ -90,6 +93,10 @@ class ContactPage extends StatelessWidget {
               icon: Icon(Icons.menu, color: colorScheme.primary),
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
+      actions: [
+        NotificationIcon(color: colorScheme.primary),
+        const SizedBox(width: 8),
+      ],
     );
   }
 

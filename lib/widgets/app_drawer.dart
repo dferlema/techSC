@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/my_orders_page.dart';
+// import '../screens/notifications_page.dart'; // No longer needed here
 import '../services/role_service.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -189,6 +190,22 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
+          // Notification option moved to AppBar
+          // ListTile(
+          //   leading: const Icon(Icons.notifications, color: Colors.deepPurple),
+          //   title: const Text('Notificaciones'),
+          //   selected: currentRoute == '/notifications',
+          //   selectedTileColor: Colors.deepPurple[50],
+          //   onTap: () {
+          //     Navigator.pop(context); // Cerrar Drawer
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(
+          //         builder: (context) => const NotificationsPage(),
+          //       ),
+          //     );
+          //   },
+          // ),
           ListTile(
             leading: const Icon(Icons.support_agent, color: Colors.teal),
             title: const Text('Contáctanos'),

@@ -1,5 +1,3 @@
-// lib/screens/onboarding_screen.dart (versión actualizada)
-
 import 'package:flutter/material.dart';
 import '../utils/prefs.dart'; // 👈 Importamos
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/notification_icon.dart';
 
 class HomePage extends StatefulWidget {
   final String routeName;
@@ -50,6 +51,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+        actions: const [NotificationIcon(), SizedBox(width: 16)],
       ),
       body: SingleChildScrollView(
         child: Column(

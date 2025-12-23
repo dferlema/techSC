@@ -9,6 +9,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/notification_service.dart';
+import '../services/role_service.dart';
+import '../widgets/notification_icon.dart';
 // import '../widgets/app_drawer.dart';
 
 /// Pantalla para reservar servicio técnico.
@@ -409,6 +412,35 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
           .add(reservationData);
       final reservationId = docRef.id;
 
+      // Enviar notificación al usuario
+      if (_currentUser != null) {
+        await NotificationService().sendNotification(
+          title: 'Reserva Creada',
+          body: 'Tu reserva para ${_selectedService!} ha sido registrada.',
+          type: 'reservation',
+          relatedId: reservationId,
+          receiverId: _currentUser!.uid,
+        );
+      }
+
+      // Enviar notificación a administradores y técnicos
+      await NotificationService().sendNotification(
+        title: 'Nueva Reserva',
+        body:
+            'Nueva reserva de ${_nameController.text} para ${_selectedService!}',
+        type: 'reservation',
+        relatedId: reservationId,
+        receiverRole: RoleService.ADMIN,
+      );
+      await NotificationService().sendNotification(
+        title: 'Nueva Reserva',
+        body:
+            'Nueva reserva de ${_nameController.text} para ${_selectedService!}',
+        type: 'reservation',
+        relatedId: reservationId,
+        receiverRole: RoleService.TECHNICIAN,
+      );
+
       // 5. Generar PDF usando los datos locales + el ID generado
       final pdfBytes = await _generatePDF({
         ...reservationData,
@@ -552,17 +584,18 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             ),
           ],
         ),
-        actions: _isReservationStarted
-            ? [
-                TextButton(
-                  onPressed: _cancelReservation,
-                  child: const Text(
-                    'Cancelar',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ]
-            : null,
+        actions: [
+          if (_isReservationStarted)
+            TextButton(
+              onPressed: _cancelReservation,
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          const NotificationIcon(),
+          const SizedBox(width: 16),
+        ],
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),

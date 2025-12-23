@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/cart_item.dart';
+import 'notification_service.dart';
+import 'role_service.dart';
 
 class CartService extends ChangeNotifier {
   // Singleton pattern
@@ -96,7 +98,37 @@ class CartService extends ChangeNotifier {
     };
 
     // Guardar en Firestore
-    await FirebaseFirestore.instance.collection('orders').add(orderData);
+    final docRef = await FirebaseFirestore.instance
+        .collection('orders')
+        .add(orderData);
+
+    // Enviar notificación al usuario
+    await NotificationService().sendNotification(
+      title: 'Pedido Realizado',
+      body:
+          'Tu pedido por \$${orderTotal.toStringAsFixed(2)} ha sido recibido.',
+      type: 'order',
+      relatedId: docRef.id,
+      receiverId: user.uid,
+    );
+
+    // Enviar notificación a administradores y vendedores
+    await NotificationService().sendNotification(
+      title: 'Nuevo Pedido',
+      body:
+          'Nuevo pedido de ${user.email} por \$${orderTotal.toStringAsFixed(2)}',
+      type: 'order',
+      relatedId: docRef.id,
+      receiverRole: RoleService.ADMIN, // Broadcast to admins
+    );
+    await NotificationService().sendNotification(
+      title: 'Nuevo Pedido',
+      body:
+          'Nuevo pedido de ${user.email} por \$${orderTotal.toStringAsFixed(2)}',
+      type: 'order',
+      relatedId: docRef.id,
+      receiverRole: RoleService.SELLER, // Broadcast to sellers
+    );
 
     // Limpiar carrito
     clearCart();

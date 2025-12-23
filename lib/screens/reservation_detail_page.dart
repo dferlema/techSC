@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../models/reservation_model.dart';
 import '../services/auth_service.dart';
 import '../services/role_service.dart';
+import '../services/notification_service.dart';
 
 class ReservationDetailPage extends StatefulWidget {
   final ReservationModel reservation;
@@ -83,6 +84,37 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
           SnackBar(content: Text('Estado actualizado a $newStatus')),
         );
       }
+
+      // Notificaciones
+      // 1. Cliente aprueba/rechaza -> Notificar Técnico
+      if (newStatus == 'aprobado' || newStatus == 'cancelado') {
+        await NotificationService().sendNotification(
+          title: 'Trabajo ${newStatus.toUpperCase()}',
+          body:
+              'El cliente ha ${newStatus} el trabajo para ${widget.reservation.device}.',
+          type: 'authorization',
+          relatedId: widget.reservation.id,
+          receiverId:
+              widget.reservation.technicianId, // Si hay un técnico asignado
+          receiverRole: widget.reservation.technicianId == null
+              ? RoleService.TECHNICIAN
+              : null,
+        );
+      }
+
+      // 2. Técnico confirma/completa -> Notificar Cliente
+      if (newStatus == 'confirmado' ||
+          newStatus == 'completado' ||
+          newStatus == 'en_proceso') {
+        await NotificationService().sendNotification(
+          title: 'Actualización de Estado',
+          body:
+              'Tu reserva esta ahora: ${newStatus.replaceAll('_', ' ').toUpperCase()}',
+          type: 'reservation',
+          relatedId: widget.reservation.id,
+          receiverId: widget.reservation.userId,
+        );
+      }
     } catch (e) {
       debugPrint('Error updating status: $e');
       if (mounted) {
@@ -119,6 +151,16 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
           const SnackBar(content: Text('Detalles técnicos guardados')),
         );
       }
+
+      // Notificar al cliente que hay una actualización (diagnóstico/costo)
+      await NotificationService().sendNotification(
+        title: 'Diagnostico Actualizado',
+        body:
+            'Se han actualizado los detalles de tu reserva. Por favor revisa para autorizar.',
+        type: 'comment', // O 'authorization'
+        relatedId: widget.reservation.id,
+        receiverId: widget.reservation.userId,
+      );
     } catch (e) {
       debugPrint('Error saving details: $e');
       if (mounted) {
