@@ -196,22 +196,31 @@ class MyReservationsPage extends StatelessWidget {
     String label;
 
     switch (status) {
+      case 'pendiente':
+        color = Colors.orange;
+        label = 'Pendiente';
+        break;
+      case 'confirmado':
+        color = Colors.blue;
+        label = 'Confirmado';
+        break;
+      case 'en_proceso':
+        color = Colors.purple;
+        label = 'En Proceso';
+        break;
+      case 'aprobado':
       case 'completado':
         color = Colors.green;
-        label = 'Completado';
-        break;
-      case 'en proceso':
-        color = Colors.orange;
-        label = 'En Proceso';
+        label = status == 'aprobado' ? 'Aprobado' : 'Completado';
         break;
       case 'rechazado':
       case 'cancelado':
         color = Colors.red;
-        label = 'Cancelado';
+        label = status == 'rechazado' ? 'Rechazado' : 'Cancelado';
         break;
       default:
-        color = Colors.blue;
-        label = 'Pendiente';
+        color = Colors.grey;
+        label = status.toUpperCase();
     }
 
     return Container(

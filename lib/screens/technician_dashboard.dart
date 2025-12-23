@@ -18,11 +18,11 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
   final List<Widget> _pages = [
     const _ReservationList(status: ['pendiente']),
     const _ReservationList(
-      status: ['confirmado', 'en_proceso'],
+      status: ['confirmado', 'en_proceso', 'aprobado'],
       onlyMyJobs: true,
     ),
     const _ReservationList(
-      status: ['completado', 'rechazado'],
+      status: ['completado', 'rechazado', 'cancelado'],
       onlyMyJobs: true,
     ),
   ];
@@ -140,8 +140,10 @@ class _ReservationCard extends StatelessWidget {
       case 'en_proceso':
         return Colors.purple;
       case 'completado':
+      case 'aprobado':
         return Colors.green;
       case 'rechazado':
+      case 'cancelado':
         return Colors.red;
       default:
         return Colors.grey;

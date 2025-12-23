@@ -432,7 +432,9 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
               ),
             ],
           ),
-        if (_currentStatus == 'confirmado' || _currentStatus == 'en_proceso')
+        if (_currentStatus == 'confirmado' ||
+            _currentStatus == 'en_proceso' ||
+            _currentStatus == 'aprobado')
           Row(
             children: [
               Expanded(
