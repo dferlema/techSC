@@ -3,8 +3,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class MyOrdersPage extends StatelessWidget {
   const MyOrdersPage({super.key});
+
+  Future<void> _launchPaymentLink(
+    BuildContext context,
+    String urlString,
+  ) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el link de pago')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,109 +38,249 @@ class MyOrdersPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Pedidos'),
-        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('orders')
-            .where('userId', isEqualTo: user.uid)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Container(
+        color: Colors.grey[50], // Background color for better contrast
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('orders')
+              .where('userId', isEqualTo: user.uid)
+              // .where('useremail', isEqualTo: user.email) // REMOVED: Caused issues with casing
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No has realizado ningún pedido aún.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final date = (data['createdAt'] as Timestamp).toDate();
-              final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(date);
-              final status = data['status'] ?? 'pendiente';
-              final total = data['total'] ?? 0.0;
-              final items = (data['items'] as List<dynamic>? ?? []);
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ExpansionTile(
-                  leading: CircleAvatar(
-                    backgroundColor: _getStatusColor(status),
-                    child: const Icon(Icons.shopping_bag, color: Colors.white),
-                  ),
-                  title: Text(
-                    'Pedido #${doc.id.substring(0, 5).toUpperCase()}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text('$formattedDate - \$$total'),
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Estado: ${status.toUpperCase()}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _getStatusColor(status),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Divider(),
-                          const Text(
-                            'Productos:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          ...items.map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '${item['quantity']}x ${item['name']}',
-                                    ),
-                                  ),
-                                  Text(
-                                    '\$${(item['subtotal'] ?? 0).toStringAsFixed(2)}',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    Icon(
+                      Icons.shopping_bag_outlined,
+                      size: 80,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No has realizado ningún pedido aún.',
+                      style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               );
-            },
-          );
-        },
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: snapshot.data!.docs.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final doc = snapshot.data!.docs[index];
+                final data = doc.data() as Map<String, dynamic>;
+                return _OrderCard(
+                  docId: doc.id,
+                  data: data,
+                  onPay: (link) => _launchPaymentLink(context, link),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderCard extends StatelessWidget {
+  final String docId;
+  final Map<String, dynamic> data;
+  final Function(String) onPay;
+
+  const _OrderCard({
+    required this.docId,
+    required this.data,
+    required this.onPay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final date = (data['createdAt'] as Timestamp).toDate();
+    final formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(date);
+    final status = data['status'] ?? 'pendiente';
+    final total = (data['total'] ?? 0.0).toDouble();
+    final items = (data['items'] as List<dynamic>? ?? []);
+    final String? paymentLink = data['paymentLink'];
+    final bool showPayButton =
+        (status.toLowerCase() == 'pendiente' ||
+            status.toLowerCase() == 'confirmado') &&
+        paymentLink != null &&
+        paymentLink.toString().trim().isNotEmpty;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _getStatusColor(status).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(_getStatusIcon(status), color: _getStatusColor(status)),
+          ),
+          title: Row(
+            children: [
+              Text(
+                'Pedido #${docId.substring(0, 5).toUpperCase()}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const Spacer(),
+              _StatusBadge(status: status),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              formattedDate,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Detalle del Pedido',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  ...items.map((item) => _buildOrderItem(item)),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total a Pagar',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '\$${total.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (showPayButton) ...[
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => onPay(paymentLink),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.payment),
+                        label: const Text(
+                          'PAGAR AHORA',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOrderItem(dynamic item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: item['image'] != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      item['image'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.image, size: 20, color: Colors.grey),
+                    ),
+                  )
+                : const Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 20,
+                    color: Colors.grey,
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['name'],
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'x${item['quantity']}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '\$${(item['subtotal'] ?? 0).toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
@@ -142,5 +298,64 @@ class MyOrdersPage extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendiente':
+        return Icons.access_time_filled;
+      case 'confirmado':
+        return Icons.verified;
+      case 'entregado':
+        return Icons.check_circle;
+      case 'cancelado':
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String status;
+
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    switch (status.toLowerCase()) {
+      case 'pendiente':
+        color = Colors.orange;
+        break;
+      case 'confirmado':
+        color = Colors.blue;
+        break;
+      case 'entregado':
+        color = Colors.green;
+        break;
+      case 'cancelado':
+        color = Colors.red;
+        break;
+      default:
+        color = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 }

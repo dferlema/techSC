@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart'; // 👈 Nuevo
+import 'package:flutter_svg/flutter_svg.dart'; // 👈 Nuevo
 import 'product_form_page.dart';
 import 'service_form_page.dart';
 import 'client_form_page.dart';
@@ -1321,23 +1323,172 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   }
 
   // 📦 Tarjeta de Pedido
+  // 📦 Tarjeta de Pedido
   Widget _buildOrderCard(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return OrderCard(
+      doc: doc,
+      onDelete: () => _deleteDocument('orders', doc.id),
+      statusColorCallback: _getOrderStatusColor,
+    );
+  }
+
+  Color _getOrderStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pendiente':
+        return Colors.orange;
+      case 'confirmado':
+        return Colors.blue;
+      case 'entregado':
+        return Colors.green;
+      case 'cancelado':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+class OrderCard extends StatefulWidget {
+  final DocumentSnapshot doc;
+  final VoidCallback onDelete;
+  final Color Function(String) statusColorCallback;
+
+  const OrderCard({
+    super.key,
+    required this.doc,
+    required this.onDelete,
+    required this.statusColorCallback,
+  });
+
+  @override
+  State<OrderCard> createState() => _OrderCardState();
+}
+
+class _OrderCardState extends State<OrderCard> {
+  late TextEditingController _paymentLinkController;
+  late TextEditingController _institutionController;
+  late TextEditingController _voucherController;
+  bool _isSavingLink = false;
+
+  // Payment Control State
+  String _paymentMethod = 'efectivo';
+  bool _isPaid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final data = widget.doc.data() as Map<String, dynamic>;
+    _paymentLinkController = TextEditingController(
+      text: data['paymentLink'] ?? '',
+    );
+    _institutionController = TextEditingController(
+      text: data['financialInstitution'] ?? '',
+    );
+    _voucherController = TextEditingController(
+      text: data['paymentVoucher'] ?? '',
+    );
+    _paymentMethod = data['paymentMethod'] ?? 'efectivo';
+    _isPaid = data['isPaid'] ?? false;
+  }
+
+  @override
+  void dispose() {
+    _paymentLinkController.dispose();
+    _institutionController.dispose();
+    _voucherController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _launchWhatsApp(String name, String phone) async {
+    String cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+    if (cleanPhone.length == 9 && cleanPhone.startsWith('9')) {
+      cleanPhone = '593$cleanPhone';
+    } else if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
+      cleanPhone = '593${cleanPhone.substring(1)}';
+    }
+
+    final message = Uri.encodeComponent(
+      'Hola $name, le escribo respecto a su pedido #${widget.doc.id.substring(0, 5).toUpperCase()}...',
+    );
+    final url = Uri.parse('https://wa.me/$cleanPhone?text=$message');
+
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error WhatsApp: $e')));
+      }
+    }
+  }
+
+  Future<void> _savePaymentLink() async {
+    setState(() => _isSavingLink = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.doc.id)
+          .update({'paymentLink': _paymentLinkController.text.trim()});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Link de pago guardado')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingLink = false);
+    }
+  }
+
+  Future<void> _savePaymentDetails() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.doc.id)
+          .update({
+            'paymentMethod': _paymentMethod,
+            'financialInstitution': _institutionController.text.trim(),
+            'paymentVoucher': _voucherController.text.trim(),
+            'isPaid': _isPaid,
+          });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Detalles de pago actualizados')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al guardar pago: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = widget.doc.data() as Map<String, dynamic>;
     final date = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
     final total = data['total'] ?? 0.0;
     final status = data['status'] ?? 'pendiente';
     final items = (data['items'] as List<dynamic>? ?? []);
-    final userId = data['userId'] ?? 'Unknown';
+    final userId = data['userId'];
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: _getOrderStatusColor(status),
+          backgroundColor: widget.statusColorCallback(status),
           child: const Icon(Icons.receipt_long, color: Colors.white),
         ),
         title: Text(
-          'Pedido #${doc.id.substring(0, 5).toUpperCase()}',
+          'Pedido #${widget.doc.id.substring(0, 5).toUpperCase()}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
@@ -1349,6 +1500,183 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Info Cliente
+                if (userId != null)
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const LinearProgressIndicator();
+                      }
+                      final userData =
+                          snapshot.data!.data() as Map<String, dynamic>?;
+                      final userName = userData?['name'] ?? 'Desconocido';
+                      final userPhone = userData?['phone'] ?? '';
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.person,
+                                size: 16,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                userName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (userPhone.isNotEmpty)
+                                InkWell(
+                                  onTap: () =>
+                                      _launchWhatsApp(userName, userPhone),
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: SvgPicture.network(
+                                      'https://static.whatsapp.net/rsrc.php/yZ/r/JvsnINJ2CZv.svg',
+                                      width: 24,
+                                      height: 24,
+                                      placeholderBuilder: (_) => const Icon(
+                                        Icons.phone,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (userPhone.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 24),
+                              child: Text(
+                                userPhone,
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ),
+                          const Divider(),
+                        ],
+                      );
+                    },
+                  ),
+
+                // Link de Pago
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _paymentLinkController,
+                        decoration: const InputDecoration(
+                          labelText: 'Link de Pago',
+                          hintText: 'https://...',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.link),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _isSavingLink
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : IconButton(
+                            onPressed: _savePaymentLink,
+                            icon: const Icon(Icons.save, color: Colors.blue),
+                            tooltip: 'Guardar Link',
+                          ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Payment Control Section
+                const Text(
+                  'Control de Pagos',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('Pago Realizado:'),
+                    Switch(
+                      value: _isPaid,
+                      onChanged: (val) {
+                        setState(() => _isPaid = val);
+                        _savePaymentDetails();
+                      },
+                      activeColor: Colors.green,
+                    ),
+                  ],
+                ),
+                DropdownButtonFormField<String>(
+                  value: _paymentMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Método de Pago',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.payment),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'efectivo',
+                      child: Text('Efectivo'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'transferencia',
+                      child: Text('Transferencia'),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _paymentMethod = val);
+                      _savePaymentDetails();
+                    }
+                  },
+                ),
+                if (_paymentMethod == 'transferencia') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _institutionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Institución Financiera',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.account_balance),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _voucherController,
+                    decoration: const InputDecoration(
+                      labelText: 'Número de Comprobante/Voucher',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.receipt),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      onPressed: _savePaymentDetails,
+                      icon: const Icon(Icons.save_alt, size: 16),
+                      label: const Text('Guardar Detalles Transferencia'),
+                    ),
+                  ),
+                ],
+                const Divider(),
+
+                // Estado
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -1374,7 +1702,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                                   child: Text(
                                     s.toUpperCase(),
                                     style: TextStyle(
-                                      color: _getOrderStatusColor(s),
+                                      color: widget.statusColorCallback(s),
                                     ),
                                   ),
                                 ),
@@ -1384,17 +1712,12 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                         if (newStatus != null) {
                           FirebaseFirestore.instance
                               .collection('orders')
-                              .doc(doc.id)
+                              .doc(widget.doc.id)
                               .update({'status': newStatus});
                         }
                       },
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Cliente ID: $userId',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const Divider(),
                 const Text(
@@ -1420,7 +1743,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: () => _deleteDocument('orders', doc.id),
+                    onPressed: widget.onDelete,
                     icon: const Icon(Icons.delete, color: Colors.red),
                     label: const Text(
                       'Eliminar Pedido',
@@ -1434,20 +1757,5 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         ],
       ),
     );
-  }
-
-  Color _getOrderStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pendiente':
-        return Colors.orange;
-      case 'confirmado':
-        return Colors.blue;
-      case 'entregado':
-        return Colors.green;
-      case 'cancelado':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }
