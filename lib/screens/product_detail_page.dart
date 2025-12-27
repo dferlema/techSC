@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/cart_service.dart';
+import '../utils/whatsapp_share_helper.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -154,6 +155,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             backgroundColor: Colors.white,
             elevation: 0,
             iconTheme: const IconThemeData(color: Colors.black),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share),
+                tooltip: 'Compartir por WhatsApp',
+                onPressed: () {
+                  WhatsAppShareHelper.shareProduct(widget.product, context);
+                },
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -163,15 +173,85 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     bottomRight: Radius.circular(30),
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
-                child: Hero(
-                  tag: 'product-image-${widget.productId}',
-                  child: Image.network(
-                    widget.product['image'] ?? '',
-                    fit: BoxFit.contain,
-                    errorBuilder: (c, e, s) =>
-                        const Icon(Icons.image_not_supported, size: 80),
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final List<String> images =
+                        (widget.product['images'] != null)
+                        ? List<String>.from(widget.product['images'])
+                        : (widget.product['image'] != null
+                              ? [widget.product['image']]
+                              : []);
+
+                    if (images.isEmpty) {
+                      return const Center(
+                        child: Icon(Icons.image_not_supported, size: 80),
+                      );
+                    }
+
+                    if (images.length == 1) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                        child: Hero(
+                          tag: 'product-image-${widget.productId}',
+                          child: Image.network(
+                            images[0],
+                            fit: BoxFit.contain,
+                            errorBuilder: (c, e, s) =>
+                                const Icon(Icons.image_not_supported, size: 80),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: images.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                60,
+                                20,
+                                40,
+                              ),
+                              child: Image.network(
+                                images[index],
+                                fit: BoxFit.contain,
+                                errorBuilder: (c, e, s) => const Icon(
+                                  Icons.image_not_supported,
+                                  size: 80,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 20,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(images.length, (index) {
+                              return Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: theme.colorScheme.primary.withOpacity(
+                                    0.5,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),

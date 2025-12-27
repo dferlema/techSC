@@ -6,8 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_drawer.dart';
 import 'home_page.dart';
 import 'service_reservation_page.dart';
-
-import 'contact_page.dart'; // Import
+import 'contact_page.dart';
 
 class MainTabsScreen extends StatefulWidget {
   const MainTabsScreen({super.key});
@@ -20,15 +19,14 @@ class _MainTabsScreenState extends State<MainTabsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0;
+  String _userName = 'Usuario';
+  bool _isInit = true;
 
   final List<Widget> _screens = [
-    const HomePage(), // Índice 0 → Inicio
-    const ServiceReservationPage(), // Índice 1 → Reservar
-    const ContactPage(), // Índice 2 → Contacto
+    const HomePage(),
+    const ServiceReservationPage(),
+    const ContactPage(),
   ];
-
-  bool _isInit = true;
-  String _userName = 'Usuario';
 
   @override
   void initState() {
@@ -45,12 +43,12 @@ class _MainTabsScreenState extends State<MainTabsScreen>
         setState(() => _userName = user.displayName!);
       }
 
-      // Intentar obtener desde Firestore para asegura
       try {
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
+
         if (doc.exists && doc.data()?['name'] != null) {
           if (mounted) {
             setState(() => _userName = doc.data()!['name']);
@@ -69,12 +67,13 @@ class _MainTabsScreenState extends State<MainTabsScreen>
       final args = ModalRoute.of(context)?.settings.arguments as String?;
       final routeName = ModalRoute.of(context)?.settings.name;
       _currentIndex = _routeToIndex(args ?? routeName ?? '/home');
-      _tabController.index = _currentIndex;
+      if (_tabController.length > _currentIndex) {
+        _tabController.index = _currentIndex;
+      }
       _isInit = false;
     }
   }
 
-  // Convierte ruta a índice
   int _routeToIndex(String route) {
     switch (route) {
       case '/reserve-service':
@@ -82,11 +81,10 @@ class _MainTabsScreenState extends State<MainTabsScreen>
       case '/contact':
         return 2;
       default:
-        return 0; // /home
+        return 0;
     }
   }
 
-  // Convierte índice a ruta (para el Drawer)
   String _indexToRoute(int index) {
     switch (index) {
       case 1:

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/whatsapp_share_helper.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final Map<String, dynamic> service;
@@ -130,6 +131,15 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
             backgroundColor: Colors.white,
             elevation: 0,
             iconTheme: const IconThemeData(color: Colors.black),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share),
+                tooltip: 'Compartir por WhatsApp',
+                onPressed: () {
+                  WhatsAppShareHelper.shareService(widget.service, context);
+                },
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -139,18 +149,93 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                     bottomRight: Radius.circular(30),
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
-                child: Hero(
-                  tag: 'service-image-${widget.serviceId}',
-                  child: Image.network(
-                    widget.service['imageUrl'] ?? '',
-                    fit: BoxFit.contain,
-                    errorBuilder: (c, e, s) => const Icon(
-                      Icons.build_circle,
-                      size: 80,
-                      color: Colors.grey,
-                    ),
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final List<String> images =
+                        (widget.service['imageUrls'] != null)
+                        ? List<String>.from(widget.service['imageUrls'])
+                        : (widget.service['imageUrl'] != null
+                              ? [widget.service['imageUrl']]
+                              : []);
+
+                    if (images.isEmpty) {
+                      return const Center(
+                        child: Icon(
+                          Icons.build_circle,
+                          size: 80,
+                          color: Colors.grey,
+                        ),
+                      );
+                    }
+
+                    if (images.length == 1) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                        child: Hero(
+                          tag: 'service-image-${widget.serviceId}',
+                          child: Image.network(
+                            images[0],
+                            fit: BoxFit.contain,
+                            errorBuilder: (c, e, s) => const Icon(
+                              Icons.build_circle,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Stack(
+                      children: [
+                        PageView.builder(
+                          itemCount: images.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                60,
+                                20,
+                                40,
+                              ),
+                              child: Image.network(
+                                images[index],
+                                fit: BoxFit.contain,
+                                errorBuilder: (c, e, s) => const Icon(
+                                  Icons.build_circle,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        Positioned(
+                          bottom: 20,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(images.length, (index) {
+                              return Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: theme.colorScheme.primary.withOpacity(
+                                    0.5,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),

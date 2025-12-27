@@ -1,11 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
+import '../models/reservation_model.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
+import 'reservation_detail_page.dart';
+import 'order_detail_page.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({Key? key}) : super(key: key);
+
+  Future<void> _handleNotificationTap(
+    BuildContext context,
+    NotificationModel notification,
+  ) async {
+    try {
+      if (notification.type == 'reservation') {
+        // Fetch reservation and navigate
+        final doc = await FirebaseFirestore.instance
+            .collection('reservations')
+            .doc(notification.relatedId)
+            .get();
+
+        if (!doc.exists) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Reserva no encontrada')),
+            );
+          }
+          return;
+        }
+
+        final reservation = ReservationModel.fromFirestore(doc);
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ReservationDetailPage(reservation: reservation),
+            ),
+          );
+        }
+      } else if (notification.type == 'order') {
+        // Navigate to order detail
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  OrderDetailPage(orderId: notification.relatedId),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al abrir: $e')));
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,9 +139,8 @@ class NotificationsPage extends StatelessWidget {
                     notificationService.markAsRead(notification.id);
                   }
 
-                  // Navigate based on type?
-                  // Currently we don't have deep linking logic fully set up,
-                  // but we could just open details if easy.
+                  // Navigate to detail
+                  _handleNotificationTap(context, notification);
                 },
               );
             },

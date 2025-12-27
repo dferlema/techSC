@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
         '/reserve-service': (context) => const MainTabsScreen(),
         '/admin': (context) => const AdminPanelPage(),
         '/technician': (context) => const TechnicianDashboard(),
-        '/contact': (context) => const ContactPage(), // New Route
+        '/contact': (context) => const ContactPage(),
         '/my-reservations': (context) => const MyReservationsPage(),
         '/main': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;

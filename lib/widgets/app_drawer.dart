@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/my_orders_page.dart';
-// import '../screens/notifications_page.dart'; // No longer needed here
 import '../services/role_service.dart';
 
 class AppDrawer extends StatelessWidget {

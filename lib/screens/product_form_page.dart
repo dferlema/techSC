@@ -20,12 +20,13 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late TextEditingController _nameController;
   late TextEditingController _specsController;
   late TextEditingController _priceController;
-  late TextEditingController
-  _imageUrlController; // 👈 Nuevo controlador para URL
-  late TextEditingController
-  _descriptionController; // 👈 Controlador para descripción
+  late TextEditingController _descriptionController;
   late String _selectedCategory;
   late double _rating;
+
+  // Lista de URLs de imágenes
+  List<String> _imageUrls = [];
+  final TextEditingController _newImageUrlController = TextEditingController();
 
   bool _isSaving = false;
 
@@ -51,14 +52,19 @@ class _ProductFormPageState extends State<ProductFormPage> {
           ? widget.initialData!['price'].toString()
           : '',
     );
-    _imageUrlController = TextEditingController(
-      text: widget.initialData?['image'] ?? '', // 👈 Cargar URL existente
-    );
     _descriptionController = TextEditingController(
       text: widget.initialData?['description'] ?? '',
     );
     _selectedCategory = widget.initialData?['category'] ?? _categories[0];
     _rating = (widget.initialData?['rating'] as num?)?.toDouble() ?? 4.5;
+
+    // Cargar imágenes existentes
+    if (widget.initialData?['images'] != null) {
+      _imageUrls = List<String>.from(widget.initialData!['images']);
+    } else if (widget.initialData?['image'] != null) {
+      // Compatibilidad con formato antiguo (una sola imagen)
+      _imageUrls = [widget.initialData!['image']];
+    }
   }
 
   @override
@@ -66,23 +72,25 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _nameController.dispose();
     _specsController.dispose();
     _priceController.dispose();
-    _imageUrlController.dispose();
     _descriptionController.dispose();
+    _newImageUrlController.dispose();
     super.dispose();
   }
 
-  /// Guarda el producto en Firebase Firestore.
-  /// Si [widget.productId] es null, crea un nuevo documento.
-  /// Si no, actualiza el existente.
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_imageUrls.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ Agrega al menos una imagen')),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 
     final name = _nameController.text.trim();
     final specs = _specsController.text.trim();
     final price = double.tryParse(_priceController.text) ?? 0.0;
-    final imageUrl = _imageUrlController.text.trim();
     final description = _descriptionController.text.trim();
 
     try {
@@ -93,8 +101,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
         'description': description,
         'category': _selectedCategory,
         'rating': _rating,
-        'image': imageUrl.isNotEmpty ? imageUrl : null,
-        // Agregar timestamp solo si es nuevo registro
+        'images': _imageUrls, // Lista de imágenes
+        'image': _imageUrls.first, // Imagen principal para compatibilidad
         if (widget.productId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -109,7 +117,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       }
 
       if (!mounted) return;
-      Navigator.pop(context, true); // Retorna true para indicar éxito
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -119,65 +127,146 @@ class _ProductFormPageState extends State<ProductFormPage> {
     }
   }
 
-  /// Construye el campo de entrada de URL y la vista previa de la imagen.
-  Widget _buildImagePreview() {
-    // Escuchar cambios en el controlador para actualizar vista previa
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: _imageUrlController,
-      builder: (context, value, child) {
-        final currentUrl = value.text.trim();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildImageGallery() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Imágenes del Producto *',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        Row(
           children: [
-            const Text(
-              'Imagen URL',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _imageUrlController,
-              decoration: const InputDecoration(
-                hintText: 'https://ejemplo.com/imagen.jpg',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.link),
+            Expanded(
+              child: TextFormField(
+                controller: _newImageUrlController,
+                decoration: const InputDecoration(
+                  hintText: 'https://ejemplo.com/imagen.jpg',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.link),
+                ),
+                keyboardType: TextInputType.url,
               ),
-              keyboardType: TextInputType.url,
             ),
-            const SizedBox(height: 12),
-            // Contenedor de vista previa
-            Container(
-              height: 180,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.grey[50],
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                final url = _newImageUrlController.text.trim();
+                if (url.isNotEmpty) {
+                  setState(() {
+                    _imageUrls.add(url);
+                    _newImageUrlController.clear();
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: currentUrl.isNotEmpty
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        currentUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      ),
-                    )
-                  : _placeholder(),
+              child: const Icon(Icons.add_photo_alternate),
             ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        if (_imageUrls.isNotEmpty)
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _imageUrls.length,
+              itemBuilder: (context, index) {
+                return Stack(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                        image: DecorationImage(
+                          image: NetworkImage(_imageUrls[index]),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 12,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _imageUrls.removeAt(index);
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (index == 0)
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Principal',
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          )
+        else
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Colors.grey.shade300,
+                style: BorderStyle.none,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[100],
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+                  Text(
+                    'No hay imágenes agregadas',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
-
-  Widget _placeholder() => Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: const [
-      Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
-      SizedBox(height: 8),
-      Text('Vista previa no disponible', style: TextStyle(color: Colors.grey)),
-    ],
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +295,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    _buildImagePreview(),
+                    _buildImageGallery(),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _nameController,

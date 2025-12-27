@@ -21,7 +21,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _durationController;
-  late TextEditingController _imageUrlController;
+
+  // Lista de URLs de imágenes
+  List<String> _imageUrls = [];
+  final TextEditingController _newImageUrlController = TextEditingController();
 
   // Lista dinámica de componentes del servicio
   late List<String> _components;
@@ -55,10 +58,14 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     _durationController = TextEditingController(
       text: widget.initialData?['duration'] ?? '',
     );
-    _imageUrlController = TextEditingController(
-      text: widget.initialData?['imageUrl'] ?? '',
-    );
     _selectedType = widget.initialData?['type'] ?? _serviceTypes[0];
+
+    // Cargar imágenes existentes
+    if (widget.initialData?['imageUrls'] != null) {
+      _imageUrls = List<String>.from(widget.initialData!['imageUrls']);
+    } else if (widget.initialData?['imageUrl'] != null) {
+      _imageUrls = [widget.initialData!['imageUrl']];
+    }
 
     // Inicializar lista de componentes (copia para evitar modificar referencia original)
     _components = List<String>.from(
@@ -72,17 +79,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     _descriptionController.dispose();
     _priceController.dispose();
     _durationController.dispose();
-    _imageUrlController.dispose();
+    _newImageUrlController.dispose();
     super.dispose();
   }
 
-  // 🖼️ Validar URL de imagen usando Uri.tryParse
-  bool _isImageUrlValid(String url) {
-    if (url.isEmpty) return true;
-    return Uri.tryParse(url)?.hasAbsolutePath ?? false;
-  }
-
-  // ➕ Añadir componente a la lista mediante un diálogo emergente
   void _addNewComponent() {
     showDialog(
       context: context,
@@ -118,39 +118,24 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     );
   }
 
-  // ➖ Eliminar componente de la lista por índice
   void _removeComponent(int index) {
     setState(() {
       _components.removeAt(index);
     });
   }
 
-  // 💾 Guardar o actualizar servicio
-  // Realiza validaciones campos obligatorios y URL antes de enviar a Firestore.
   Future<void> _saveService() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final title = _titleController.text.trim();
-    final description = _descriptionController.text.trim();
-    final price = double.tryParse(_priceController.text) ?? 0.0;
-    final imageUrl = _imageUrlController.text.trim();
-
-    // Validaciones manuales adicionales
-    if (title.isEmpty || description.isEmpty || price <= 0) {
+    if (_imageUrls.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Título, descripción y precio son obligatorios'),
-        ),
+        const SnackBar(content: Text('⚠️ Agrega al menos una imagen')),
       );
       return;
     }
 
-    if (!_isImageUrlValid(imageUrl)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('URL de imagen inválida')));
-      return;
-    }
+    final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    final price = double.tryParse(_priceController.text) ?? 0.0;
 
     setState(() => _isSaving = true);
 
@@ -160,7 +145,8 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         'description': description,
         'price': price,
         'duration': _durationController.text.trim(),
-        'imageUrl': imageUrl,
+        'imageUrls': _imageUrls,
+        'imageUrl': _imageUrls.first,
         'type': _selectedType,
         'components': _components,
         if (widget.serviceId == null) 'createdAt': FieldValue.serverTimestamp(),
@@ -168,18 +154,18 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
       final db = FirebaseFirestore.instance;
       if (widget.serviceId == null) {
-        // ✅ Crear nuevo documento
         await db.collection('services').add(serviceData);
       } else {
-        // ✏️ Actualizar documento existente
         await db
             .collection('services')
             .doc(widget.serviceId)
             .update(serviceData);
       }
 
-      Navigator.pop(context, true); // Éxito
+      if (!mounted) return;
+      Navigator.pop(context, true);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(
         context,
@@ -187,62 +173,142 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     }
   }
 
-  // 🖼️ Vista previa de imagen desde URL
-  Widget _buildImagePreview() {
-    final url = _imageUrlController.text.trim();
+  Widget _buildImageGallery() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'URL de imagen (opcional)',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'Imágenes del Servicio *',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _imageUrlController,
-          decoration: InputDecoration(
-            hintText: 'https://ejemplo.com/imagen.jpg',
-            border: OutlineInputBorder(),
-            suffixIcon: url.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => _imageUrlController.clear(),
-                  )
-                : null,
-          ),
-          keyboardType: TextInputType.url,
-        ),
-        const SizedBox(height: 12),
-        if (url.isNotEmpty)
-          Container(
-            height: 150,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _newImageUrlController,
+                decoration: const InputDecoration(
+                  hintText: 'https://ejemplo.com/imagen.jpg',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.link),
+                ),
+                keyboardType: TextInputType.url,
+              ),
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                url,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const Center(child: CircularProgressIndicator());
-                },
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Icon(Icons.broken_image, color: Colors.grey),
-                  ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                final url = _newImageUrlController.text.trim();
+                if (url.isNotEmpty) {
+                  setState(() {
+                    _imageUrls.add(url);
+                    _newImageUrlController.clear();
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
+              child: const Icon(Icons.add_photo_alternate),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_imageUrls.isNotEmpty)
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _imageUrls.length,
+              itemBuilder: (context, index) {
+                return Stack(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 120,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                        image: DecorationImage(
+                          image: NetworkImage(_imageUrls[index]),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 12,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _imageUrls.removeAt(index);
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (index == 0)
+                      Positioned(
+                        bottom: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Principal',
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          )
+        else
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[100],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+                Text(
+                  'No hay imágenes agregadas',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
             ),
           ),
       ],
     );
   }
 
-  // 🔧 Chips de componentes
   Widget _buildComponentsList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -310,35 +376,25 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    // 🖼️ URL de imagen
-                    _buildImagePreview(),
+                    _buildImageGallery(),
                     const SizedBox(height: 24),
-
-                    // 🏷️ Título
                     TextFormField(
                       controller: _titleController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Título del servicio *',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        if (value == null || value.trim().isEmpty)
                           return 'Obligatorio';
-                        }
-                        if (value.trim().length < 3) {
-                          return 'Mínimo 3 caracteres';
-                        }
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
-
-                    // 📝 Descripción
                     TextFormField(
                       controller: _descriptionController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Descripción *',
-                        hintText: 'Detalla qué incluye este servicio...',
                         border: OutlineInputBorder(),
                       ),
                       maxLines: 4,
@@ -348,11 +404,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                           : null,
                     ),
                     const SizedBox(height: 20),
-
-                    // 💰 Precio
                     TextFormField(
                       controller: _priceController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Precio base *',
                         prefixText: '\$ ',
                         border: OutlineInputBorder(),
@@ -365,40 +419,30 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                       },
                     ),
                     const SizedBox(height: 20),
-
-                    // ⏱️ Duración
                     TextFormField(
                       controller: _durationController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Duración estimada',
-                        hintText: 'Ej: 1 hora, 30 min',
                         border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // 🛠️ Tipo de servicio
                     DropdownButtonFormField<String>(
                       initialValue: _selectedType,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Tipo de servicio *',
                         border: OutlineInputBorder(),
                       ),
                       items: _serviceTypes.map((type) {
-                        final label = _capitalize(type);
                         return DropdownMenuItem(
                           value: type,
-                          child: Text(label),
+                          child: Text(_capitalize(type)),
                         );
                       }).toList(),
                       onChanged: (value) =>
                           setState(() => _selectedType = value!),
-                      validator: (value) =>
-                          value == null ? 'Selecciona un tipo' : null,
                     ),
                     const SizedBox(height: 20),
-
-                    // 🔧 Componentes
                     _buildComponentsList(),
                   ],
                 ),

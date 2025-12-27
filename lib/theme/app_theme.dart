@@ -29,15 +29,12 @@ class AppColors {
   static const Color success = Color.fromARGB(255, 41, 107, 45);
   static const Color warning = Color.fromARGB(255, 63, 179, 108);
 
-  // Variaciones para modo oscuro
-  static const Color primaryBlueDark = Color(
-    0xFF2466CA,
-  ); // Azul más claro para modo oscuro
-  static const Color accentOrangeDark = Color(
-    0xFF5A9EF0,
-  ); // Azul aún más claro para contraste
-  static const Color backgroundDark = Color(0xFF121212);
-  static const Color surfaceDark = Color(0xFF1E1E1E);
+  // Variaciones para modo oscuro - Colores vibrantes y modernos
+  static const Color primaryBlueDark = Color(0xFF3B82F6); // Electric blue
+  static const Color accentOrangeDark = Color(0xFF06B6D4); // Bright cyan
+  static const Color backgroundDark = Color(0xFF0A1929); // Deep dark blue-gray
+  static const Color surfaceDark = Color(0xFF1A2332); // Elevated dark surface
+  static const Color surfaceVariantDark = Color(0xFF243447); // Lighter surface
 
   // Grises para texto y bordes
   static const Color textPrimary = Color(0xFF212121);
@@ -63,46 +60,55 @@ class AppTheme {
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: primaryColor,
+        inherit: true,
       ),
       displayMedium: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: primaryColor,
+        inherit: true,
       ),
       displaySmall: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.bold,
         color: primaryColor,
+        inherit: true,
       ),
       headlineMedium: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: primaryColor,
+        inherit: true,
       ),
       titleLarge: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: primaryColor,
+        inherit: true,
       ),
       titleMedium: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: primaryColor,
+        inherit: true,
       ),
       bodyLarge: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.normal,
         color: primaryColor,
+        inherit: true,
       ),
       bodyMedium: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.normal,
         color: primaryColor,
+        inherit: true,
       ),
       bodySmall: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.normal,
         color: secondaryColor,
+        inherit: true,
       ),
     );
   }
@@ -250,36 +256,38 @@ class AppTheme {
     );
   }
 
-  /// Tema oscuro (Dark Mode)
+  /// Tema oscuro (Dark Mode) - Vibrante y moderno
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
 
-      // Color Scheme para modo oscuro
+      // Color Scheme para modo oscuro con colores vibrantes
       colorScheme: ColorScheme.dark(
         primary: AppColors.primaryBlueDark,
         secondary: AppColors.accentOrangeDark,
         surface: AppColors.surfaceDark,
+        surfaceContainerHighest: AppColors.surfaceVariantDark,
         error: AppColors.error,
-        onPrimary: AppColors.white,
-        onSecondary: AppColors.black,
-        onSurface: AppColors.white,
-        onError: AppColors.white,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
+        onSurface: Colors.white,
+        onError: Colors.white,
+        outline: const Color(0xFF475569),
       ),
 
       // Scaffold
       scaffoldBackgroundColor: AppColors.backgroundDark,
 
-      // AppBar
-      appBarTheme: const AppBarTheme(
+      // AppBar con gradiente sutil
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceDark,
-        foregroundColor: AppColors.white,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: AppColors.white),
-        titleTextStyle: TextStyle(
-          color: AppColors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
@@ -305,18 +313,19 @@ class AppTheme {
         elevation: 4,
       ),
 
-      // Cards
+      // Cards con elevación mejorada
       cardTheme: CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         color: AppColors.surfaceDark,
+        shadowColor: Colors.black.withOpacity(0.3),
       ),
 
       // Bottom Navigation Bar
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.surfaceDark,
         selectedItemColor: AppColors.primaryBlueDark,
-        unselectedItemColor: AppColors.textSecondary,
+        unselectedItemColor: Colors.grey[500],
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
@@ -342,7 +351,16 @@ class AppTheme {
       ),
 
       // Text Theme Centralizado (Para consistencia)
-      textTheme: _buildTextTheme(AppColors.white, Colors.white70),
+      textTheme: _buildTextTheme(Colors.white, const Color(0xFF94A3B8)),
+
+      // Icon Theme
+      iconTheme: IconThemeData(color: AppColors.primaryBlueDark, size: 24),
+
+      // Divider
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFF334155),
+        thickness: 1,
+      ),
     );
   }
 }
