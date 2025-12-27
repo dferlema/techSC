@@ -37,4 +37,16 @@ class PreferencesService {
     await prefs.remove(_savedEmailKey);
     await prefs.remove(_rememberMeKey);
   }
+
+  /// Guardar ruta de imagen de perfil local
+  Future<void> saveProfileImagePath(String uid, String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_image_$uid', path);
+  }
+
+  /// Obtener ruta de imagen de perfil local
+  Future<String?> getProfileImagePath(String uid) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('profile_image_$uid');
+  }
 }

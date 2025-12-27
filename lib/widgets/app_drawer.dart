@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/my_orders_page.dart';
 import '../services/role_service.dart';
+import '../services/preferences_service.dart';
 
 class AppDrawer extends StatelessWidget {
   final String currentRoute;
@@ -19,6 +21,7 @@ class AppDrawer extends StatelessWidget {
         route == '/admin' ||
         route == '/technician' ||
         route == '/contact' ||
+        route == '/profile-edit' ||
         route == '/my-reservations') {
       if (currentRoute == route) {
         Navigator.pop(context);
@@ -52,14 +55,27 @@ class AppDrawer extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                CircleAvatar(
-                  radius: 32,
-                  backgroundColor: Colors.white,
-                  child: Icon(
-                    Icons.person,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.primary,
+                FutureBuilder<String?>(
+                  future: PreferencesService().getProfileImagePath(
+                    user?.uid ?? '',
                   ),
+                  builder: (context, snapshot) {
+                    final imagePath = snapshot.data;
+                    return CircleAvatar(
+                      radius: 32,
+                      backgroundColor: Colors.white,
+                      backgroundImage: imagePath != null
+                          ? FileImage(File(imagePath))
+                          : null,
+                      child: imagePath == null
+                          ? Icon(
+                              Icons.person,
+                              size: 48,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : null,
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -216,6 +232,16 @@ class AppDrawer extends StatelessWidget {
                 context,
                 '/contact',
               ); // Push to stack to allow back nav
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline, color: Colors.blueGrey),
+            title: const Text('Editar Perfil'),
+            selected: currentRoute == '/profile-edit',
+            selectedTileColor: Colors.blueGrey.withOpacity(0.1),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/profile-edit');
             },
           ),
           const Divider(),

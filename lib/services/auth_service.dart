@@ -91,6 +91,30 @@ class AuthService {
   // 👤 Obtener usuario actual
   User? get currentUser => _auth.currentUser;
 
+  // 📝 Actualizar perfil en Firestore
+  Future<void> updateUserProfile({
+    required String name,
+    required String phone,
+    required String address,
+  }) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _firestore.collection('users').doc(user.uid).update({
+        'name': name,
+        'phone': phone,
+        'address': address,
+      });
+    }
+  }
+
+  // 🔒 Actualizar contraseña en Firebase Auth
+  Future<void> updateUserPassword(String newPassword) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.updatePassword(newPassword);
+    }
+  }
+
   // 🧠 Manejo de errores comunes
   String _handleFirebaseAuthError(FirebaseAuthException e) {
     switch (e.code) {

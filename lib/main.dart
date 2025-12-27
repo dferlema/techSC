@@ -16,6 +16,7 @@ import 'screens/contact_page.dart';
 import 'screens/products_page.dart';
 import 'screens/my_reservations_page.dart';
 import 'screens/services_page.dart';
+import 'screens/profile_edit_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,7 @@ class MyApp extends StatelessWidget {
         '/technician': (context) => const TechnicianDashboard(),
         '/contact': (context) => const ContactPage(),
         '/my-reservations': (context) => const MyReservationsPage(),
+        '/profile-edit': (context) => const ProfileEditPage(),
         '/main': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           return MainTabsScreen();
