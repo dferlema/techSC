@@ -136,7 +136,10 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                 icon: const Icon(Icons.share),
                 tooltip: 'Compartir por WhatsApp',
                 onPressed: () {
-                  WhatsAppShareHelper.shareService(widget.service, context);
+                  WhatsAppShareHelper.shareService({
+                    ...widget.service,
+                    'id': widget.serviceId,
+                  }, context);
                 },
               ),
             ],
@@ -259,14 +262,35 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '\$${widget.service['price'] ?? 0}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: theme.colorScheme.primary,
-                          fontSize: 34,
-                          letterSpacing: -0.5,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '\$${widget.service['price'] ?? 0}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: theme.colorScheme.primary,
+                              fontSize: 34,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          if (widget.service['taxStatus'] != null &&
+                              widget.service['taxStatus'] != 'Ninguno')
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 8,
+                                bottom: 6,
+                              ),
+                              child: Text(
+                                widget.service['taxStatus'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       if (widget.service['duration'] != null &&
                           widget.service['duration'].toString().isNotEmpty)

@@ -119,26 +119,64 @@ class _ProductsPageState extends State<ProductsPage>
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Hero(
-                    tag: 'product-image-${productId ?? "unknown"}',
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        product['image'] ??
-                            'https://via.placeholder.com/300x200?text=Sin+Imagen',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: Colors.grey[100],
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              size: 50,
-                              color: Colors.grey,
-                            ),
+                  child: Stack(
+                    children: [
+                      Hero(
+                        tag: 'product-image-${productId ?? "unknown"}',
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            product['image'] ??
+                                'https://via.placeholder.com/300x200?text=Sin+Imagen',
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: Colors.grey[100],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      size: 50,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
                           ),
                         ),
                       ),
-                    ),
+                      if (product['label'] != null &&
+                          product['label'] != 'Ninguna')
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: product['label'] == 'Oferta'
+                                  ? Colors.orange
+                                  : Colors.red,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              product['label'].toString().toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -166,19 +204,26 @@ class _ProductsPageState extends State<ProductsPage>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFFFFF7ED), // Very light orange/cream
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFFFFEDD5),
+                    ), // Subtle border
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      const Icon(
+                        Icons.star_rounded,
+                        size: 18,
+                        color: Color(0xFFF59E0B),
+                      ), // Vibrant Amber/Gold
                       const SizedBox(width: 4),
                       Text(
                         '${product['rating'] ?? 4.5}',
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.amber,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFB45309), // Deep amber for contrast
                         ),
                       ),
                     ],
@@ -219,13 +264,33 @@ class _ProductsPageState extends State<ProductsPage>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '\$${product['price'] ?? 0}',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '\$${product['price'] ?? 0}',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    if (product['taxStatus'] != null &&
+                        product['taxStatus'] != 'Ninguno')
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 4),
+                        child: Text(
+                          product['taxStatus'] == 'Incluye impuesto'
+                              ? '(Incl. Imp)'
+                              : '(+ Imp)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
 
                 // 👇 Botones de Acción

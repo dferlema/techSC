@@ -22,6 +22,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
   late String _selectedCategory;
+  late String _selectedLabel;
+  late String _selectedTaxStatus;
   late double _rating;
 
   // Lista de URLs de imágenes
@@ -56,6 +58,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
       text: widget.initialData?['description'] ?? '',
     );
     _selectedCategory = widget.initialData?['category'] ?? _categories[0];
+    _selectedLabel = widget.initialData?['label'] ?? 'Ninguna';
+    _selectedTaxStatus = widget.initialData?['taxStatus'] ?? 'Incluye impuesto';
     _rating = (widget.initialData?['rating'] as num?)?.toDouble() ?? 4.5;
 
     // Cargar imágenes existentes
@@ -100,6 +104,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
         'price': price,
         'description': description,
         'category': _selectedCategory,
+        'label': _selectedLabel,
+        'taxStatus': _selectedTaxStatus,
         'rating': _rating,
         'images': _imageUrls, // Lista de imágenes
         'image': _imageUrls.first, // Imagen principal para compatibilidad
@@ -355,6 +361,34 @@ class _ProductFormPageState extends State<ProductFormPage> {
                           .toList(),
                       onChanged: (v) => setState(() => _selectedCategory = v!),
                       validator: (v) => v == null ? 'Selecciona' : null,
+                    ),
+                    const SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      value: _selectedLabel,
+                      decoration: const InputDecoration(
+                        labelText: 'Etiqueta (Opcional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: ['Ninguna', 'Oferta', 'Agotado']
+                          .map(
+                            (l) => DropdownMenuItem(value: l, child: Text(l)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedLabel = v!),
+                    ),
+                    const SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      value: _selectedTaxStatus,
+                      decoration: const InputDecoration(
+                        labelText: 'Estado de Impuestos',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: ['Incluye impuesto', 'Más impuesto', 'Ninguno']
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedTaxStatus = v!),
                     ),
                     const SizedBox(height: 20),
                     Column(

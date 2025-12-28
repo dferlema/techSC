@@ -12,7 +12,8 @@ import 'service_form_page.dart';
 import 'client_form_page.dart';
 import '../widgets/app_drawer.dart';
 import '../services/role_service.dart'; // 👈 Nuevo
-import '../widgets/role_assignment_dialog.dart'; // 👈 Nuevo
+import '../widgets/role_assignment_dialog.dart';
+import '../services/config_service.dart';
 
 /// Página principal del panel de administración.
 ///
@@ -43,8 +44,8 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   @override
   void initState() {
     super.initState();
-    _checkRole(); // 👈 Cargar rol al iniciar
-    _tabController = TabController(length: 5, vsync: this);
+    _checkRole();
+    _tabController = TabController(length: 6, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -943,6 +944,11 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             selectedIcon: Icon(Icons.image),
             label: 'Banners',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.palette_outlined),
+            selectedIcon: Icon(Icons.palette),
+            label: 'Personalización',
+          ),
         ],
       ),
     );
@@ -987,6 +993,8 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         _buildOrdersTab(),
         // 5. Banners
         _buildBannersTab(),
+        // 6. Personalización
+        _buildPersonalizationTab(),
       ],
     );
   }
@@ -1345,6 +1353,20 @@ class _AdminPanelPageState extends State<AdminPanelPage>
       default:
         return Colors.grey;
     }
+  }
+
+  // 🎨 Tab de Personalización (Branding)
+  Widget _buildPersonalizationTab() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ConfigService().getBrandingConfig(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+
+        final config = snapshot.data!;
+        return _BrandingForm(initialConfig: config);
+      },
+    );
   }
 }
 
@@ -1755,6 +1777,150 @@ class _OrderCardState extends State<OrderCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BrandingForm extends StatefulWidget {
+  final Map<String, dynamic> initialConfig;
+
+  const _BrandingForm({required this.initialConfig});
+
+  @override
+  State<_BrandingForm> createState() => _BrandingFormState();
+}
+
+class _BrandingFormState extends State<_BrandingForm> {
+  late Map<String, dynamic> _config;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _config = Map<String, dynamic>.from(widget.initialConfig);
+  }
+
+  void _save() async {
+    setState(() => _isSaving = true);
+    try {
+      await ConfigService().updateBrandingConfig(_config);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Configuración guardada correctamente'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ Error al guardar: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Pantalla de Carga (Splash)'),
+          _buildTextField(
+            label: 'Título',
+            value: _config['splash']['title'],
+            onChanged: (v) => _config['splash']['title'] = v,
+          ),
+          _buildTextField(
+            label: 'Subtítulo',
+            value: _config['splash']['subtitle'],
+            onChanged: (v) => _config['splash']['subtitle'] = v,
+          ),
+          _buildTextField(
+            label: 'URL Imagen de Fondo (opcional)',
+            value: _config['splash']['imageUrl'],
+            onChanged: (v) => _config['splash']['imageUrl'] = v,
+          ),
+          const SizedBox(height: 32),
+          _buildSectionHeader('Bienvenida (Onboarding)'),
+          for (int i = 0; i < (_config['onboarding'] as List).length; i++) ...[
+            Text(
+              'Paso ${i + 1}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            _buildTextField(
+              label: 'Título',
+              value: _config['onboarding'][i]['title'],
+              onChanged: (v) => _config['onboarding'][i]['title'] = v,
+            ),
+            _buildTextField(
+              label: 'Descripción',
+              value: _config['onboarding'][i]['description'],
+              onChanged: (v) => _config['onboarding'][i]['description'] = v,
+              maxLines: 2,
+            ),
+            _buildTextField(
+              label: 'URL Imagen Paso ${i + 1}',
+              value: _config['onboarding'][i]['imageUrl'],
+              onChanged: (v) => _config['onboarding'][i]['imageUrl'] = v,
+            ),
+            const Divider(),
+          ],
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : _save,
+              child: _isSaving
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('GUARDAR CAMBIOS'),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.deepPurple,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required String? value,
+    required Function(String) onChanged,
+    int maxLines = 1,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        initialValue: value ?? '',
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        maxLines: maxLines,
+        onChanged: onChanged,
       ),
     );
   }

@@ -30,7 +30,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   late List<String> _components;
 
   late String _selectedType;
-
+  late String _selectedTaxStatus;
   bool _isSaving = false;
 
   // Tipos de servicio disponibles
@@ -59,6 +59,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       text: widget.initialData?['duration'] ?? '',
     );
     _selectedType = widget.initialData?['type'] ?? _serviceTypes[0];
+    _selectedTaxStatus = widget.initialData?['taxStatus'] ?? 'Incluye impuesto';
 
     // Cargar imágenes existentes
     if (widget.initialData?['imageUrls'] != null) {
@@ -148,6 +149,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         'imageUrls': _imageUrls,
         'imageUrl': _imageUrls.first,
         'type': _selectedType,
+        'taxStatus': _selectedTaxStatus,
         'components': _components,
         if (widget.serviceId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
@@ -441,6 +443,20 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                       }).toList(),
                       onChanged: (value) =>
                           setState(() => _selectedType = value!),
+                    ),
+                    const SizedBox(height: 20),
+                    DropdownButtonFormField<String>(
+                      value: _selectedTaxStatus,
+                      decoration: const InputDecoration(
+                        labelText: 'Estado de Impuestos',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: ['Incluye impuesto', 'Más impuesto', 'Ninguno']
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedTaxStatus = v!),
                     ),
                     const SizedBox(height: 20),
                     _buildComponentsList(),

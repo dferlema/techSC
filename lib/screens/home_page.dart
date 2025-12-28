@@ -105,7 +105,10 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 32),
 
             // 4. Nuestros Productos (Horizontal List)
-            _buildSectionTitle('Productos Destacados'),
+            _buildSectionTitle(
+              'Productos Destacados',
+              onSeeMore: () => Navigator.pushNamed(context, '/products'),
+            ),
             _buildProductsList(context),
 
             const SizedBox(height: 100), // Space for FAB
@@ -125,16 +128,42 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, {VoidCallback? onSeeMore}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+              letterSpacing: -0.5,
+            ),
+          ),
+          if (onSeeMore != null)
+            TextButton(
+              onPressed: onSeeMore,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Ver más',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -161,10 +190,13 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHelpSection(BuildContext context) {
     return SizedBox(
-      height: 110,
+      height: 140, // Aumentado
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ), // Padding vertical
         children: [
           _buildHelpCard(
             context,
@@ -247,11 +279,14 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildServicesList(BuildContext context) {
     return SizedBox(
-      height: 140,
+      height: 170, // Aumentado
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ), // Padding vertical
         itemCount: _services.length,
         itemBuilder: (context, index) {
           final service = _services[index];
@@ -265,11 +300,11 @@ class _HomePageState extends State<HomePage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
@@ -307,7 +342,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildProductsList(BuildContext context) {
     return SizedBox(
-      height: 220,
+      height: 260, // Aumentado
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('products')
@@ -325,7 +360,10 @@ class _HomePageState extends State<HomePage> {
           return ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 15,
+            ), // Padding vertical
             itemCount: products.length,
             itemBuilder: (context, index) {
               final doc = products[index];
@@ -393,11 +431,11 @@ class _HomePageState extends State<HomePage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 8,
-              offset: Offset(0, 2),
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -439,12 +477,32 @@ class _HomePageState extends State<HomePage> {
                       fontSize: 14,
                     ),
                   ),
-                  Text(
-                    '\$${(product['price'] ?? 0).toString()}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '\$${(product['price'] ?? 0).toString()}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (product['taxStatus'] != null &&
+                          product['taxStatus'] != 'Ninguno')
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, bottom: 2),
+                          child: Text(
+                            product['taxStatus'] == 'Incluye impuesto'
+                                ? '(Incl.)'
+                                : '(+ Imp)',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),

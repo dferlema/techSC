@@ -14,7 +14,6 @@ class WhatsAppShareHelper {
     final String productName = productData['name'] ?? 'Producto';
     final String price = productData['price']?.toString() ?? '0';
     final String description = productData['description'] ?? '';
-    final String? imageUrl = productData['image'];
     final double? rating = productData['rating'] is int
         ? (productData['rating'] as int).toDouble()
         : productData['rating'] as double?;
@@ -31,8 +30,10 @@ class WhatsAppShareHelper {
       message += '📝 Descripción:\n$description\n\n';
     }
 
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      message += '🔗 Imagen: $imageUrl\n\n';
+    // Add deep link for "Ver más"
+    if (productData['id'] != null) {
+      message += '🔗 *Ver más en la app:* \n';
+      message += 'techsc://product?id=${productData['id']}\n\n';
     }
 
     message += '---\n';
@@ -43,7 +44,7 @@ class WhatsAppShareHelper {
 
   /// Share a service via WhatsApp
   ///
-  /// [serviceData] should contain: title, price, description, duration, and optionally imageUrl
+  /// [serviceData] should contain: title, price, description, duration, and optionally imageUrl, id
   /// [context] is used to show error messages if needed
   static Future<void> shareService(
     Map<String, dynamic> serviceData,
@@ -53,7 +54,6 @@ class WhatsAppShareHelper {
     final String price = serviceData['price']?.toString() ?? '0';
     final String description = serviceData['description'] ?? '';
     final String? duration = serviceData['duration'];
-    final String? imageUrl = serviceData['imageUrl'];
     final double? rating = serviceData['rating'] is int
         ? (serviceData['rating'] as int).toDouble()
         : serviceData['rating'] as double?;
@@ -74,8 +74,10 @@ class WhatsAppShareHelper {
       message += '📝 Descripción:\n$description\n\n';
     }
 
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      message += '🔗 Imagen: $imageUrl\n\n';
+    // Add deep link for "Ver más"
+    if (serviceData['id'] != null) {
+      message += '🔗 *Ver más en la app:* \n';
+      message += 'techsc://service?id=${serviceData['id']}\n\n';
     }
 
     message += '---\n';
@@ -89,34 +91,33 @@ class WhatsAppShareHelper {
     String message,
     BuildContext context,
   ) async {
-    // URL encode the message
     final String encodedMessage = Uri.encodeComponent(message);
 
-    // WhatsApp URL scheme
-    // Using the general share URL (no phone number required)
-    final Uri whatsappUrl = Uri.parse('https://wa.me/?text=$encodedMessage');
+    // Try WhatsApp Business first, then WhatsApp, then web fallback
+    final List<Uri> urls = [
+      Uri.parse('whatsapp-business://send?text=$encodedMessage'),
+      Uri.parse('whatsapp://send?text=$encodedMessage'),
+      Uri.parse('https://wa.me/?text=$encodedMessage'),
+    ];
 
-    try {
-      final bool canLaunch = await canLaunchUrl(whatsappUrl);
-
-      if (canLaunch) {
-        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          _showErrorSnackBar(
-            context,
-            'No se pudo abrir WhatsApp. Asegúrate de tenerlo instalado.',
-          );
+    bool launched = false;
+    for (var url in urls) {
+      try {
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+          launched = true;
+          break;
         }
+      } catch (e) {
+        debugPrint('Failed to launch $url: $e');
       }
-    } catch (e) {
-      debugPrint('Error launching WhatsApp: $e');
-      if (context.mounted) {
-        _showErrorSnackBar(
-          context,
-          'Error al compartir por WhatsApp: ${e.toString()}',
-        );
-      }
+    }
+
+    if (!launched && context.mounted) {
+      _showErrorSnackBar(
+        context,
+        'No se pudo abrir WhatsApp. Asegúrate de tenerlo instalado.',
+      );
     }
   }
 

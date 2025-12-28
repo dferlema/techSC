@@ -160,7 +160,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 icon: const Icon(Icons.share),
                 tooltip: 'Compartir por WhatsApp',
                 onPressed: () {
-                  WhatsAppShareHelper.shareProduct(widget.product, context);
+                  WhatsAppShareHelper.shareProduct({
+                    ...widget.product,
+                    'id': widget.productId,
+                  }, context);
                 },
               ),
             ],
@@ -188,18 +191,65 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       );
                     }
 
-                    if (images.length == 1) {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
-                        child: Hero(
-                          tag: 'product-image-${widget.productId}',
-                          child: Image.network(
-                            images[0],
-                            fit: BoxFit.contain,
-                            errorBuilder: (c, e, s) =>
-                                const Icon(Icons.image_not_supported, size: 80),
+                    Widget buildLabelBadge() {
+                      if (widget.product['label'] == null ||
+                          widget.product['label'] == 'Ninguna') {
+                        return const SizedBox.shrink();
+                      }
+                      return Positioned(
+                        top: 10,
+                        right: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.product['label'] == 'Oferta'
+                                ? Colors.orange
+                                : Colors.red,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            widget.product['label'].toString().toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
+                      );
+                    }
+
+                    if (images.length == 1) {
+                      return Stack(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                            child: Hero(
+                              tag: 'product-image-${widget.productId}',
+                              child: Center(
+                                child: Image.network(
+                                  images[0],
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (c, e, s) => const Icon(
+                                    Icons.image_not_supported,
+                                    size: 80,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          buildLabelBadge(),
+                        ],
                       );
                     }
 
@@ -249,6 +299,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             }),
                           ),
                         ),
+                        buildLabelBadge(),
                       ],
                     );
                   },
@@ -274,14 +325,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    '\$${widget.product['price'] ?? 0}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: theme.colorScheme.primary,
-                      fontSize: 34,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '\$${widget.product['price'] ?? 0}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: theme.colorScheme.primary,
+                          fontSize: 34,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      if (widget.product['taxStatus'] != null &&
+                          widget.product['taxStatus'] != 'Ninguno')
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8, bottom: 6),
+                          child: Text(
+                            widget.product['taxStatus'],
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 24),
                   _buildRatingStars(),
@@ -332,10 +401,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           Text(
                             widget.product['specs'].toString(),
                             style: const TextStyle(
-                              fontFamily: 'Courier',
-                              fontSize: 17,
-                              color: Color(0xFF374151), // Dark grey for specs
-                              height: 1.5,
+                              fontSize: 16,
+                              color: Color(
+                                0xFF4B5563,
+                              ), // Darker grey for better contrast
+                              height: 1.6,
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ],

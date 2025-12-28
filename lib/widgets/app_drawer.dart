@@ -20,6 +20,7 @@ class AppDrawer extends StatelessWidget {
         route == '/services' ||
         route == '/admin' ||
         route == '/technician' ||
+        route == '/reports' ||
         route == '/contact' ||
         route == '/profile-edit' ||
         route == '/my-reservations') {
@@ -153,32 +154,70 @@ class AppDrawer extends StatelessWidget {
                         selectedTileColor: Colors.blueGrey[50],
                         onTap: () => _navigateTo(context, '/technician'),
                       ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.assessment,
+                          color: Colors.deepPurple,
+                        ),
+                        title: const Text('Generar Reportes'),
+                        selected: currentRoute == '/reports',
+                        selectedTileColor: Colors.deepPurple[50],
+                        onTap: () => _navigateTo(context, '/reports'),
+                      ),
                     ],
                   );
                 }
 
                 // Opción para Vendedores
                 if (role == RoleService.SELLER) {
-                  return ListTile(
-                    leading: const Icon(Icons.store, color: Colors.green),
-                    title: const Text('Gestión de Ventas'),
-                    selected: currentRoute == '/admin',
-                    selectedTileColor: Colors.green[50],
-                    onTap: () => _navigateTo(context, '/admin'),
+                  return Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.store, color: Colors.green),
+                        title: const Text('Gestión de Ventas'),
+                        selected: currentRoute == '/admin',
+                        selectedTileColor: Colors.green[50],
+                        onTap: () => _navigateTo(context, '/admin'),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.assessment,
+                          color: Colors.green,
+                        ),
+                        title: const Text('Reportes de Ventas'),
+                        selected: currentRoute == '/reports',
+                        selectedTileColor: Colors.green[50],
+                        onTap: () => _navigateTo(context, '/reports'),
+                      ),
+                    ],
                   );
                 }
 
                 // Opción para Técnicos
                 if (role == RoleService.TECHNICIAN) {
-                  return ListTile(
-                    leading: const Icon(
-                      Icons.build_circle,
-                      color: Colors.blueGrey,
-                    ),
-                    title: const Text('Panel Técnico'),
-                    selected: currentRoute == '/technician',
-                    selectedTileColor: Colors.blueGrey[50],
-                    onTap: () => _navigateTo(context, '/technician'),
+                  return Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(
+                          Icons.build_circle,
+                          color: Colors.blueGrey,
+                        ),
+                        title: const Text('Panel Técnico'),
+                        selected: currentRoute == '/technician',
+                        selectedTileColor: Colors.blueGrey[50],
+                        onTap: () => _navigateTo(context, '/technician'),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.assessment,
+                          color: Colors.blueGrey,
+                        ),
+                        title: const Text('Reportes Técnicos'),
+                        selected: currentRoute == '/reports',
+                        selectedTileColor: Colors.blueGrey[50],
+                        onTap: () => _navigateTo(context, '/reports'),
+                      ),
+                    ],
                   );
                 }
 

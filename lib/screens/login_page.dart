@@ -227,15 +227,19 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const Text('Recordarme'),
                         const Spacer(),
-                        TextButton(
-                          onPressed: () {
-                            // Navegar a la página de recuperación de contraseña
-                            Navigator.pushNamed(context, '/forgot-password');
-                          },
-                          child: Text(
-                            '¿Olvidaste tu contraseña?',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
+                        Flexible(
+                          child: TextButton(
+                            onPressed: () {
+                              // Navegar a la página de recuperación de contraseña
+                              Navigator.pushNamed(context, '/forgot-password');
+                            },
+                            child: Text(
+                              '¿Olvidaste tu contraseña?',
+                              textAlign: TextAlign.end,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                         ),
