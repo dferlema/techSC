@@ -93,10 +93,10 @@ class WhatsAppShareHelper {
   ) async {
     final String encodedMessage = Uri.encodeComponent(message);
 
-    // Try WhatsApp Business first, then WhatsApp, then web fallback
+    // Esquemas estándar compatibles con WhatsApp y WhatsApp Business
     final List<Uri> urls = [
-      Uri.parse('whatsapp-business://send?text=$encodedMessage'),
       Uri.parse('whatsapp://send?text=$encodedMessage'),
+      Uri.parse('https://api.whatsapp.com/send?text=$encodedMessage'),
       Uri.parse('https://wa.me/?text=$encodedMessage'),
     ];
 

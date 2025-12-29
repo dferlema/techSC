@@ -49,13 +49,12 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Soporte para WhatsApp y WhatsApp Business -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="whatsapp" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="whatsapp-business" />
         </intent>
     </queries>
     <uses-permission android:name="android.permission.INTERNET" />
