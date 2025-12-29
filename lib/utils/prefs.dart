@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AppPreferences {
   static const _onboardingCompletedKey = 'onboarding_completed';
+  static const _sessionStartKey = 'session_start_time';
 
   Future<bool> getOnboardingCompleted() async {
     final prefs = await SharedPreferences.getInstance();
@@ -11,5 +12,31 @@ class AppPreferences {
   Future<void> setOnboardingCompleted(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_onboardingCompletedKey, value);
+  }
+
+  // 🕒 Gestión de Sesión
+  Future<void> setSessionStart(DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_sessionStartKey, time.millisecondsSinceEpoch);
+  }
+
+  Future<DateTime?> getSessionStart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt(_sessionStartKey);
+    return timestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(timestamp)
+        : null;
+  }
+
+  Future<void> clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_sessionStartKey);
+  }
+
+  Future<bool> isSessionExpired() async {
+    final start = await getSessionStart();
+    if (start == null) return true;
+    final diff = DateTime.now().difference(start);
+    return diff.inMinutes >= 10;
   }
 }

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
+import '../utils/prefs.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -75,6 +76,9 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (user != null && mounted) {
+        // Registrar inicio de sesión para el timeout de 10 min
+        await AppPreferences().setSessionStart(DateTime.now());
+
         // Guardar email si "Recordarme" está marcado
         if (_rememberMe) {
           await _preferencesService.saveRememberMe(true);

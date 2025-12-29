@@ -17,6 +17,9 @@ class AuthService {
     required String address,
   }) async {
     try {
+      // 0️⃣ Validar fortaleza de contraseña antes de intentar crear
+      _validatePasswordStrength(password);
+
       // 1️⃣ Crear usuario en Firebase Auth
       UserCredential userCredential = await _auth
           .createUserWithEmailAndPassword(email: email, password: password);
@@ -37,8 +40,8 @@ class AuthService {
           'emailVerified': false,
         });
 
-        // 3️⃣ Opcional: Enviar correo de verificación
-        // await user.sendEmailVerification();
+        // 3️⃣ Enviar correo de verificación (Habilitado para seguridad)
+        await user.sendEmailVerification();
 
         return user;
       }
@@ -112,6 +115,22 @@ class AuthService {
     final user = _auth.currentUser;
     if (user != null) {
       await user.updatePassword(newPassword);
+    }
+  }
+
+  // 🔐 Validar fortaleza de contraseña
+  void _validatePasswordStrength(String password) {
+    if (password.length < 8) {
+      throw 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      throw 'La contraseña debe incluir al menos un número.';
+    }
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      throw 'La contraseña debe incluir al menos una letra mayúscula.';
+    }
+    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      throw 'La contraseña debe incluir al menos un carácter especial.';
     }
   }
 

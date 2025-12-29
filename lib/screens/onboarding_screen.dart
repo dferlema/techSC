@@ -10,6 +10,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
+  final PageController _backgroundController = PageController();
   int _currentPage = 0;
   bool _dontShowAgain = false;
   final AppPreferences _prefs = AppPreferences();
@@ -38,19 +39,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
   ];
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is List) {
-      setState(() {
-        _pages = List<Map<String, dynamic>>.from(
-          args.map((e) => Map<String, dynamic>.from(e)),
-        );
-      });
-    }
-  }
-
   IconData _getIconData(dynamic icon) {
     if (icon is IconData) return icon;
     switch (icon.toString()) {
@@ -74,7 +62,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _nextPage() {
     if (_currentPage < _pages.length - 1) {
-      _pageController.nextPage(
+      _pageController.animateToPage(
+        _currentPage + 1,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
@@ -90,6 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _backgroundController.dispose();
     super.dispose();
   }
 
@@ -101,7 +91,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           // Fondo de pantalla dinámico
           PageView.builder(
-            controller: _pageController,
+            controller: _backgroundController,
             itemCount: _pages.length,
             physics:
                 const NeverScrollableScrollPhysics(), // Controlado por el main PV
@@ -152,8 +142,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: PageView.builder(
                     controller: _pageController,
                     itemCount: _pages.length,
-                    onPageChanged: (index) =>
-                        setState(() => _currentPage = index),
+                    onPageChanged: (index) {
+                      setState(() => _currentPage = index);
+                      _backgroundController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
                     itemBuilder: (context, index) {
                       final page = _pages[index];
                       final bool hasBg = page['imageUrl'] != null;

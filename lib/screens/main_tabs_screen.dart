@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_drawer.dart';
+import '../utils/prefs.dart';
 import 'home_page.dart';
 import 'service_reservation_page.dart';
 import 'contact_page.dart';
@@ -16,7 +17,7 @@ class MainTabsScreen extends StatefulWidget {
 }
 
 class _MainTabsScreenState extends State<MainTabsScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   int _currentIndex = 0;
   String _userName = 'Usuario';
@@ -31,9 +32,36 @@ class _MainTabsScreenState extends State<MainTabsScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: _screens.length, vsync: this);
     _tabController.addListener(_handleTabChange);
     _loadUserName();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkSession();
+    }
+  }
+
+  Future<void> _checkSession() async {
+    final expired = await AppPreferences().isSessionExpired();
+    if (expired && mounted) {
+      await FirebaseAuth.instance.signOut();
+      await AppPreferences().clearSession();
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil('/login', (route) => false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Su sesión ha caducado por inactividad (10 min).'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -109,6 +137,7 @@ class _MainTabsScreenState extends State<MainTabsScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
