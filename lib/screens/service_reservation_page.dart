@@ -12,13 +12,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/notification_service.dart';
 import '../services/role_service.dart';
 import '../widgets/notification_icon.dart';
-// import '../widgets/app_drawer.dart';
+import '../widgets/app_drawer.dart';
 
 /// Pantalla para reservar servicio técnico.
 /// Permite al usuario llenar un formulario con sus datos y detalles del problema.
 /// Genera un PDF de confirmación al guardar.
 class ServiceReservationPage extends StatefulWidget {
-  const ServiceReservationPage({super.key});
+  final bool isManualRegistration;
+  const ServiceReservationPage({super.key, this.isManualRegistration = false});
 
   @override
   State<ServiceReservationPage> createState() => _ServiceReservationPageState();
@@ -185,7 +186,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     setState(() {
       _isReservationStarted = true;
     });
-    _loadUserData();
+    if (!widget.isManualRegistration) {
+      _loadUserData();
+    }
   }
 
   /// Libera los recursos de los controladores cuando se cierra la pantalla.
@@ -385,7 +388,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     try {
       // Recopilar datos del formulario
       final reservationData = {
-        'userId': _currentUser?.uid, // Vincular al usuario actual
+        'userId': widget.isManualRegistration
+            ? 'manual_by_tech'
+            : _currentUser
+                  ?.uid, // Vincular al usuario actual o marcar como manual
         'clientName': _nameController.text.trim(),
         'clientEmail': _emailController.text.trim(),
         'clientPhone': _phoneController.text.trim(),
@@ -564,10 +570,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
+        // Removido leading personalizado para dejar que Flutter decida (Atrás o Menú)
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -577,9 +580,11 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             ),
             const SizedBox(height: 2),
             Text(
-              _isReservationStarted
-                  ? 'Completa los detalles de tu requerimiento'
-                  : 'Agenda tu cita con profesionales',
+              widget.isManualRegistration
+                  ? 'Registro de Trabajo (Taller)'
+                  : (_isReservationStarted
+                        ? 'Completa los detalles de tu requerimiento'
+                        : 'Agenda tu cita con profesionales'),
               style: const TextStyle(fontSize: 13, color: Colors.white70),
             ),
           ],
@@ -597,6 +602,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
           const SizedBox(width: 16),
         ],
       ),
+      drawer: widget.isManualRegistration
+          ? null
+          : const AppDrawer(currentRoute: '/reserve-service'),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         child: _isReservationStarted
@@ -638,7 +646,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Agenda una revisión para tus equipos hoy mismo. Cargaremos tus datos guardados automáticamente para tu comodidad.',
+              widget.isManualRegistration
+                  ? 'Registra un trabajo para un cliente que no está en la aplicación. Podrás dar seguimiento y generar comprobante.'
+                  : 'Agenda una revisión para tus equipos hoy mismo. Cargaremos tus datos guardados automáticamente para tu comodidad.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -662,14 +672,19 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 elevation: 4,
                 shadowColor: theme.colorScheme.primary.withOpacity(0.3),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.add_task_rounded),
-                  SizedBox(width: 12),
+                  const Icon(Icons.add_task_rounded),
+                  const SizedBox(width: 12),
                   Text(
-                    'COMENZAR NUEVA RESERVA',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    widget.isManualRegistration
+                        ? 'REGISTRAR NUEVO TRABAJO'
+                        : 'COMENZAR NUEVA RESERVA',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),

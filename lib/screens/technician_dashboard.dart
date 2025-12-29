@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/reservation_model.dart';
 // import '../services/auth_service.dart'; // Keeping import if needed later
 import 'reservation_detail_page.dart';
+import 'service_reservation_page.dart';
 
 class TechnicianDashboard extends StatefulWidget {
   const TechnicianDashboard({super.key});
@@ -65,6 +66,21 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
             label: 'Historial',
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  const ServiceReservationPage(isManualRegistration: true),
+            ),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Nuevo Trabajo Manual'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
       ),
     );
   }

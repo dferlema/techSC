@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
 import '../widgets/notification_icon.dart';
+import '../widgets/app_drawer.dart';
 
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
@@ -37,6 +38,7 @@ class ContactPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colorScheme.background,
+      drawer: const AppDrawer(currentRoute: '/contact'),
       body: CustomScrollView(
         slivers: [
           _buildSliverAppBar(context, colorScheme),
@@ -88,9 +90,11 @@ class ContactPage extends StatelessWidget {
               ),
               onPressed: () => Navigator.of(context).pop(),
             )
-          : IconButton(
-              icon: Icon(Icons.menu, color: colorScheme.primary),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+          : Builder(
+              builder: (context) => IconButton(
+                icon: Icon(Icons.menu, color: colorScheme.primary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
             ),
       actions: [
         NotificationIcon(color: colorScheme.primary),

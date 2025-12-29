@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../widgets/app_drawer.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
@@ -69,10 +70,6 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: colorScheme.primary,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
         title: const Text(
           'TechService Pro',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -82,6 +79,7 @@ class _HomePageState extends State<HomePage> {
           SizedBox(width: 16),
         ],
       ),
+      drawer: const AppDrawer(currentRoute: '/home'),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Column(
