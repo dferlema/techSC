@@ -26,6 +26,7 @@ import 'screens/create_quote_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/category_management_page.dart';
 import 'screens/marketing_campaign_page.dart';
+import 'services/deep_link_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,10 @@ void main() async {
       debugPrint("Warning: This platform is not yet configured for Firebase.");
     }
   }
+
+  // Initialize Deep Link Service
+  DeepLinkService().init();
+
   runApp(const MyApp());
 }
 
@@ -53,6 +58,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'TechService Pro',
       debugShowCheckedModeBanner: false,
+      navigatorKey: DeepLinkService().navigatorKey,
       theme: AppTheme.lightTheme,
       initialRoute: '/',
       builder: (context, child) {

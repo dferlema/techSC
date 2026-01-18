@@ -232,9 +232,6 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     try {
       final clients = await _marketingService.getClients().first;
       final productName = _selectedProduct!['name'] ?? 'Producto';
-      final message = WhatsAppShareHelper.generateMarketingMessage(
-        _selectedProduct!,
-      );
 
       final StringBuffer buffer = StringBuffer();
       // Headers requested by user
@@ -245,6 +242,13 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       for (var client in clients) {
         if (client.phone.isEmpty) continue;
 
+        // Generate personalized message for each client
+        final personalizedMessage =
+            WhatsAppShareHelper.generateMarketingMessage(
+              _selectedProduct!,
+              clientName: client.name,
+            );
+
         // Formato internacional (593...) sin + para máxima compatibilidad
         String cleanPhone = client.phone.replaceAll(RegExp(r'\D'), '');
         if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
@@ -254,7 +258,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
         }
 
         buffer.writeln(
-          '"$cleanPhone","${client.name}","${message.replaceAll('"', '""')}","$productName"',
+          '"$cleanPhone","${client.name}","${personalizedMessage.replaceAll('"', '""')}","$productName"',
         );
       }
 
@@ -369,6 +373,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       productData: _selectedProduct!,
       phone: client.phone,
       context: context,
+      clientName: client.name,
     );
 
     // Optional: Log it

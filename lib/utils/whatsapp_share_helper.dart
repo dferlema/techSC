@@ -68,6 +68,7 @@ class WhatsAppShareHelper {
     required Map<String, dynamic> productData,
     required String phone,
     required BuildContext context,
+    String? clientName,
   }) async {
     // Limpiar el número de teléfono (solo números)
     String cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
@@ -79,7 +80,10 @@ class WhatsAppShareHelper {
       cleanPhone = '593$cleanPhone';
     }
 
-    final String message = generateMarketingMessage(productData);
+    final String message = generateMarketingMessage(
+      productData,
+      clientName: clientName,
+    );
 
     final String encodedMessage = Uri.encodeComponent(message);
     final Uri whatsappUrl = Uri.parse(
@@ -101,26 +105,58 @@ class WhatsAppShareHelper {
   }
 
   /// Generates the marketing message text formatted for WhatsApp
-  static String generateMarketingMessage(Map<String, dynamic> productData) {
+  static String generateMarketingMessage(
+    Map<String, dynamic> productData, {
+    String? clientName,
+  }) {
     final String productName = productData['name'] ?? 'Producto';
-    final String price = productData['price']?.toString() ?? '0';
+    final double price =
+        double.tryParse(productData['price']?.toString() ?? '0') ?? 0;
     final String description = productData['description'] ?? '';
+    final String name = clientName ?? 'amigo/a';
 
-    // Format a high-impact marketing message
-    String message = '🔥 *¡OFERTA EXCLUSIVA PARA TI!* 🔥\n\n';
-    message += 'Hola, pensamos que este producto podría interesarte:\n\n';
-    message += '🚀 *$productName*\n';
-    message += '💰 *PRECIO ESPECIAL: \$$price*\n\n';
+    // Calculate a "strikethrough" original price (25% more)
+    final String originalPrice = (price * 1.25).toStringAsFixed(2);
+    final String promoPrice = price.toStringAsFixed(2);
 
-    if (description.isNotEmpty) {
+    // Format a high-impact marketing message based on user request
+    String message = '👋 Hola *$name*, tenemos algo especial para ti\n';
+    message +=
+        'Entre todos nuestros clientes, seleccionamos a algunos para ofertas únicas. Hoy es tu turno.\n\n';
+
+    message += '✨ *$productName*\n';
+    message += 'Precio exclusivo para ti: *$promoPrice* ~$originalPrice~\n\n';
+
+    message += '¿Por qué esta laptop es perfecta para lo que necesitas?\n';
+
+    // Try to extract specs into bullet points
+    if (productData['specs'] != null) {
+      String specs = productData['specs'].toString();
+      // Simple split if it looks like a list or just use it
+      if (specs.contains(',')) {
+        specs.split(',').take(4).forEach((spec) {
+          message += '💎 ${spec.trim()}\n';
+        });
+      } else {
+        message += '💎 $specs\n';
+      }
+    } else if (description.isNotEmpty) {
       message +=
-          '✨ _${description.length > 100 ? '${description.substring(0, 97)}...' : description}_\n\n';
+          '💎 _${description.length > 80 ? '${description.substring(0, 77)}...' : description}_\n';
     }
 
+    message += '\n';
+    message += '⏰ *Esta oferta expira en 6 horas*\n\n';
+
     message +=
-        '⚡ ¡No te quedes sin el tuyo! Haz clic abajo para ver más detalles:\n';
+        '*$name*, guardamos esta oportunidad especialmente para ti. Pero el cupo es limitado y el tiempo corre.\n\n';
+
+    message += '👉 *Sí, quiero aprovechar mi oferta*\n';
     message += 'techsc://product?id=${productData['id']}\n\n';
-    message += '--- \n';
+
+    message +=
+        'P.D. Solo 3 personas recibirán este precio hoy. Tú eres una de ellas.\n\n';
+
     message += '🏢 *TechServiceComputer*';
 
     return message;

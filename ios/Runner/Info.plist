@@ -57,5 +57,18 @@
 	<array>
 		<string>whatsapp</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.techservice.techsc</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>techsc</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
