@@ -60,6 +60,69 @@ class WhatsAppShareHelper {
     }
   }
 
+  /// Sends a direct marketing message to a specific phone number via WhatsApp
+  ///
+  /// [productData] contains the product details
+  /// [phone] is the client's phone number
+  static Future<void> sendMarketingMessage({
+    required Map<String, dynamic> productData,
+    required String phone,
+    required BuildContext context,
+  }) async {
+    // Clean phone number (remove non-numeric characters except +)
+    String cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (!cleanPhone.startsWith('+') && cleanPhone.length == 10) {
+      // Assuming Ecuador (+593) if 10 digits and no prefix
+      cleanPhone = '+593$cleanPhone';
+    }
+
+    final String message = generateMarketingMessage(productData);
+
+    final String encodedMessage = Uri.encodeComponent(message);
+    final Uri whatsappUrl = Uri.parse(
+      'https://wa.me/$cleanPhone?text=$encodedMessage',
+    );
+
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'No se pudo abrir WhatsApp para $cleanPhone';
+      }
+    } catch (e) {
+      debugPrint('Error launching marketing message: $e');
+      if (context.mounted) {
+        _showErrorSnackBar(context, 'Error al enviar a $phone: $e');
+      }
+    }
+  }
+
+  /// Generates the marketing message text formatted for WhatsApp
+  static String generateMarketingMessage(Map<String, dynamic> productData) {
+    final String productName = productData['name'] ?? 'Producto';
+    final String price = productData['price']?.toString() ?? '0';
+    final String description = productData['description'] ?? '';
+
+    // Format a high-impact marketing message
+    String message = '🔥 *¡OFERTA EXCLUSIVA PARA TI!* 🔥\n\n';
+    message += 'Hola, pensamos que este producto podría interesarte:\n\n';
+    message += '🚀 *$productName*\n';
+    message += '💰 *PRECIO ESPECIAL: \$$price*\n\n';
+
+    if (description.isNotEmpty) {
+      message +=
+          '✨ _${description.length > 100 ? '${description.substring(0, 97)}...' : description}_\n\n';
+    }
+
+    message +=
+        '⚡ ¡No te quedes sin el tuyo! Haz clic abajo para ver más detalles:\n';
+    message += 'techsc://product?id=${productData['id']}\n\n';
+    message += '--- \n';
+    message += '🏢 *TechServiceComputer*';
+
+    return message;
+  }
+
   /// Share a service via WhatsApp/Share Sheet
   ///
   /// [serviceData] should contain: title, price, description, duration, and optionally imageUrl or imageUrls
