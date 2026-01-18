@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart' as excel_pkg;
+import 'package:share_plus/share_plus.dart';
 import '../services/role_service.dart';
 import '../services/config_service.dart';
 import '../models/config_model.dart';
@@ -479,15 +481,21 @@ class _ReportsPageState extends State<ReportsPage> {
         );
       }
 
-      final output = await getApplicationDocumentsDirectory();
+      final output = await getTemporaryDirectory();
       final file = File(
         '${output.path}/reporte_ventas_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
       );
-      await file.writeAsString(buffer.toString());
+      await file.writeAsString(buffer.toString(), encoding: utf8);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Reporte de Ventas CSV',
+        text: 'Aquí está el reporte de ventas generado desde TechSC.',
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ CSV guardado en: ${file.path}')),
+        const SnackBar(content: Text('✅ Reporte CSV generado correctamente')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -563,18 +571,24 @@ class _ReportsPageState extends State<ReportsPage> {
         ]);
       }
 
-      final output = await getApplicationDocumentsDirectory();
+      final output = await getTemporaryDirectory();
       final file = File(
         '${output.path}/reporte_ventas_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx',
       );
       final bytes = excel.save();
       if (bytes != null) {
         await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Reporte de Ventas Excel',
+          text: 'Aquí está el reporte de ventas generado desde TechSC.',
+        );
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Excel guardado en: ${file.path}')),
+        const SnackBar(content: Text('✅ Reporte Excel generado correctamente')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -826,15 +840,21 @@ class _ReportsPageState extends State<ReportsPage> {
         );
       }
 
-      final output = await getApplicationDocumentsDirectory();
+      final output = await getTemporaryDirectory();
       final file = File(
         '${output.path}/reporte_servicios_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
       );
-      await file.writeAsString(buffer.toString());
+      await file.writeAsString(buffer.toString(), encoding: utf8);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Reporte de Servicios CSV',
+        text: 'Aquí está el reporte de servicios generado desde TechSC.',
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ CSV guardado en: ${file.path}')),
+        const SnackBar(content: Text('✅ Reporte CSV generado correctamente')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -904,18 +924,24 @@ class _ReportsPageState extends State<ReportsPage> {
         ]);
       }
 
-      final output = await getApplicationDocumentsDirectory();
+      final output = await getTemporaryDirectory();
       final file = File(
         '${output.path}/reporte_servicios_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx',
       );
       final bytes = excel.save();
       if (bytes != null) {
         await file.writeAsBytes(bytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Reporte de Servicios Excel',
+          text: 'Aquí está el reporte de servicios generado desde TechSC.',
+        );
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Excel guardado en: ${file.path}')),
+        const SnackBar(content: Text('✅ Reporte Excel generado correctamente')),
       );
     } catch (e) {
       if (!mounted) return;
