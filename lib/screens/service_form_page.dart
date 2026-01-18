@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/category_model.dart';
+import '../services/category_service.dart';
+
 /// Pagina de formulario para crear o editar servicios.
 /// Incluye gestión de componentes dinámicos y validación de campos.
 class ServiceFormPage extends StatefulWidget {
@@ -29,17 +32,13 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   // Lista dinámica de componentes del servicio
   late List<String> _components;
 
-  late String _selectedType;
+  // Guardamos el ID de la categoría seleccionada
+  String? _selectedCategoryId;
+  // Guardamos el nombre para denormalización
+  String? _selectedCategoryName;
+
   late String _selectedTaxStatus;
   bool _isSaving = false;
-
-  // Tipos de servicio disponibles
-  static const List<String> _serviceTypes = [
-    'reparacion',
-    'instalacion',
-    'diagnostico',
-    'mantenimiento',
-  ];
 
   @override
   void initState() {
@@ -58,7 +57,12 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     _durationController = TextEditingController(
       text: widget.initialData?['duration'] ?? '',
     );
-    _selectedType = widget.initialData?['type'] ?? _serviceTypes[0];
+
+    // Cargar vinculación de categoría
+    _selectedCategoryId = widget.initialData?['categoryId'];
+    _selectedCategoryName =
+        widget.initialData?['category'] ?? widget.initialData?['type'];
+
     _selectedTaxStatus = widget.initialData?['taxStatus'] ?? 'Incluye impuesto';
 
     // Cargar imágenes existentes
@@ -148,7 +152,11 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         'duration': _durationController.text.trim(),
         'imageUrls': _imageUrls,
         'imageUrl': _imageUrls.first,
-        'type': _selectedType,
+        'categoryId':
+            _selectedCategoryId, // ID de la categoría (Vínculo fuerte)
+        'category':
+            _selectedCategoryName, // Nombre de la categoría (Denormalizado)
+        'type': _selectedCategoryName, // Mantener 'type' por compatibilidad
         'taxStatus': _selectedTaxStatus,
         'components': _components,
         if (widget.serviceId == null) 'createdAt': FieldValue.serverTimestamp(),
@@ -387,8 +395,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
+                        }
                         return null;
                       },
                     ),
@@ -429,21 +438,47 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedType,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de servicio *',
-                        border: OutlineInputBorder(),
+                    StreamBuilder<List<CategoryModel>>(
+                      stream: CategoryService().getCategories(
+                        CategoryType.service,
                       ),
-                      items: _serviceTypes.map((type) {
-                        return DropdownMenuItem(
-                          value: type,
-                          child: Text(_capitalize(type)),
+                      builder: (context, snapshot) {
+                        final categories = snapshot.data ?? [];
+
+                        // Manejar selección inicial o si la categoría ya no existe
+                        bool categoryExists = categories.any(
+                          (c) => c.id == _selectedCategoryId,
                         );
-                      }).toList(),
-                      onChanged: (value) =>
-                          setState(() => _selectedType = value!),
+                        if (!categoryExists && categories.isNotEmpty) {
+                          _selectedCategoryId = categories.first.id;
+                          _selectedCategoryName = categories.first.name;
+                        }
+
+                        return DropdownButtonFormField<String>(
+                          value: _selectedCategoryId,
+                          decoration: const InputDecoration(
+                            labelText: 'Categoría de servicio *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: categories.map((c) {
+                            return DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.name.toUpperCase()),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCategoryId = value;
+                              _selectedCategoryName = categories
+                                  .firstWhere((c) => c.id == value)
+                                  .name;
+                            });
+                          },
+                          validator: (v) => v == null ? 'Selecciona' : null,
+                        );
+                      },
                     ),
+
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
                       value: _selectedTaxStatus,
@@ -465,10 +500,5 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
               ),
             ),
     );
-  }
-
-  String _capitalize(String text) {
-    if (text.isEmpty) return text;
-    return '${text[0].toUpperCase()}${text.substring(1)}';
   }
 }

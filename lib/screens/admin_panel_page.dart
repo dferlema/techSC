@@ -10,9 +10,9 @@ import 'package:flutter_svg/flutter_svg.dart'; // 👈 Nuevo
 import 'product_form_page.dart';
 import 'service_form_page.dart';
 import 'client_form_page.dart';
-import '../widgets/app_drawer.dart';
 import '../services/role_service.dart'; // 👈 Nuevo
 import '../widgets/role_assignment_dialog.dart';
+import '../widgets/cart_badge.dart'; // 👈 Nuevo
 
 /// Página principal del panel de administración.
 ///
@@ -44,7 +44,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   void initState() {
     super.initState();
     _checkRole();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -860,7 +860,15 @@ class _AdminPanelPageState extends State<AdminPanelPage>
 
     if (!_canAccessPanel) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Acceso Denegado')),
+        appBar: AppBar(
+          title: const Text('Acceso Denegado'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).canPop()
+                ? Navigator.of(context).pop()
+                : Navigator.of(context).pushReplacementNamed('/main'),
+          ),
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -884,12 +892,17 @@ class _AdminPanelPageState extends State<AdminPanelPage>
     }
 
     return Scaffold(
-      drawer: AppDrawer(
-        currentRoute: '/admin',
-        userName:
-            FirebaseAuth.instance.currentUser?.displayName ?? 'Administrador',
-      ),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.of(context).pushReplacementNamed('/main');
+            }
+          },
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -908,6 +921,16 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.category, color: Colors.white),
+            tooltip: 'Gestionar Categorías',
+            onPressed: () =>
+                Navigator.pushNamed(context, '/category-management'),
+          ),
+          const CartBadge(),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _buildBody(),
       bottomNavigationBar: NavigationBar(
@@ -937,11 +960,6 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Pedidos',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.image_outlined),
-            selectedIcon: Icon(Icons.image),
-            label: 'Banners',
           ),
         ],
       ),
@@ -985,173 +1003,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         ),
         // 4. Pedidos
         _buildOrdersTab(),
-        // 5. Banners
-        _buildBannersTab(),
       ],
-    );
-  }
-
-  // 🖼️ Tab de Banners
-  Widget _buildBannersTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          // Input para agregar banner
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Agregar Nuevo Banner',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller:
-                              _searchController, // Reusing controller for URL input temporarily
-                          decoration: const InputDecoration(
-                            labelText: 'URL de la Imagen',
-                            hintText: 'https://ejemplo.com/imagen.jpg',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.link),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final url = _searchController.text.trim();
-                          if (url.isNotEmpty) {
-                            await FirebaseFirestore.instance
-                                .collection('banners')
-                                .add({
-                                  'imageUrl': url,
-                                  'createdAt': FieldValue.serverTimestamp(),
-                                });
-                            _searchController.clear();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('✅ Banner agregado'),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.add_photo_alternate),
-                        label: const Text('Agregar'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Banners Activos',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Lista de banners
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('banners')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.image_not_supported,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No hay banners activos',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 1, // Full width items for better view
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 16 / 9,
-                  ),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = snapshot.data!.docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            data['imageUrl'] ?? '',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.broken_image,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: CircleAvatar(
-                            backgroundColor: Colors.white.withOpacity(0.8),
-                            child: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () =>
-                                  _deleteDocument('banners', doc.id),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1368,6 +1220,7 @@ class _OrderCardState extends State<OrderCard> {
   late TextEditingController _paymentLinkController;
   late TextEditingController _institutionController;
   late TextEditingController _voucherController;
+  late TextEditingController _discountController;
   bool _isSavingLink = false;
 
   // Payment Control State
@@ -1387,6 +1240,9 @@ class _OrderCardState extends State<OrderCard> {
     _voucherController = TextEditingController(
       text: data['paymentVoucher'] ?? '',
     );
+    _discountController = TextEditingController(
+      text: (data['discountPercentage'] ?? 0.0).toString(),
+    );
     _paymentMethod = data['paymentMethod'] ?? 'efectivo';
     _isPaid = data['isPaid'] ?? false;
   }
@@ -1396,6 +1252,7 @@ class _OrderCardState extends State<OrderCard> {
     _paymentLinkController.dispose();
     _institutionController.dispose();
     _voucherController.dispose();
+    _discountController.dispose();
     super.dispose();
   }
 
@@ -1448,6 +1305,7 @@ class _OrderCardState extends State<OrderCard> {
 
   Future<void> _savePaymentDetails() async {
     try {
+      final discount = double.tryParse(_discountController.text) ?? 0.0;
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(widget.doc.id)
@@ -1456,6 +1314,7 @@ class _OrderCardState extends State<OrderCard> {
             'financialInstitution': _institutionController.text.trim(),
             'paymentVoucher': _voucherController.text.trim(),
             'isPaid': _isPaid,
+            'discountPercentage': discount,
           });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1475,9 +1334,47 @@ class _OrderCardState extends State<OrderCard> {
   Widget build(BuildContext context) {
     final data = widget.doc.data() as Map<String, dynamic>;
     final date = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-    final total = data['total'] ?? 0.0;
+
+    // Get data from originalQuote
+    final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
+
+    // Robustly get items
+    final items =
+        (data['items'] as List<dynamic>?) ??
+        (originalQuote?['items'] as List<dynamic>?) ??
+        [];
+
+    // Robustly get total
+    double total = 0.0;
+    double subtotal = 0.0;
+    final discountPercentage =
+        (data['discountPercentage'] as num?)?.toDouble() ??
+        (originalQuote?['discountPercentage'] as num?)?.toDouble() ??
+        0.0;
+
+    for (var item in items) {
+      final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+      final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+      subtotal += price * qty;
+    }
+
+    final discountAmount = subtotal * (discountPercentage / 100);
+    final taxableAmount = subtotal - discountAmount;
+
+    if (data['total'] != null && discountPercentage == 0) {
+      total = (data['total'] as num).toDouble();
+    } else {
+      total = taxableAmount;
+      // Apply tax if applicable in originalQuote
+      if (originalQuote?['applyTax'] == true) {
+        final taxRate = (originalQuote?['taxRate'] as num?)?.toDouble() ?? 0.15;
+        total += taxableAmount * taxRate;
+      }
+    }
+
+    final clientName = originalQuote?['clientName'] ?? 'Cliente Desconocido';
+
     final status = data['status'] ?? 'pendiente';
-    final items = (data['items'] as List<dynamic>? ?? []);
     final userId = data['userId'];
 
     return Card(
@@ -1500,6 +1397,19 @@ class _OrderCardState extends State<OrderCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Client Name from Quote
+                Row(
+                  children: [
+                    const Icon(Icons.person, size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(
+                      clientName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const Divider(),
+
                 // Info Cliente
                 if (userId != null)
                   FutureBuilder<DocumentSnapshot>(
@@ -1522,18 +1432,11 @@ class _OrderCardState extends State<OrderCard> {
                           Row(
                             children: [
                               const Icon(
-                                Icons.person,
+                                Icons.phone,
                                 size: 16,
                                 color: Colors.grey,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                userName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Spacer(),
                               if (userPhone.isNotEmpty)
                                 InkWell(
                                   onTap: () =>
@@ -1552,16 +1455,13 @@ class _OrderCardState extends State<OrderCard> {
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                          if (userPhone.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 24),
-                              child: Text(
+                              const SizedBox(width: 8),
+                              Text(
                                 userPhone,
                                 style: TextStyle(color: Colors.grey[600]),
                               ),
-                            ),
+                            ],
+                          ),
                           const Divider(),
                         ],
                       );
@@ -1601,8 +1501,31 @@ class _OrderCardState extends State<OrderCard> {
 
                 // Payment Control Section
                 const Text(
-                  'Control de Pagos',
+                  'Control de Pagos y Descuentos',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _discountController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Descuento (%)',
+                          hintText: 'Ej: 5',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.percent),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _savePaymentDetails,
+                      child: const Text('Aplicar'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -1614,12 +1537,13 @@ class _OrderCardState extends State<OrderCard> {
                         setState(() => _isPaid = val);
                         _savePaymentDetails();
                       },
-                      activeColor: Colors.green,
+                      activeThumbColor: Colors.green,
                     ),
                   ],
                 ),
+                // Metodo de pago opciones
                 DropdownButtonFormField<String>(
-                  value: _paymentMethod,
+                  initialValue: _paymentMethod,
                   decoration: const InputDecoration(
                     labelText: 'Método de Pago',
                     isDense: true,
@@ -1635,6 +1559,7 @@ class _OrderCardState extends State<OrderCard> {
                       value: 'transferencia',
                       child: Text('Transferencia'),
                     ),
+                    DropdownMenuItem(value: 'tarjeta', child: Text('Tarjeta')),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -1734,7 +1659,9 @@ class _OrderCardState extends State<OrderCard> {
                         Expanded(
                           child: Text('${item['quantity']}x ${item['name']}'),
                         ),
-                        Text('\$${(item['subtotal'] ?? 0).toStringAsFixed(2)}'),
+                        Text(
+                          '\$${((item['price'] ?? 0) * (item['quantity'] ?? 1)).toStringAsFixed(2)}',
+                        ),
                       ],
                     ),
                   ),

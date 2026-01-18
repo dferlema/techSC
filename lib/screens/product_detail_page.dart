@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/cart_service.dart';
 import '../utils/whatsapp_share_helper.dart';
+import '../widgets/cart_badge.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -166,6 +167,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   }, context);
                 },
               ),
+              const CartBadge(color: Colors.black),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(

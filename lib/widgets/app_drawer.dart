@@ -1,34 +1,88 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../screens/my_orders_page.dart';
 import '../services/role_service.dart';
 import '../services/preferences_service.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   final String currentRoute;
-  final String userName;
+  final String? userName; // Permite ser null para cargar internamente
 
-  const AppDrawer({
-    super.key,
-    required this.currentRoute,
-    this.userName = 'Usuario',
-  });
+  const AppDrawer({super.key, required this.currentRoute, this.userName});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  String _displayName = 'Usuario';
+  bool _isLoadingName = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayName = widget.userName ?? 'Usuario';
+    if (_displayName == 'Usuario') {
+      _loadUserData();
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isLoadingName = true);
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists && doc.data()?['name'] != null) {
+        if (mounted) {
+          setState(() {
+            _displayName = doc.data()!['name'];
+            _isLoadingName = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingName = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading user in Drawer: $e');
+      if (mounted) setState(() => _isLoadingName = false);
+    }
+  }
 
   void _navigateTo(BuildContext context, String route) {
+    // For these routes, we want to push them onto the stack so we can go back
+    if (route == '/profile-edit' || route == '/contact') {
+      if (widget.currentRoute == route) {
+        Navigator.pop(context);
+        return;
+      }
+      Navigator.pop(context); // Close drawer
+      Navigator.pushNamed(context, route);
+      return;
+    }
+
     if (route == '/products' ||
         route == '/services' ||
         route == '/admin' ||
         route == '/technician' ||
         route == '/reports' ||
-        route == '/contact' ||
-        route == '/profile-edit' ||
-        route == '/my-reservations') {
-      if (currentRoute == route) {
+        route == '/quotes' ||
+        route == '/my-reservations' ||
+        route == '/settings') {
+      if (widget.currentRoute == route) {
         Navigator.pop(context);
         return;
       }
-      Navigator.pushReplacementNamed(context, route);
+      Navigator.pop(context); // Close drawer
+      Navigator.pushNamed(context, route);
       return;
     }
 
@@ -48,7 +102,9 @@ class AppDrawer extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          DrawerHeader(
+          Container(
+            height: 180, // Fijo para evitar desbordamiento
+            padding: const EdgeInsets.only(left: 16, bottom: 16, top: 40),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
             ),
@@ -62,35 +118,63 @@ class AppDrawer extends StatelessWidget {
                   ),
                   builder: (context, snapshot) {
                     final imagePath = snapshot.data;
-                    return CircleAvatar(
-                      radius: 32,
-                      backgroundColor: Colors.white,
-                      backgroundImage: imagePath != null
-                          ? FileImage(File(imagePath))
-                          : null,
-                      child: imagePath == null
-                          ? Icon(
-                              Icons.person,
-                              size: 48,
-                              color: Theme.of(context).colorScheme.primary,
-                            )
-                          : null,
+                    return GestureDetector(
+                      onTap: () => _navigateTo(context, '/profile-edit'),
+                      child: CircleAvatar(
+                        radius: 30, // Reducido un poco para ahorrar espacio
+                        backgroundColor: Colors.white,
+                        backgroundImage: imagePath != null
+                            ? FileImage(File(imagePath))
+                            : null,
+                        child: imagePath == null
+                            ? Icon(
+                                Icons.person,
+                                size: 40,
+                                color: Theme.of(context).colorScheme.primary,
+                              )
+                            : null,
+                      ),
                     );
                   },
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  userName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _isLoadingName
+                          ? const SizedBox(
+                              height: 14,
+                              width: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white70,
+                              ),
+                            )
+                          : Text(
+                              _displayName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.edit,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
+                      onPressed: () => _navigateTo(context, '/profile-edit'),
+                      tooltip: 'Editar Perfil',
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
                 const Text(
                   'TechService Pro',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -98,28 +182,28 @@ class AppDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.home),
             title: const Text('Inicio'),
-            selected: currentRoute == '/home',
+            selected: widget.currentRoute == '/home',
             selectedTileColor: Colors.blue[50],
             onTap: () => _navigateTo(context, '/home'),
           ),
           ListTile(
             leading: const Icon(Icons.computer),
             title: const Text('Nuestros Productos'),
-            selected: currentRoute == '/products',
+            selected: widget.currentRoute == '/products',
             selectedTileColor: Colors.blue[50],
             onTap: () => _navigateTo(context, '/products'),
           ),
           ListTile(
             leading: const Icon(Icons.build_circle),
             title: const Text('Nuestros Servicios'),
-            selected: currentRoute == '/services',
+            selected: widget.currentRoute == '/services',
             selectedTileColor: Colors.blue[50],
             onTap: () => _navigateTo(context, '/services'),
           ),
           ListTile(
             leading: const Icon(Icons.build),
             title: const Text('Reservar Servicio'),
-            selected: currentRoute == '/reserve-service',
+            selected: widget.currentRoute == '/reserve-service',
             selectedTileColor: Colors.blue[50],
             onTap: () => _navigateTo(context, '/reserve-service'),
           ),
@@ -140,7 +224,7 @@ class AppDrawer extends StatelessWidget {
                           color: Colors.orange,
                         ),
                         title: const Text('Panel de Administración'),
-                        selected: currentRoute == '/admin',
+                        selected: widget.currentRoute == '/admin',
                         selectedTileColor: Colors.orange[50],
                         onTap: () => _navigateTo(context, '/admin'),
                       ),
@@ -150,7 +234,7 @@ class AppDrawer extends StatelessWidget {
                           color: Colors.blueGrey,
                         ),
                         title: const Text('Panel Técnico'),
-                        selected: currentRoute == '/technician',
+                        selected: widget.currentRoute == '/technician',
                         selectedTileColor: Colors.blueGrey[50],
                         onTap: () => _navigateTo(context, '/technician'),
                       ),
@@ -160,9 +244,16 @@ class AppDrawer extends StatelessWidget {
                           color: Colors.deepPurple,
                         ),
                         title: const Text('Generar Reportes'),
-                        selected: currentRoute == '/reports',
+                        selected: widget.currentRoute == '/reports',
                         selectedTileColor: Colors.deepPurple[50],
                         onTap: () => _navigateTo(context, '/reports'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.settings, color: Colors.grey),
+                        title: const Text('Configuraciones'),
+                        selected: widget.currentRoute == '/settings',
+                        selectedTileColor: Colors.grey[50],
+                        onTap: () => _navigateTo(context, '/settings'),
                       ),
                     ],
                   );
@@ -175,7 +266,7 @@ class AppDrawer extends StatelessWidget {
                       ListTile(
                         leading: const Icon(Icons.store, color: Colors.green),
                         title: const Text('Gestión de Ventas'),
-                        selected: currentRoute == '/admin',
+                        selected: widget.currentRoute == '/admin',
                         selectedTileColor: Colors.green[50],
                         onTap: () => _navigateTo(context, '/admin'),
                       ),
@@ -185,7 +276,7 @@ class AppDrawer extends StatelessWidget {
                           color: Colors.green,
                         ),
                         title: const Text('Reportes de Ventas'),
-                        selected: currentRoute == '/reports',
+                        selected: widget.currentRoute == '/reports',
                         selectedTileColor: Colors.green[50],
                         onTap: () => _navigateTo(context, '/reports'),
                       ),
@@ -203,7 +294,7 @@ class AppDrawer extends StatelessWidget {
                           color: Colors.blueGrey,
                         ),
                         title: const Text('Panel Técnico'),
-                        selected: currentRoute == '/technician',
+                        selected: widget.currentRoute == '/technician',
                         selectedTileColor: Colors.blueGrey[50],
                         onTap: () => _navigateTo(context, '/technician'),
                       ),
@@ -213,7 +304,7 @@ class AppDrawer extends StatelessWidget {
                           color: Colors.blueGrey,
                         ),
                         title: const Text('Reportes Técnicos'),
-                        selected: currentRoute == '/reports',
+                        selected: widget.currentRoute == '/reports',
                         selectedTileColor: Colors.blueGrey[50],
                         onTap: () => _navigateTo(context, '/reports'),
                       ),
@@ -227,14 +318,14 @@ class AppDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.history, color: Colors.indigo),
             title: const Text('Mis Reservas'),
-            selected: currentRoute == '/my-reservations',
+            selected: widget.currentRoute == '/my-reservations',
             selectedTileColor: Colors.indigo[50],
             onTap: () => _navigateTo(context, '/my-reservations'),
           ),
           ListTile(
             leading: const Icon(Icons.receipt_long, color: Colors.blue),
             title: const Text('Mis Pedidos'),
-            selected: currentRoute == '/my_orders',
+            selected: widget.currentRoute == '/my_orders',
             selectedTileColor: Colors.blue[50],
             onTap: () {
               Navigator.pop(context); // Cerrar Drawer
@@ -244,44 +335,19 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
-          // Notification option moved to AppBar
-          // ListTile(
-          //   leading: const Icon(Icons.notifications, color: Colors.deepPurple),
-          //   title: const Text('Notificaciones'),
-          //   selected: currentRoute == '/notifications',
-          //   selectedTileColor: Colors.deepPurple[50],
-          //   onTap: () {
-          //     Navigator.pop(context); // Cerrar Drawer
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(
-          //         builder: (context) => const NotificationsPage(),
-          //       ),
-          //     );
-          //   },
-          // ),
+          ListTile(
+            leading: const Icon(Icons.request_quote, color: Colors.amber),
+            title: const Text('Cotizaciones'),
+            selected: widget.currentRoute == '/quotes',
+            selectedTileColor: Colors.amber[50],
+            onTap: () => _navigateTo(context, '/quotes'),
+          ),
           ListTile(
             leading: const Icon(Icons.support_agent, color: Colors.teal),
             title: const Text('Contáctanos'),
-            selected: currentRoute == '/contact',
+            selected: widget.currentRoute == '/contact',
             selectedTileColor: Colors.teal.withOpacity(0.1),
-            onTap: () {
-              Navigator.pop(context); // Close drawer first
-              Navigator.pushNamed(
-                context,
-                '/contact',
-              ); // Push to stack to allow back nav
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.person_outline, color: Colors.blueGrey),
-            title: const Text('Editar Perfil'),
-            selected: currentRoute == '/profile-edit',
-            selectedTileColor: Colors.blueGrey.withOpacity(0.1),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/profile-edit');
-            },
+            onTap: () => _navigateTo(context, '/contact'),
           ),
           const Divider(),
           ListTile(

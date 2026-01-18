@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../utils/prefs.dart';
+import '../utils/branding_helper.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -76,6 +77,47 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (user != null && mounted) {
+        // 🛡️ Seguridad: Verificar si el correo está confirmado
+        if (!user.emailVerified) {
+          await authService.signOut();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'Por favor verifica tu correo electrónico antes de ingresar.',
+                ),
+                backgroundColor: Colors.orange,
+                action: SnackBarAction(
+                  label: 'Reenviar',
+                  textColor: Colors.white,
+                  onPressed: () async {
+                    try {
+                      await user.sendEmailVerification();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Correo de verificación enviado.'),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            );
+          }
+          return; // No permitir entrar si no está verificado
+        }
+
         // Registrar inicio de sesión para el timeout de 10 min
         await AppPreferences().setSessionStart(DateTime.now());
 
@@ -108,29 +150,16 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.computer, color: Colors.white),
-            const SizedBox(width: 8),
-            Text('TechService Pro', style: TextStyle(color: Colors.white)),
-          ],
+        title: Text(
+          BrandingHelper.appName,
+          style: const TextStyle(color: Colors.white),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Menú presionado')));
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 400),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -168,10 +197,10 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Accede a tu cuenta de TechService Pro',
+                    Text(
+                      'Accede a tu cuenta de ${BrandingHelper.appName}',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                     const SizedBox(height: 32),
 

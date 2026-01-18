@@ -1,14 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_model.dart';
 import 'role_service.dart';
 
+/// Service to manage in-app notifications.
+/// Supports sending notifications and streaming them for the current user.
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final RoleService _roleService = RoleService();
 
-  // Send a notification
+  /// Sends a notification document to the 'notifications' collection.
+  /// Can be targeted via [receiverId] or [receiverRole] (legacy support).
   Future<void> sendNotification({
     required String title,
     required String body,
@@ -29,11 +33,12 @@ class NotificationService {
         'receiverId': receiverId,
       });
     } catch (e) {
-      print('Error sending notification: $e');
+      debugPrint('Error sending notification: $e');
     }
   }
 
-  // Stream of notifications for the current user
+  /// Returns a stream of notifications where the [receiverId] matches the current user.
+  /// Limited to the 100 most recent notifications.
   Stream<List<NotificationModel>> getUserNotifications() {
     final user = _auth.currentUser;
     if (user == null) return Stream.value([]);
@@ -41,56 +46,30 @@ class NotificationService {
     return Stream.fromFuture(_roleService.getUserRole(user.uid)).asyncExpand((
       role,
     ) {
-      // Query notifications where:
-      // 1. receiverId == user.uid
-      // OR
-      // 2. receiverRole == user.role (Broadcast to role)
-
-      // Since Firestore doesn't support logical OR directly in queries easily with streams of different fields,
-      // we might need to handle this creatively or accept two streams.
-      // For simplicity in this app, we will query all notifications and filter on client side
-      // OR use two queries if the volume is high.
-      // Given the probable scale, client-side filtering of a "reasonable" time window or
-      // querying specific collections would be better.
-      //
-      // Let's try to query by receiverId match OR (role match AND receiverId is null).
-      // Firestore doesn't accept OR queries across different fields well in one go.
-
-      // BETTER APPROACH:
-      // Creating a 'recipients' array might be hard for role broadcasts.
-      // Let's just query ALL notifications ordered by date (limit 50-100) and filter in Dart code.
-      // This is not scalable for millions of notifications, but fine for this scope.
-
+      // Query notifications where receiverId == user.uid
+      // This ensures we only read notifications we have permission to see
       return _firestore
           .collection('notifications')
+          .where('receiverId', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
           .limit(100)
           .snapshots()
           .map((snapshot) {
             return snapshot.docs
                 .map((doc) => NotificationModel.fromFirestore(doc))
-                .where((notification) {
-                  // Check if it's for this specific user
-                  if (notification.receiverId == user.uid) return true;
-                  // Check if it's for this user's role and no specific user is targeted
-                  if (notification.receiverRole == role &&
-                      notification.receiverId == null)
-                    return true;
-
-                  return false;
-                })
                 .toList();
           });
     });
   }
 
-  // Get unread count stream
+  /// Returns a stream of the total unread notifications count for the current user.
   Stream<int> getUnreadCount() {
     return getUserNotifications().map(
       (notifications) => notifications.where((n) => !n.isRead).length,
     );
   }
 
+  /// Marks a specific notification as read.
   Future<void> markAsRead(String notificationId) async {
     try {
       // NOTE: If it's a role-based notification, marking it as read globally affects everyone?
@@ -119,7 +98,7 @@ class NotificationService {
         'isRead': true,
       });
     } catch (e) {
-      print('Error marking as read: $e');
+      debugPrint('Error marking as read: $e');
     }
   }
 
@@ -127,5 +106,14 @@ class NotificationService {
     // This is tricky with the filtering logic above.
     // We'd need to fetch and batch update.
     // Skipping for now unless strictly needed.
+  }
+
+  /// Deletes a specific notification from Firestore.
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await _firestore.collection('notifications').doc(notificationId).delete();
+    } catch (e) {
+      debugPrint('Error deleting notification: $e');
+    }
   }
 }

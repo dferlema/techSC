@@ -1,6 +1,9 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'utils/prefs.dart';
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/login_page.dart';
@@ -18,10 +21,26 @@ import 'screens/my_reservations_page.dart';
 import 'screens/services_page.dart';
 import 'screens/profile_edit_page.dart';
 import 'screens/reports_page.dart';
+import 'screens/quote_list_page.dart';
+import 'screens/create_quote_page.dart';
+import 'screens/settings_page.dart';
+import 'screens/category_management_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await initializeDateFormatting('es_EC', null);
+  Intl.defaultLocale = 'es_EC';
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+    // Depending on the platform, this might be due to missing configuration
+    if (e.toString().contains('UnsupportedError')) {
+      debugPrint("Warning: This platform is not yet configured for Firebase.");
+    }
+  }
   runApp(const MyApp());
 }
 
@@ -35,6 +54,14 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: '/',
+      builder: (context, child) {
+        return Listener(
+          onPointerDown: (_) {
+            AppPreferences().updateLastActivity();
+          },
+          child: child!,
+        );
+      },
       routes: {
         '/': (context) => const SplashScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
@@ -51,6 +78,11 @@ class MyApp extends StatelessWidget {
         '/my-reservations': (context) => const MyReservationsPage(),
         '/profile-edit': (context) => const ProfileEditPage(),
         '/reports': (context) => const ReportsPage(),
+        '/quotes': (context) => const QuoteListPage(),
+        '/create-quote': (context) => const CreateQuotePage(),
+        '/settings': (context) => const SettingsPage(),
+        '/category-management': (context) => const CategoryManagementPage(),
+
         '/main': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           return MainTabsScreen();

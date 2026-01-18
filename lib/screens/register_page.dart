@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import '../services/auth_service.dart'; // ✅ Necesario para TapGestureRecognizer
+import '../services/auth_service.dart';
+import '../utils/branding_helper.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -73,7 +74,7 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  final bool _isLoading = false;
+  bool _isLoading = false;
 
   void _onRegisterPressed() async {
     if (_formKey.currentState!.validate()) {
@@ -93,11 +94,7 @@ class _RegisterPageState extends State<RegisterPage> {
       }
 
       // 🌀 Mostrar indicador de carga
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
-      );
+      setState(() => _isLoading = true);
 
       try {
         // ✅ Registrar en Firebase
@@ -110,8 +107,7 @@ class _RegisterPageState extends State<RegisterPage> {
           address: _addressController.text.trim(),
         );
 
-        if (user != null) {
-          Navigator.pop(context); // Cierra el loading
+        if (user != null && mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('¡Registro exitoso!')));
@@ -120,17 +116,21 @@ class _RegisterPageState extends State<RegisterPage> {
           Navigator.pushReplacementNamed(context, '/main');
         }
       } on String catch (message) {
-        Navigator.pop(context); // Cierra el loading
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('⚠️ $message')));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('⚠️ $message')));
+        }
       } catch (e) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ Error al registrar. Inténtalo de nuevo.'),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Error al registrar. Inténtalo de nuevo.'),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -164,29 +164,16 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.computer, color: Colors.white),
-            const SizedBox(width: 8),
-            Text('TechService Pro', style: TextStyle(color: Colors.white)),
-          ],
+        title: Text(
+          BrandingHelper.appName,
+          style: const TextStyle(color: Colors.white),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Menú presionado')));
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 400),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -224,10 +211,13 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Únete a TechService Pro y accede a servicios exclusivos',
+                      Text(
+                        'Únete a ${BrandingHelper.appName} y accede a servicios exclusivos',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
                       ),
                       const SizedBox(height: 32),
 
@@ -251,7 +241,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Cédula (antes del correo, por ser dato identificatorio)
+                      // Cédula
                       TextFormField(
                         controller: _idController,
                         decoration: InputDecoration(

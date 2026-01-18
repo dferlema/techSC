@@ -3,13 +3,15 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
 import '../models/reservation_model.dart';
+import '../models/quote_model.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import 'reservation_detail_page.dart';
 import 'order_detail_page.dart';
+import 'quote_detail_page.dart';
 
 class NotificationsPage extends StatelessWidget {
-  const NotificationsPage({Key? key}) : super(key: key);
+  const NotificationsPage({super.key});
 
   Future<void> _handleNotificationTap(
     BuildContext context,
@@ -17,7 +19,6 @@ class NotificationsPage extends StatelessWidget {
   ) async {
     try {
       if (notification.type == 'reservation') {
-        // Fetch reservation and navigate
         final doc = await FirebaseFirestore.instance
             .collection('reservations')
             .doc(notification.relatedId)
@@ -43,13 +44,39 @@ class NotificationsPage extends StatelessWidget {
           );
         }
       } else if (notification.type == 'order') {
-        // Navigate to order detail
         if (context.mounted) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) =>
                   OrderDetailPage(orderId: notification.relatedId),
+            ),
+          );
+        }
+      } else if (notification.type == 'quote' ||
+          notification.type == 'authorization') {
+        // Fetch quote and navigate
+        final doc = await FirebaseFirestore.instance
+            .collection('quotes')
+            .doc(notification.relatedId)
+            .get();
+
+        if (!doc.exists) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cotización no encontrada')),
+            );
+          }
+          return;
+        }
+
+        final quote = QuoteModel.fromFirestore(doc);
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  QuoteDetailPage(quote: quote, isClientView: true),
             ),
           );
         }
@@ -103,45 +130,61 @@ class NotificationsPage extends StatelessWidget {
             separatorBuilder: (ctx, i) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final notification = notifications[index];
-              return ListTile(
-                tileColor: notification.isRead
-                    ? Colors.transparent
-                    : AppColors.primaryBlue.withOpacity(0.05),
-                leading: CircleAvatar(
-                  backgroundColor: _getIconColor(notification.type),
-                  child: Icon(_getIcon(notification.type), color: Colors.white),
+              return Dismissible(
+                key: Key(notification.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  color: Colors.red,
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                title: Text(
-                  notification.title,
-                  style: TextStyle(
-                    fontWeight: notification.isRead
-                        ? FontWeight.normal
-                        : FontWeight.bold,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text(notification.body),
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormat(
-                        'dd/MM/yyyy HH:mm',
-                      ).format(notification.createdAt),
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                onTap: () {
-                  // Mark as read
-                  if (!notification.isRead) {
-                    notificationService.markAsRead(notification.id);
-                  }
-
-                  // Navigate to detail
-                  _handleNotificationTap(context, notification);
+                onDismissed: (direction) {
+                  notificationService.deleteNotification(notification.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notificación eliminada')),
+                  );
                 },
+                child: ListTile(
+                  tileColor: notification.isRead
+                      ? Colors.transparent
+                      : AppColors.primaryBlue.withOpacity(0.05),
+                  leading: CircleAvatar(
+                    backgroundColor: _getIconColor(notification.type),
+                    child: Icon(
+                      _getIcon(notification.type),
+                      color: Colors.white,
+                    ),
+                  ),
+                  title: Text(
+                    notification.title,
+                    style: TextStyle(
+                      fontWeight: notification.isRead
+                          ? FontWeight.normal
+                          : FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(notification.body),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat(
+                          'dd/MM/yyyy HH:mm',
+                        ).format(notification.createdAt),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                    if (!notification.isRead) {
+                      notificationService.markAsRead(notification.id);
+                    }
+                    _handleNotificationTap(context, notification);
+                  },
+                ),
               );
             },
           );
@@ -160,6 +203,8 @@ class NotificationsPage extends StatelessWidget {
         return Icons.comment;
       case 'authorization':
         return Icons.security;
+      case 'quote':
+        return Icons.description;
       default:
         return Icons.notifications;
     }
@@ -175,6 +220,8 @@ class NotificationsPage extends StatelessWidget {
         return Colors.green;
       case 'authorization':
         return Colors.red;
+      case 'quote':
+        return Colors.purple;
       default:
         return Colors.grey;
     }

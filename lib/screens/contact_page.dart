@@ -37,7 +37,7 @@ class ContactPage extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       drawer: const AppDrawer(currentRoute: '/contact'),
       body: CustomScrollView(
         slivers: [
@@ -79,7 +79,7 @@ class ContactPage extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 0,
       floating: true,
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       elevation: 0,
       leading: Navigator.canPop(context)
           ? IconButton(
@@ -359,7 +359,7 @@ class ContactPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'TechService Pro v2.1.1',
+            '',
             style: TextStyle(
               color: theme.colorScheme.onSurface.withOpacity(0.3),
               fontSize: 13,

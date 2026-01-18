@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/whatsapp_share_helper.dart';
+import '../widgets/cart_badge.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final Map<String, dynamic> service;
@@ -142,6 +143,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                   }, context);
                 },
               ),
+              const CartBadge(color: Colors.black),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
@@ -357,32 +359,30 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ...(widget.service['components'] as List)
-                        .map(
-                          (component) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle_outline,
-                                  size: 20,
-                                  color: Colors.green[600],
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    component.toString(),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Color(0xFF374151),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                    ...(widget.service['components'] as List).map(
+                      (component) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              size: 20,
+                              color: Colors.green[600],
                             ),
-                          ),
-                        )
-                        .toList(),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                component.toString(),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Color(0xFF374151),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 100),
                   ],
                 ],

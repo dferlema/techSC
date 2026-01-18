@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/category_model.dart';
+import '../services/category_service.dart';
+
 /// Pagina de formulario para crear o editar productos.
 /// Permite ingresar nombre, especificaciones, precio, categoría y URL de imagen.
 class ProductFormPage extends StatefulWidget {
@@ -21,7 +24,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late TextEditingController _specsController;
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
-  late String _selectedCategory;
+
+  // Guardamos el ID de la categoría seleccionada
+  String? _selectedCategoryId;
+  // Guardamos el nombre para denormalización (compatibilidad y facilidad de lectura)
+  String? _selectedCategoryName;
+
   late String _selectedLabel;
   late String _selectedTaxStatus;
   late double _rating;
@@ -31,13 +39,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
   final TextEditingController _newImageUrlController = TextEditingController();
 
   bool _isSaving = false;
-
-  // Lista de categorías predefinidas
-  static const List<String> _categories = [
-    'computadoras',
-    'accesorios',
-    'repuestos',
-  ];
 
   @override
   void initState() {
@@ -57,7 +58,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _descriptionController = TextEditingController(
       text: widget.initialData?['description'] ?? '',
     );
-    _selectedCategory = widget.initialData?['category'] ?? _categories[0];
+
+    // Cargar vinculación de categoría
+    _selectedCategoryId = widget.initialData?['categoryId'];
+    _selectedCategoryName = widget.initialData?['category'];
+
     _selectedLabel = widget.initialData?['label'] ?? 'Ninguna';
     _selectedTaxStatus = widget.initialData?['taxStatus'] ?? 'Incluye impuesto';
     _rating = (widget.initialData?['rating'] as num?)?.toDouble() ?? 4.5;
@@ -103,12 +108,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
         'specs': specs,
         'price': price,
         'description': description,
-        'category': _selectedCategory,
+        'categoryId':
+            _selectedCategoryId, // ID de la categoría (Vínculo fuerte)
+        'category':
+            _selectedCategoryName, // Nombre de la categoría (Denormalizado)
         'label': _selectedLabel,
         'taxStatus': _selectedTaxStatus,
         'rating': _rating,
-        'images': _imageUrls, // Lista de imágenes
-        'image': _imageUrls.first, // Imagen principal para compatibilidad
+        'images': _imageUrls,
+        'image': _imageUrls.first,
         if (widget.productId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -250,10 +258,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
             height: 120,
             width: double.infinity,
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.grey.shade300,
-                style: BorderStyle.none,
-              ),
+              border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(8),
               color: Colors.grey[100],
             ),
@@ -345,23 +350,49 @@ class _ProductFormPageState extends State<ProductFormPage> {
                           : null,
                     ),
                     const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedCategory,
-                      decoration: const InputDecoration(
-                        labelText: 'Categoría *',
-                        border: OutlineInputBorder(),
+                    StreamBuilder<List<CategoryModel>>(
+                      stream: CategoryService().getCategories(
+                        CategoryType.product,
                       ),
-                      items: _categories
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c.capitalize()),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedCategory = v!),
-                      validator: (v) => v == null ? 'Selecciona' : null,
+                      builder: (context, snapshot) {
+                        final categories = snapshot.data ?? [];
+
+                        // Manejar selección inicial o si la categoría ya no existe
+                        bool categoryExists = categories.any(
+                          (c) => c.id == _selectedCategoryId,
+                        );
+                        if (!categoryExists && categories.isNotEmpty) {
+                          _selectedCategoryId = categories.first.id;
+                          _selectedCategoryName = categories.first.name;
+                        }
+
+                        return DropdownButtonFormField<String>(
+                          value: _selectedCategoryId,
+                          decoration: const InputDecoration(
+                            labelText: 'Categoría *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: categories
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.name.toUpperCase()),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedCategoryId = v;
+                              _selectedCategoryName = categories
+                                  .firstWhere((c) => c.id == v)
+                                  .name;
+                            });
+                          },
+                          validator: (v) => v == null ? 'Selecciona' : null,
+                        );
+                      },
                     ),
+
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
                       value: _selectedLabel,
@@ -419,9 +450,4 @@ class _ProductFormPageState extends State<ProductFormPage> {
             ),
     );
   }
-}
-
-extension on String {
-  String capitalize() =>
-      isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
 }

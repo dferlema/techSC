@@ -82,10 +82,28 @@ class _MainTabsScreenState extends State<MainTabsScreen>
             setState(() => _userName = doc.data()!['name']);
           }
         }
+      } on FirebaseException catch (e) {
+        debugPrint('Error loading user (Firebase): [${e.code}] ${e.message}');
+        if (e.code == 'permission-denied') {
+          _showErrorSnackBar(
+            'Error de permisos al cargar perfil. Por favor contacte soporte.',
+          );
+        }
       } catch (e) {
         debugPrint('Error loading user: $e');
       }
     }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override

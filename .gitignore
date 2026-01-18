@@ -30,11 +30,14 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
+**/build/
 /coverage/
 
 # Symbolication related
 app.*.symbols
+**/*.so.sym
+**/*.so
+**/*.aab
 
 # Obfuscation related
 app.*.map.json
@@ -43,3 +46,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+**/*.apk
+**/*.jks
+**/*.keystore

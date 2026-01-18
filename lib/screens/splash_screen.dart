@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/prefs.dart';
 import '../theme/app_theme.dart';
+import '../services/config_service.dart';
+import '../utils/branding_helper.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,6 +23,14 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
+    // Cargar nombres y configuraciones
+    try {
+      final config = await ConfigService().getConfig();
+      BrandingHelper.setAppName(config.companyName);
+    } catch (e) {
+      debugPrint('Error loading branding: $e');
+    }
+
     // Delay mínimo de UX
     await Future.delayed(const Duration(seconds: 3));
 
@@ -40,10 +50,11 @@ class _SplashScreenState extends State<SplashScreen> {
     // Verificar si hay una sesión activa de Firebase
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Verificar si la sesión de 10 min ha expirado
+      // Verificar si la sesión ha expirado por inactividad
       final expired = await _prefs.isSessionExpired();
       if (!expired) {
-        // Sesión válida, ir al home
+        // Sesión válida, actualizar actividad al entrar e ir al home
+        await _prefs.updateLastActivity();
         Navigator.pushReplacementNamed(context, '/main');
         return;
       } else {
@@ -77,9 +88,9 @@ class _SplashScreenState extends State<SplashScreen> {
               child: const Icon(Icons.computer, color: Colors.white, size: 60),
             ),
             const SizedBox(height: 32),
-            const Text(
-              'TechService Pro',
-              style: TextStyle(
+            Text(
+              BrandingHelper.appName,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

@@ -37,6 +37,16 @@ class MyOrdersPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.of(context).pushReplacementNamed('/main');
+            }
+          },
+        ),
         title: const Text('Mis Pedidos'),
         centerTitle: true,
         elevation: 0,

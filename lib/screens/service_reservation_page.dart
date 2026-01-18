@@ -12,7 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/notification_service.dart';
 import '../services/role_service.dart';
 import '../widgets/notification_icon.dart';
-import '../widgets/app_drawer.dart';
+import '../widgets/cart_badge.dart';
 
 /// Pantalla para reservar servicio técnico.
 /// Permite al usuario llenar un formulario con sus datos y detalles del problema.
@@ -133,7 +133,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                     ? '✅ Se autocompletaron $filledFields campos de tu perfil'
                     : '⚠️ Tu perfil está incompleto. Completa tus datos para autocompletar.',
               ),
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
               backgroundColor: filledFields > 0 ? Colors.green : Colors.orange,
             ),
           );
@@ -479,10 +479,12 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       }
     } catch (e) {
       // Manejo de errores en el proceso de guardado
-      if (mounted) Navigator.pop(context); // Cerrar loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Error al guardar: ${e.toString()}')),
-      );
+      if (mounted) {
+        Navigator.pop(context); // Cerrar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error al guardar: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -599,12 +601,13 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
             ),
           const NotificationIcon(),
-          const SizedBox(width: 16),
+          const CartBadge(),
+          const SizedBox(width: 8),
         ],
       ),
-      drawer: widget.isManualRegistration
-          ? null
-          : const AppDrawer(currentRoute: '/reserve-service'),
+      // drawer: widget.isManualRegistration
+      //     ? null
+      //     : const AppDrawer(currentRoute: '/reserve-service'),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         child: _isReservationStarted
@@ -852,7 +855,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
             // Dropdown Tipo de Servicio
             DropdownButtonFormField<String>(
-              value: _selectedService,
+              initialValue: _selectedService,
               decoration: InputDecoration(
                 labelText: 'Tipo de Servicio *',
                 border: OutlineInputBorder(

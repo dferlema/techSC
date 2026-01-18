@@ -1,12 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Helper class to share products and services via WhatsApp
 class WhatsAppShareHelper {
-  /// Share a product via WhatsApp
+  /// Share a product via WhatsApp/Share Sheet
   ///
-  /// [productData] should contain: name, price, description, and optionally image
-  /// [context] is used to show error messages if needed
+  /// [productData] should contain: name, price, description, and optionally image or images
+  /// [context] is used for feedback
   static Future<void> shareProduct(
     Map<String, dynamic> productData,
     BuildContext context,
@@ -17,6 +21,16 @@ class WhatsAppShareHelper {
     final double? rating = productData['rating'] is int
         ? (productData['rating'] as int).toDouble()
         : productData['rating'] as double?;
+
+    // Image handling: check 'image' (string) or 'images' (list)
+    String? imageUrl;
+    if (productData['image'] != null && productData['image'] is String) {
+      imageUrl = productData['image'];
+    } else if (productData['images'] != null &&
+        productData['images'] is List &&
+        (productData['images'] as List).isNotEmpty) {
+      imageUrl = (productData['images'] as List).first;
+    }
 
     // Format the message
     String message = '🛍️ *$productName*\n\n';
@@ -39,13 +53,17 @@ class WhatsAppShareHelper {
     message += '---\n';
     message += '📱 Compartido desde TechServiceComputer';
 
-    await _launchWhatsApp(message, context);
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      await _shareWithImage(message, imageUrl, context, subject: productName);
+    } else {
+      await _launchWhatsApp(message, context);
+    }
   }
 
-  /// Share a service via WhatsApp
+  /// Share a service via WhatsApp/Share Sheet
   ///
-  /// [serviceData] should contain: title, price, description, duration, and optionally imageUrl, id
-  /// [context] is used to show error messages if needed
+  /// [serviceData] should contain: title, price, description, duration, and optionally imageUrl or imageUrls
+  /// [context] is used for feedback
   static Future<void> shareService(
     Map<String, dynamic> serviceData,
     BuildContext context,
@@ -57,6 +75,16 @@ class WhatsAppShareHelper {
     final double? rating = serviceData['rating'] is int
         ? (serviceData['rating'] as int).toDouble()
         : serviceData['rating'] as double?;
+
+    // Image handling: check 'imageUrl' (string) or 'imageUrls' (list)
+    String? imageUrl;
+    if (serviceData['imageUrl'] != null && serviceData['imageUrl'] is String) {
+      imageUrl = serviceData['imageUrl'];
+    } else if (serviceData['imageUrls'] != null &&
+        serviceData['imageUrls'] is List &&
+        (serviceData['imageUrls'] as List).isNotEmpty) {
+      imageUrl = (serviceData['imageUrls'] as List).first;
+    }
 
     // Format the message
     String message = '🔧 *$serviceTitle*\n\n';
@@ -83,17 +111,49 @@ class WhatsAppShareHelper {
     message += '---\n';
     message += '📱 Compartido desde TechServiceComputer';
 
-    await _launchWhatsApp(message, context);
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      await _shareWithImage(message, imageUrl, context, subject: serviceTitle);
+    } else {
+      await _launchWhatsApp(message, context);
+    }
   }
 
-  /// Launch WhatsApp with the given message
+  /// Share text and an image using the system share sheet
+  static Future<void> _shareWithImage(
+    String message,
+    String imageUrl,
+    BuildContext context, {
+    String? subject,
+  }) async {
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        final tempDir = await getTemporaryDirectory();
+        final path =
+            '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final file = File(path);
+        await file.writeAsBytes(response.bodyBytes);
+
+        await Share.shareXFiles([XFile(path)], text: message, subject: subject);
+      } else {
+        throw Exception('Failed to download image');
+      }
+    } catch (e) {
+      debugPrint('Error sharing with image: $e');
+      // Fallback to text-only WhatsApp launch
+      if (context.mounted) {
+        await _launchWhatsApp(message, context);
+      }
+    }
+  }
+
+  /// Launch WhatsApp with the given message (Text-only fallback)
   static Future<void> _launchWhatsApp(
     String message,
     BuildContext context,
   ) async {
     final String encodedMessage = Uri.encodeComponent(message);
 
-    // Esquemas estándar compatibles con WhatsApp y WhatsApp Business
     final List<Uri> urls = [
       Uri.parse('whatsapp://send?text=$encodedMessage'),
       Uri.parse('https://api.whatsapp.com/send?text=$encodedMessage'),

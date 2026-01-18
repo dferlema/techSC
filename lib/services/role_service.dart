@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 /// Servicio centralizado para gestión de roles y permisos de usuarios
 class RoleService {
@@ -35,8 +36,11 @@ class RoleService {
         return role; // Si es un rol desconocido, devolver tal cual
       }
       return CLIENT; // Default
+    } on FirebaseException catch (e) {
+      debugPrint('Error obteniendo rol (Firebase): [${e.code}] ${e.message}');
+      return CLIENT;
     } catch (e) {
-      print('Error obteniendo rol: $e');
+      debugPrint('Error obteniendo rol: $e');
       return CLIENT;
     }
   }
@@ -112,7 +116,7 @@ class RoleService {
 
       return true;
     } catch (e) {
-      print('Error asignando rol: $e');
+      debugPrint('Error asignando rol: $e');
       rethrow;
     }
   }
@@ -125,8 +129,11 @@ class RoleService {
           .where('role', isEqualTo: ADMIN)
           .get();
       return snapshot.docs.length;
+    } on FirebaseException catch (e) {
+      debugPrint('Error contando admins (Firebase): [${e.code}] ${e.message}');
+      return 0;
     } catch (e) {
-      print('Error contando admins: $e');
+      debugPrint('Error contando admins: $e');
       return 0;
     }
   }
@@ -191,8 +198,13 @@ class RoleService {
       }
 
       return stats;
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'Error obteniendo estadísticas (Firebase): [${e.code}] ${e.message}',
+      );
+      return {ADMIN: 0, SELLER: 0, CLIENT: 0};
     } catch (e) {
-      print('Error obteniendo estadísticas: $e');
+      debugPrint('Error obteniendo estadísticas: $e');
       return {ADMIN: 0, SELLER: 0, CLIENT: 0};
     }
   }

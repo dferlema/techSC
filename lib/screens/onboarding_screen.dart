@@ -15,7 +15,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _dontShowAgain = false;
   final AppPreferences _prefs = AppPreferences();
 
-  List<Map<String, dynamic>> _pages = [
+  final List<Map<String, dynamic>> _pages = [
     {
       'icon': Icons.computer,
       'title': 'Reparación Profesional',

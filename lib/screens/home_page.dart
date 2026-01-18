@@ -4,10 +4,18 @@ import 'package:flutter/material.dart';
 import '../widgets/app_drawer.dart';
 
 import 'package:url_launcher/url_launcher.dart';
-import '../theme/app_theme.dart';
 import '../widgets/notification_icon.dart';
 import 'my_orders_page.dart';
 import 'product_detail_page.dart';
+import '../models/config_model.dart';
+import '../services/config_service.dart';
+import '../services/role_service.dart';
+import '../services/auth_service.dart';
+import 'quote_list_page.dart';
+import 'settings_page.dart';
+import 'admin_panel_page.dart';
+import 'reports_page.dart';
+import 'technician_dashboard.dart';
 
 class HomePage extends StatefulWidget {
   final String routeName;
@@ -18,10 +26,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final String _whatsappNumber = '593991090805';
-
-  Future<void> _launchWhatsApp() async {
-    final Uri url = Uri.parse('https://wa.me/$_whatsappNumber');
+  Future<void> _launchWhatsApp(String phone) async {
+    final Uri url = Uri.parse('https://wa.me/$phone');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       debugPrint('No se pudo abrir WhatsApp');
       if (mounted) {
@@ -65,64 +71,79 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: colorScheme.primary,
-        title: const Text(
-          'TechService Pro',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        actions: const [
-          NotificationIcon(color: Colors.white),
-          SizedBox(width: 16),
-        ],
-      ),
-      drawer: const AppDrawer(currentRoute: '/home'),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Carousel Section
-            _buildCarouselSection(),
+    return StreamBuilder<ConfigModel>(
+      stream: ConfigService().getConfigStream(),
+      builder: (context, snapshot) {
+        final config = snapshot.data ?? ConfigModel();
 
-            const SizedBox(height: 24),
-
-            // 2. ¿En qué te podemos ayudar hoy? (Friendly Greeting)
-            _buildSectionTitle('¡Hola! ¿En qué podemos ayudarte hoy?'),
-            _buildHelpSection(context),
-
-            const SizedBox(height: 32),
-
-            // 3. Nuestros Servicios (Horizontal List)
-            _buildSectionTitle('Nuestros Servicios'),
-            _buildServicesList(context),
-
-            const SizedBox(height: 32),
-
-            // 4. Nuestros Productos (Horizontal List)
-            _buildSectionTitle(
-              'Productos Destacados',
-              onSeeMore: () => Navigator.pushNamed(context, '/products'),
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F7FA),
+          appBar: AppBar(
+            elevation: 0,
+            backgroundColor: colorScheme.primary,
+            title: Text(
+              config.companyName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            _buildProductsList(context),
+            actions: const [
+              NotificationIcon(color: Colors.white),
+              SizedBox(width: 16),
+            ],
+          ),
+          drawer: const AppDrawer(currentRoute: '/home'),
+          body: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Carousel Section
+                _buildCarouselSection(),
 
-            const SizedBox(height: 100), // Space for FAB
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _launchWhatsApp,
-        backgroundColor: const Color(0xFF25D366),
-        elevation: 4,
-        child: Image.asset(
-          'assets/images/whatsapp_icon.png',
-          width: 35,
-          height: 35,
-        ),
-      ),
+                const SizedBox(height: 24),
+
+                // Staff Dashboard (Only visible to Admin, Seller, Technician)
+                _buildStaffDashboard(context),
+
+                const SizedBox(height: 24),
+
+                // 2. ¿En qué te podemos ayudar hoy? (Friendly Greeting)
+                _buildSectionTitle('¡Hola! ¿En qué podemos ayudarte hoy?'),
+                _buildHelpSection(context),
+
+                const SizedBox(height: 32),
+
+                // 3. Nuestros Servicios (Horizontal List)
+                _buildSectionTitle('Nuestros Servicios'),
+                _buildServicesList(context),
+
+                const SizedBox(height: 32),
+
+                // 4. Nuestros Productos (Horizontal List)
+                _buildSectionTitle(
+                  'Productos Destacados',
+                  onSeeMore: () => Navigator.pushNamed(context, '/products'),
+                ),
+                _buildProductsList(context),
+
+                const SizedBox(height: 100), // Space for FAB
+              ],
+            ),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _launchWhatsApp(config.companyPhone),
+            backgroundColor: const Color(0xFF25D366),
+            elevation: 4,
+            child: Image.asset(
+              'assets/images/whatsapp_icon.png',
+              width: 35,
+              height: 35,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -166,6 +187,176 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildStaffDashboard(BuildContext context) {
+    final user = AuthService().currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    return FutureBuilder<String>(
+      future: RoleService().getUserRole(user.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final role = snapshot.data!;
+        if (role == RoleService.CLIENT) return const SizedBox.shrink();
+
+        final cards = _getDashboardCards(role, context);
+        if (cards.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                'Panel de Control (${RoleService.getRoleName(role)})',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.5,
+                children: cards,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+
+  List<Widget> _getDashboardCards(String role, BuildContext context) {
+    List<Widget> cards = [];
+
+    // Cotizaciones: Admin, Seller, Technician
+    if (role == RoleService.ADMIN ||
+        role == RoleService.SELLER ||
+        role == RoleService.TECHNICIAN) {
+      cards.add(
+        _buildDashboardCard(
+          'Cotizaciones',
+          Icons.description_outlined,
+          Colors.indigo,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const QuoteListPage()),
+          ),
+        ),
+      );
+    }
+
+    // Panel Admin: Admin, Seller
+    if (role == RoleService.ADMIN || role == RoleService.SELLER) {
+      cards.add(
+        _buildDashboardCard(
+          'Panel de Gestión',
+          Icons.admin_panel_settings_outlined,
+          Colors.orange,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminPanelPage()),
+          ),
+        ),
+      );
+    }
+
+    // Reportes: Admin, Seller
+    if (role == RoleService.ADMIN || role == RoleService.SELLER) {
+      cards.add(
+        _buildDashboardCard(
+          'Reportes',
+          Icons.bar_chart_rounded,
+          Colors.teal,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ReportsPage()),
+          ),
+        ),
+      );
+    }
+
+    // Configuraciones: Admin Only
+    if (role == RoleService.ADMIN) {
+      cards.add(
+        _buildDashboardCard(
+          'Configuraciones',
+          Icons.settings_outlined,
+          Colors.blueGrey,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SettingsPage()),
+          ),
+        ),
+      );
+    }
+
+    // Panel Técnico: Admin, Technician
+    if (role == RoleService.ADMIN || role == RoleService.TECHNICIAN) {
+      cards.add(
+        _buildDashboardCard(
+          'Panel Técnico',
+          Icons.build_circle_outlined,
+          Colors.blue,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TechnicianDashboard()),
+          ),
+        ),
+      );
+    }
+
+    return cards;
+  }
+
+  Widget _buildDashboardCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Card(
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCarouselSection() {
     return SizedBox(
       height: 200,
@@ -187,153 +378,88 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildHelpSection(BuildContext context) {
-    return SizedBox(
-      height: 140, // Aumentado
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ), // Padding vertical
-        children: [
-          _buildHelpCard(
-            context,
-            'Agendar Cita',
-            Icons.calendar_month_rounded,
-            Colors.blue,
-            () => Navigator.pushReplacementNamed(
-              context,
-              '/main',
-              arguments: '/reserve-service',
-            ),
-          ),
-          _buildHelpCard(
-            context,
-            'Mis Reservas',
-            Icons.perm_contact_calendar_rounded,
-            Colors.orange,
-            () => Navigator.pushNamed(context, '/my-reservations'),
-          ),
-          _buildHelpCard(
-            context,
-            'Mis Pedidos',
-            Icons.shopping_bag_rounded,
-            Colors.purple,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MyOrdersPage()),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    final user = AuthService().currentUser;
 
-  Widget _buildHelpCard(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Container(
-      width: 110,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        elevation: 2,
-        shadowColor: Colors.black12,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  backgroundColor: color.withOpacity(0.1),
-                  radius: 20,
-                  child: Icon(icon, color: color, size: 24),
+    return FutureBuilder<String>(
+      future: user != null
+          ? RoleService().getUserRole(user.uid)
+          : Future.value(RoleService.CLIENT),
+      builder: (context, snapshot) {
+        final role = snapshot.data ?? RoleService.CLIENT;
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
+            children: [
+              _buildDashboardCard(
+                'Agendar Cita',
+                Icons.calendar_month_rounded,
+                Colors.blue,
+                () => Navigator.pushReplacementNamed(
+                  context,
+                  '/main',
+                  arguments: '/reserve-service',
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              ),
+              _buildDashboardCard(
+                'Mis Reservas',
+                Icons.perm_contact_calendar_rounded,
+                Colors.orange,
+                () => Navigator.pushNamed(context, '/my-reservations'),
+              ),
+              _buildDashboardCard(
+                'Mis Pedidos',
+                Icons.shopping_bag_rounded,
+                Colors.purple,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+                ),
+              ),
+              // Solo mostrar "Mis Cotizaciones" a Clientes (ya que staff tiene sus propias)
+              if (role == RoleService.CLIENT)
+                _buildDashboardCard(
+                  'Cotizaciones',
+                  Icons.description_outlined,
+                  Colors.indigo,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const QuoteListPage()),
                   ),
-                  maxLines: 2,
                 ),
-              ],
-            ),
+            ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildServicesList(BuildContext context) {
-    return SizedBox(
-      height: 170, // Aumentado
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ), // Padding vertical
-        itemCount: _services.length,
-        itemBuilder: (context, index) {
-          final service = _services[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, '/services');
-            },
-            child: Container(
-              width: 120,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.5,
+        children: _services
+            .map(
+              (s) => _buildDashboardCard(
+                s['title'],
+                s['icon'],
+                s['color'],
+                () => Navigator.pushNamed(context, '/services'),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(service['icon'], color: service['color'], size: 36),
-                  const SizedBox(height: 12),
-                  Text(
-                    service['title'],
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Text(
-                      service['desc'],
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+            )
+            .toList(),
       ),
     );
   }

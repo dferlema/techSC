@@ -24,6 +24,13 @@ class ReservationModel {
   final double? repairCost;
   final String? spareParts;
 
+  // Payment fields
+  final String? paymentLink;
+  final bool isPaid;
+  final String? paymentMethod;
+  final String? paymentInstitution;
+  final String? paymentVoucher;
+
   ReservationModel({
     required this.id,
     required this.userId,
@@ -45,6 +52,11 @@ class ReservationModel {
     this.solution,
     this.repairCost,
     this.spareParts,
+    this.paymentLink,
+    this.isPaid = false,
+    this.paymentMethod,
+    this.paymentInstitution,
+    this.paymentVoucher,
   });
 
   factory ReservationModel.fromFirestore(DocumentSnapshot doc) {
@@ -70,6 +82,11 @@ class ReservationModel {
       solution: data['solution'],
       repairCost: (data['repairCost'] as num?)?.toDouble(),
       spareParts: data['spareParts'],
+      paymentLink: data['paymentLink'],
+      isPaid: data['isPaid'] ?? false,
+      paymentMethod: data['paymentMethod'],
+      paymentInstitution: data['paymentInstitution'],
+      paymentVoucher: data['paymentVoucher'],
     );
   }
 
@@ -94,6 +111,11 @@ class ReservationModel {
       'solution': solution,
       'repairCost': repairCost,
       'spareParts': spareParts,
+      'paymentLink': paymentLink,
+      'isPaid': isPaid,
+      'paymentMethod': paymentMethod,
+      'paymentInstitution': paymentInstitution,
+      'paymentVoucher': paymentVoucher,
     };
   }
 
@@ -104,6 +126,11 @@ class ReservationModel {
     String? solution,
     double? repairCost,
     String? spareParts,
+    String? paymentLink,
+    bool? isPaid,
+    String? paymentMethod,
+    String? paymentInstitution,
+    String? paymentVoucher,
   }) {
     return ReservationModel(
       id: id,
@@ -126,6 +153,11 @@ class ReservationModel {
       solution: solution ?? this.solution,
       repairCost: repairCost ?? this.repairCost,
       spareParts: spareParts ?? this.spareParts,
+      paymentLink: paymentLink ?? this.paymentLink,
+      isPaid: isPaid ?? this.isPaid,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentInstitution: paymentInstitution ?? this.paymentInstitution,
+      paymentVoucher: paymentVoucher ?? this.paymentVoucher,
     );
   }
 }

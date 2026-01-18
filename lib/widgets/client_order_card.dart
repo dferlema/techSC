@@ -19,8 +19,42 @@ class ClientOrderCard extends StatelessWidget {
     final date = (data['createdAt'] as Timestamp).toDate();
     final formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(date);
     final status = data['status'] ?? 'pendiente';
-    final total = (data['total'] ?? 0.0).toDouble();
-    final items = (data['items'] as List<dynamic>? ?? []);
+    final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
+
+    // Robustly get items
+    final items =
+        (data['items'] as List<dynamic>?) ??
+        (originalQuote?['items'] as List<dynamic>?) ??
+        [];
+
+    // Robustly get total
+    double total = 0.0;
+    double subtotal = 0.0;
+    final discountPercentage =
+        (data['discountPercentage'] as num?)?.toDouble() ??
+        (originalQuote?['discountPercentage'] as num?)?.toDouble() ??
+        0.0;
+
+    for (var item in items) {
+      final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+      final qty = (item['quantity'] as num?)?.toInt() ?? 1;
+      subtotal += price * qty;
+    }
+
+    final discountAmount = subtotal * (discountPercentage / 100);
+    final taxableAmount = subtotal - discountAmount;
+
+    if (data['total'] != null && discountPercentage == 0) {
+      total = (data['total'] as num).toDouble();
+    } else {
+      total = taxableAmount;
+      // Apply tax if applicable in originalQuote
+      if (originalQuote?['applyTax'] == true) {
+        final taxRate = (originalQuote?['taxRate'] as num?)?.toDouble() ?? 0.15;
+        total += taxableAmount * taxRate;
+      }
+    }
+
     final String? paymentLink = data['paymentLink'];
     final bool showPayButton =
         (status.toLowerCase() == 'pendiente' ||
@@ -79,6 +113,28 @@ class ClientOrderCard extends StatelessWidget {
                   ...items.map((item) => _buildOrderItem(item)),
                   const SizedBox(height: 16),
                   const Divider(),
+                  if (discountPercentage > 0) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Descuento (${discountPercentage.toStringAsFixed(0)}%)',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          '-\$${discountAmount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

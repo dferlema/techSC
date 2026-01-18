@@ -14,13 +14,16 @@ class AppPreferences {
     await prefs.setBool(_onboardingCompletedKey, value);
   }
 
-  // 🕒 Gestión de Sesión
-  Future<void> setSessionStart(DateTime time) async {
+  // 🕒 Gestión de Sesión basado en Actividad
+  Future<void> updateLastActivity() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_sessionStartKey, time.millisecondsSinceEpoch);
+    await prefs.setInt(_sessionStartKey, DateTime.now().millisecondsSinceEpoch);
   }
 
-  Future<DateTime?> getSessionStart() async {
+  // Mantener alias por compatibilidad inicial
+  Future<void> setSessionStart(DateTime time) async => updateLastActivity();
+
+  Future<DateTime?> getLastActivity() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getInt(_sessionStartKey);
     return timestamp != null
@@ -34,9 +37,9 @@ class AppPreferences {
   }
 
   Future<bool> isSessionExpired() async {
-    final start = await getSessionStart();
-    if (start == null) return true;
-    final diff = DateTime.now().difference(start);
+    final last = await getLastActivity();
+    if (last == null) return true;
+    final diff = DateTime.now().difference(last);
     return diff.inMinutes >= 10;
   }
 }
