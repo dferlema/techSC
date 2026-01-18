@@ -69,11 +69,14 @@ class WhatsAppShareHelper {
     required String phone,
     required BuildContext context,
   }) async {
-    // Clean phone number (remove non-numeric characters except +)
-    String cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (!cleanPhone.startsWith('+') && cleanPhone.length == 10) {
-      // Assuming Ecuador (+593) if 10 digits and no prefix
-      cleanPhone = '+593$cleanPhone';
+    // Limpiar el número de teléfono (solo números)
+    String cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+    if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
+      // Asumiendo Ecuador si empieza con 0 y tiene 10 dígitos
+      cleanPhone = '593${cleanPhone.substring(1)}';
+    } else if (cleanPhone.length == 9) {
+      // Asumiendo Ecuador si tiene 9 dígitos
+      cleanPhone = '593$cleanPhone';
     }
 
     final String message = generateMarketingMessage(productData);

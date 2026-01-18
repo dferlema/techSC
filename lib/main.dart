@@ -25,6 +25,7 @@ import 'screens/quote_list_page.dart';
 import 'screens/create_quote_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/category_management_page.dart';
+import 'screens/marketing_campaign_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,6 +83,7 @@ class MyApp extends StatelessWidget {
         '/create-quote': (context) => const CreateQuotePage(),
         '/settings': (context) => const SettingsPage(),
         '/category-management': (context) => const CategoryManagementPage(),
+        '/marketing': (context) => const MarketingCampaignPage(),
 
         '/main': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;

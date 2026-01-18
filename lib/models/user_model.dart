@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Modelo de datos para representar un usuario en el sistema
 class UserModel {
-  final String uid;
-  final String name;
-  final String email;
-  final String phone;
-  final String address;
-  final String role;
-  final String id; // National ID / Cédula
-  final DateTime? createdAt;
+  final String uid; // ID único de Firebase Auth
+  final String name; // Nombre completo
+  final String email; // Correo electrónico
+  final String phone; // Número de WhatsApp/Celular
+  final String address; // Dirección de entrega
+  final String role; // Rol (cliente, vendedor, admin, técnico)
+  final String id; // Cédula o ID nacional
+  final DateTime? createdAt; // Fecha de registro
 
   UserModel({
     required this.uid,

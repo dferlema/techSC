@@ -13,7 +13,6 @@ import 'client_form_page.dart';
 import '../services/role_service.dart'; // 👈 Nuevo
 import '../widgets/role_assignment_dialog.dart';
 import '../widgets/cart_badge.dart'; // 👈 Nuevo
-import 'marketing_campaign_page.dart';
 
 /// Página principal del panel de administración.
 ///
@@ -45,7 +44,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   void initState() {
     super.initState();
     _checkRole();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -962,11 +961,6 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Pedidos',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.campaign_outlined),
-            selectedIcon: Icon(Icons.campaign),
-            label: 'Marketing',
-          ),
         ],
       ),
     );
@@ -1009,8 +1003,6 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         ),
         // 4. Pedidos
         _buildOrdersTab(),
-        // 5. Marketing
-        const MarketingCampaignPage(),
       ],
     );
   }

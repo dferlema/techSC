@@ -76,6 +76,7 @@ class _AppDrawerState extends State<AppDrawer> {
         route == '/reports' ||
         route == '/quotes' ||
         route == '/my-reservations' ||
+        route == '/marketing' ||
         route == '/settings') {
       if (widget.currentRoute == route) {
         Navigator.pop(context);
@@ -108,75 +109,78 @@ class _AppDrawerState extends State<AppDrawer> {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                FutureBuilder<String?>(
-                  future: PreferencesService().getProfileImagePath(
-                    user?.uid ?? '',
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FutureBuilder<String?>(
+                    future: PreferencesService().getProfileImagePath(
+                      user?.uid ?? '',
+                    ),
+                    builder: (context, snapshot) {
+                      final imagePath = snapshot.data;
+                      return GestureDetector(
+                        onTap: () => _navigateTo(context, '/profile-edit'),
+                        child: CircleAvatar(
+                          radius: 30, // Reducido un poco para ahorrar espacio
+                          backgroundColor: Colors.white,
+                          backgroundImage: imagePath != null
+                              ? FileImage(File(imagePath))
+                              : null,
+                          child: imagePath == null
+                              ? Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: Theme.of(context).colorScheme.primary,
+                                )
+                              : null,
+                        ),
+                      );
+                    },
                   ),
-                  builder: (context, snapshot) {
-                    final imagePath = snapshot.data;
-                    return GestureDetector(
-                      onTap: () => _navigateTo(context, '/profile-edit'),
-                      child: CircleAvatar(
-                        radius: 30, // Reducido un poco para ahorrar espacio
-                        backgroundColor: Colors.white,
-                        backgroundImage: imagePath != null
-                            ? FileImage(File(imagePath))
-                            : null,
-                        child: imagePath == null
-                            ? Icon(
-                                Icons.person,
-                                size: 40,
-                                color: Theme.of(context).colorScheme.primary,
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _isLoadingName
+                            ? const SizedBox(
+                                height: 14,
+                                width: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white70,
+                                ),
                               )
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _isLoadingName
-                          ? const SizedBox(
-                              height: 14,
-                              width: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white70,
+                            : Text(
+                                _displayName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            )
-                          : Text(
-                              _displayName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                    ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(
-                        Icons.edit,
-                        color: Colors.white70,
-                        size: 18,
                       ),
-                      onPressed: () => _navigateTo(context, '/profile-edit'),
-                      tooltip: 'Editar Perfil',
-                    ),
-                  ],
-                ),
-                const Text(
-                  'TechService Pro',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              ],
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.white70,
+                          size: 18,
+                        ),
+                        onPressed: () => _navigateTo(context, '/profile-edit'),
+                        tooltip: 'Editar Perfil',
+                      ),
+                    ],
+                  ),
+                  const Text(
+                    'TechService Pro',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           ),
           ListTile(
@@ -255,6 +259,19 @@ class _AppDrawerState extends State<AppDrawer> {
                         selectedTileColor: Colors.grey[50],
                         onTap: () => _navigateTo(context, '/settings'),
                       ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.campaign,
+                          color: Colors.indigo,
+                        ),
+                        title: const Text('Marketing'),
+                        selected: widget.currentRoute == '/marketing',
+                        selectedTileColor: Colors.indigo[50],
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/marketing');
+                        },
+                      ),
                     ],
                   );
                 }
@@ -279,6 +296,19 @@ class _AppDrawerState extends State<AppDrawer> {
                         selected: widget.currentRoute == '/reports',
                         selectedTileColor: Colors.green[50],
                         onTap: () => _navigateTo(context, '/reports'),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.campaign,
+                          color: Colors.indigo,
+                        ),
+                        title: const Text('Marketing'),
+                        selected: widget.currentRoute == '/marketing',
+                        selectedTileColor: Colors.indigo[50],
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/marketing');
+                        },
                       ),
                     ],
                   );
@@ -307,6 +337,19 @@ class _AppDrawerState extends State<AppDrawer> {
                         selected: widget.currentRoute == '/reports',
                         selectedTileColor: Colors.blueGrey[50],
                         onTap: () => _navigateTo(context, '/reports'),
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.campaign,
+                          color: Colors.indigo,
+                        ),
+                        title: const Text('Marketing'),
+                        selected: widget.currentRoute == '/marketing',
+                        selectedTileColor: Colors.indigo[50],
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/marketing');
+                        },
                       ),
                     ],
                   );

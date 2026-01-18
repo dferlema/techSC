@@ -8,6 +8,9 @@ import '../models/user_model.dart';
 import '../utils/whatsapp_share_helper.dart';
 import 'dart:convert';
 
+/// Página de Campaña de Marketing
+/// Permite a los administradores y personal seleccionar un producto y enviarlo
+/// como publicidad a los clientes registrados a través de WhatsApp.
 class MarketingCampaignPage extends StatefulWidget {
   const MarketingCampaignPage({super.key});
 
@@ -16,26 +19,42 @@ class MarketingCampaignPage extends StatefulWidget {
 }
 
 class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
+  // Servicio para manejar datos de marketing (clientes y productos)
   final MarketingService _marketingService = MarketingService();
+
+  // Producto seleccionado para la campaña
   Map<String, dynamic>? _selectedProduct;
+
+  // Consulta de búsqueda para la lista de clientes
   String _searchQuery = '';
+
+  // Consulta de búsqueda para el selector de productos
   String _productSearchQuery = '';
+
+  // Estado de carga durante la exportación de CSV
   bool _isExporting = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Se agregó AppBar para permitir navegación hacia atrás (retroceder)
       appBar: AppBar(
-        title: const Text('Campaña de Marketing'),
+        title: const Text('Campaña de Marketing WhatsApp'),
+        elevation: 0,
         backgroundColor: Colors.indigo[800],
       ),
       body: Column(
         children: [
+          // Sección de selección de producto con búsqueda inteligente
           _buildProductPicker(),
+          // Muestra el resumen de la campaña y la lista de clientes si un producto está seleccionado
           if (_selectedProduct != null) ...[
+            // Resumen del producto seleccionado y opción de exportar CSV
             _buildCampaignSummary(),
+            // Lista de clientes para enviar la promoción
             Expanded(child: _buildClientList()),
           ] else
+            // Mensaje para seleccionar un producto si no hay ninguno
             const Expanded(
               child: Center(
                 child: Text('Selecciona un producto para comenzar la campaña'),
@@ -46,6 +65,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     );
   }
 
+  /// Selector de productos con búsqueda en tiempo real
   Widget _buildProductPicker() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -163,6 +183,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     );
   }
 
+  /// Resumen de la campaña seleccionada y botón de exportación CSV
   Widget _buildCampaignSummary() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -202,6 +223,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     );
   }
 
+  /// Exporta los datos de la campaña a un archivo CSV formateado para WaSender
   Future<void> _exportCampaignCSV() async {
     if (_selectedProduct == null) return;
 
@@ -223,11 +245,12 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       for (var client in clients) {
         if (client.phone.isEmpty) continue;
 
-        // Formato 593...
+        // Formato internacional (593...) sin + para máxima compatibilidad
         String cleanPhone = client.phone.replaceAll(RegExp(r'\D'), '');
-        if (cleanPhone.length == 9) cleanPhone = '593$cleanPhone';
         if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
           cleanPhone = '593${cleanPhone.substring(1)}';
+        } else if (cleanPhone.length == 9) {
+          cleanPhone = '593$cleanPhone';
         }
 
         buffer.writeln(
@@ -256,6 +279,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     }
   }
 
+  /// Lista de clientes con barra de búsqueda
   Widget _buildClientList() {
     return Column(
       children: [

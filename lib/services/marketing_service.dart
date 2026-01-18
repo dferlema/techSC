@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import 'role_service.dart';
 
+/// Servicio para gestionar operaciones de Marketing
+/// Maneja la obtención de clientes y productos desde Firestore
 class MarketingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Fetch all users with the role 'cliente'
+  /// Obtiene un flujo de clientes (usuarios con rol 'cliente')
   Stream<List<UserModel>> getClients() {
     return _firestore
         .collection('users')
@@ -19,14 +21,13 @@ class MarketingService {
         });
   }
 
-  /// Fetches a list of all products for the campaign selection
-  /// (We use the same products collection)
+  /// Obtiene los productos disponibles para promocionar
   Stream<QuerySnapshot> getAvailableProducts() {
     return _firestore.collection('products').snapshots();
   }
 
-  /// Optional: Track campaign history
-  Future<void> logPromotionSent({
+  /// Registra un mensaje de marketing enviado (Opcional para historial futuro)
+  Future<void> logMarketingMessage({
     required String productId,
     required String clientUid,
     required String sentBy,

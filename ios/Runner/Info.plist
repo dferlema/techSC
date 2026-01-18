@@ -53,5 +53,9 @@
 	<string>Necesitamos tu ubicación para mostrar los puntos de servicio cercanos y registrar la ubicación de retiro.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Necesitamos tu ubicación para el seguimiento de servicios técnicos en tiempo real.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+	</array>
 </dict>
 </plist>

@@ -314,6 +314,20 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
+    // Marketing: Admin, Seller, Technician
+    if (role == RoleService.ADMIN ||
+        role == RoleService.SELLER ||
+        role == RoleService.TECHNICIAN) {
+      cards.add(
+        _buildDashboardCard(
+          'Marketing',
+          Icons.campaign_outlined,
+          Colors.indigo,
+          () => Navigator.pushNamed(context, '/marketing'),
+        ),
+      );
+    }
+
     return cards;
   }
 
