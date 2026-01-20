@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Necesitamos acceso a la cámara para tomar fotos de equipos y perfiles.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Utilizamos Face ID para que puedas iniciar sesión de forma rápida y segura.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Necesitamos acceso a tu galería para subir imágenes de equipos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

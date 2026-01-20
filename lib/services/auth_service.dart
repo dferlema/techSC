@@ -2,10 +2,19 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'biometric_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final BiometricService _biometricService = BiometricService();
+
+  // Keys para almacenamiento seguro
+  static const String _secureEmailKey = 'biometric_email';
+  static const String _securePasswordKey = 'biometric_password';
+  static const String _biometricEnabledKey = 'biometric_enabled';
 
   // 🔑 Registro con email y contraseña + datos en Firestore
   Future<User?> registerWithEmailAndPassword({
@@ -153,6 +162,65 @@ class AuthService {
         return 'Demasiados intentos. Intenta más tarde.';
       default:
         return 'Error: ${e.code}';
+    }
+  }
+
+  // --- MÉTODOS PARA BIOMETRÍA ---
+
+  /// Guarda las credenciales de forma segura para futuro uso biométrico
+  Future<void> saveCredentialsForBiometrics(
+    String email,
+    String password,
+  ) async {
+    await _secureStorage.write(key: _secureEmailKey, value: email);
+    await _secureStorage.write(key: _securePasswordKey, value: password);
+    await _secureStorage.write(key: _biometricEnabledKey, value: 'true');
+  }
+
+  /// Elimina las credenciales guardadas
+  Future<void> disableBiometrics() async {
+    await _secureStorage.delete(key: _secureEmailKey);
+    await _secureStorage.delete(key: _securePasswordKey);
+    await _secureStorage.write(key: _biometricEnabledKey, value: 'false');
+  }
+
+  /// Verifica si la biometría está configurada y habilitada
+  Future<bool> isBiometricAuthEnabled() async {
+    final enabled = await _secureStorage.read(key: _biometricEnabledKey);
+    return enabled == 'true';
+  }
+
+  /// Ejecuta el proceso de inicio de sesión con biometría
+  Future<User?> loginWithBiometrics() async {
+    try {
+      // 1. Verificar si el hardware está disponible
+      final available = await _biometricService.isBiometricAvailable();
+      if (!available)
+        throw 'La biometría no está disponible en este dispositivo.';
+
+      // 2. Pedir autenticación al usuario
+      final authenticated = await _biometricService.authenticate(
+        localizedReason: 'Inicia sesión de forma rápida en TechService',
+      );
+
+      if (authenticated) {
+        // 3. Recuperar credenciales del almacenamiento seguro
+        final email = await _secureStorage.read(key: _secureEmailKey);
+        final password = await _secureStorage.read(key: _securePasswordKey);
+
+        if (email != null && password != null) {
+          // 4. Intentar login en Firebase
+          return await loginWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+        } else {
+          throw 'No se encontraron credenciales guardadas. Inicia sesión manualmente primero.';
+        }
+      }
+      return null;
+    } catch (e) {
+      rethrow;
     }
   }
 }

@@ -47,10 +47,12 @@ class _QuoteListPageState extends State<QuoteListPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_userId == null)
+    }
+    if (_userId == null) {
       return const Scaffold(body: Center(child: Text('Inicia sesión')));
+    }
 
     final isClient = _userRole == RoleService.CLIENT;
     final isStaff = !isClient;

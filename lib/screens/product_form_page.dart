@@ -367,7 +367,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         }
 
                         return DropdownButtonFormField<String>(
-                          value: _selectedCategoryId,
+                          initialValue: _selectedCategoryId,
                           decoration: const InputDecoration(
                             labelText: 'Categoría *',
                             border: OutlineInputBorder(),
@@ -395,7 +395,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
-                      value: _selectedLabel,
+                      initialValue: _selectedLabel,
                       decoration: const InputDecoration(
                         labelText: 'Etiqueta (Opcional)',
                         border: OutlineInputBorder(),
@@ -409,7 +409,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     ),
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
-                      value: _selectedTaxStatus,
+                      initialValue: _selectedTaxStatus,
                       decoration: const InputDecoration(
                         labelText: 'Estado de Impuestos',
                         border: OutlineInputBorder(),

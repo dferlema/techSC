@@ -455,7 +455,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                         }
 
                         return DropdownButtonFormField<String>(
-                          value: _selectedCategoryId,
+                          initialValue: _selectedCategoryId,
                           decoration: const InputDecoration(
                             labelText: 'Categoría de servicio *',
                             border: OutlineInputBorder(),
@@ -481,7 +481,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
-                      value: _selectedTaxStatus,
+                      initialValue: _selectedTaxStatus,
                       decoration: const InputDecoration(
                         labelText: 'Estado de Impuestos',
                         border: OutlineInputBorder(),

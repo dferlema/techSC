@@ -119,6 +119,28 @@ class WhatsAppShareHelper {
     final String originalPrice = (price * 1.25).toStringAsFixed(2);
     final String promoPrice = price.toStringAsFixed(2);
 
+    // Determine dynamic product type for the message
+    String productType = 'producto';
+    final String lowerName = productName.toLowerCase();
+    final String category = (productData['category'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    if (lowerName.contains('laptop') ||
+        lowerName.contains('portátil') ||
+        lowerName.contains('notebook') ||
+        category.contains('laptop')) {
+      productType = 'laptop';
+    } else if (lowerName.contains('impresora') ||
+        lowerName.contains('printer') ||
+        category.contains('impresora')) {
+      productType = 'impresora';
+    } else if (category.contains('servicio') ||
+        lowerName.contains('mantenimiento') ||
+        lowerName.contains('reparación')) {
+      productType = 'servicio';
+    }
+
     // Format a high-impact marketing message based on user request
     String message = '👋 Hola *$name*, tenemos algo especial para ti\n';
     message +=
@@ -127,7 +149,8 @@ class WhatsAppShareHelper {
     message += '✨ *$productName*\n';
     message += 'Precio exclusivo para ti: *$promoPrice* ~$originalPrice~\n\n';
 
-    message += '¿Por qué esta laptop es perfecta para lo que necesitas?\n';
+    message +=
+        '¿Por qué esta $productType es perfecta para lo que necesitas?\n';
 
     // Try to extract specs into bullet points
     if (productData['specs'] != null) {

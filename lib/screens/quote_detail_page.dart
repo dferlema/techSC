@@ -282,47 +282,43 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const Divider(),
-            ..._quote.items
-                .map(
-                  (item) => ListTile(
-                    dense: false,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                        image: item.imageUrl != null
-                            ? DecorationImage(
-                                image: NetworkImage(item.imageUrl!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      child: item.imageUrl == null
-                          ? Icon(
-                              item.type == 'product'
-                                  ? Icons.computer
-                                  : Icons.build,
-                              color: Colors.grey,
-                            )
-                          : null,
-                    ),
-                    title: Text(
-                      item.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '${item.quantity} x \$${item.price.toStringAsFixed(2)}',
-                    ),
-                    trailing: Text(
-                      '\$${item.total.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+            ..._quote.items.map(
+              (item) => ListTile(
+                dense: false,
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    image: item.imageUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(item.imageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-                )
-                .toList(),
+                  child: item.imageUrl == null
+                      ? Icon(
+                          item.type == 'product' ? Icons.computer : Icons.build,
+                          color: Colors.grey,
+                        )
+                      : null,
+                ),
+                title: Text(
+                  item.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${item.quantity} x \$${item.price.toStringAsFixed(2)}',
+                ),
+                trailing: Text(
+                  '\$${item.total.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
           ],
         ),
       ),

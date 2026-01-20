@@ -20,11 +20,21 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false;
+  bool _isBiometricAvailable = false;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
     _loadSavedEmail();
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    final available = await _authService.isBiometricAuthEnabled();
+    setState(() {
+      _isBiometricAvailable = available;
+    });
   }
 
   // Cargar email guardado si "Recordarme" está activado
@@ -143,6 +153,26 @@ class _LoginPageState extends State<LoginPage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  void _onBiometricLoginPressed() async {
+    setState(() => _isLoading = true);
+    try {
+      final user = await _authService.loginWithBiometrics();
+      if (user != null && mounted) {
+        // Registrar inicio de sesión
+        await AppPreferences().setSessionStart(DateTime.now());
+        Navigator.pushReplacementNamed(context, '/main');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -298,6 +328,23 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                     ),
                     const SizedBox(height: 20),
+
+                    if (_isBiometricAvailable)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: OutlinedButton.icon(
+                          onPressed: _onBiometricLoginPressed,
+                          icon: const Icon(Icons.fingerprint, size: 28),
+                          label: const Text('Entrar con Biometría'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            minimumSize: const Size(double.infinity, 50),
+                          ),
+                        ),
+                      ),
 
                     // Enlace de Registro
                     Row(

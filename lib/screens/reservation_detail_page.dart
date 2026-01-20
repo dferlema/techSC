@@ -34,7 +34,7 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
   String _paymentMethod = 'efectivo'; // efectivo, transferencia, tarjeta
 
   // Spare Parts Logic
-  List<Map<String, dynamic>> _selectedParts = [];
+  final List<Map<String, dynamic>> _selectedParts = [];
   double _partsTotal = 0.0;
 
   // Check if reservation is completed (read-only mode)
@@ -814,7 +814,7 @@ class _ReservationDetailPageState extends State<ReservationDetailPage> {
           ],
         ),
         DropdownButtonFormField<String>(
-          value: _paymentMethod,
+          initialValue: _paymentMethod,
           decoration: const InputDecoration(
             labelText: 'Método de Pago',
             isDense: true,
