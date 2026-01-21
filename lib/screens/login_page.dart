@@ -20,7 +20,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false;
-  bool _isBiometricAvailable = false;
+  bool _hasBiometricHardware = false;
+  bool _isBiometricConfigured = false;
   final AuthService _authService = AuthService();
 
   @override
@@ -31,10 +32,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _checkBiometrics() async {
-    final available = await _authService.isBiometricAuthEnabled();
-    setState(() {
-      _isBiometricAvailable = available;
-    });
+    final hasHardware = await _authService.isBiometricHardwareAvailable();
+    final isConfigured = await _authService.isBiometricAuthEnabled();
+    if (mounted) {
+      setState(() {
+        _hasBiometricHardware = hasHardware;
+        _isBiometricConfigured = isConfigured;
+      });
+    }
   }
 
   // Cargar email guardado si "Recordarme" está activado
@@ -139,6 +144,9 @@ class _LoginPageState extends State<LoginPage> {
           await _preferencesService.clearSavedEmail();
         }
 
+        // 🔐 Verificar si debemos ofrecer configurar biometría
+        await _promptBiometricSetup(email, password);
+
         Navigator.pushReplacementNamed(context, '/main');
       }
     } catch (e) {
@@ -173,6 +181,69 @@ class _LoginPageState extends State<LoginPage> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Pregunta al usuario si desea habilitar la autenticación biométrica
+  Future<void> _promptBiometricSetup(String email, String password) async {
+    try {
+      // 1. Verificar si ya está habilitada
+      final alreadyEnabled = await _authService.isBiometricAuthEnabled();
+      if (alreadyEnabled) return;
+
+      // 2. Verificar si el hardware biométrico está disponible
+      if (!_hasBiometricHardware) return;
+
+      // 3. Mostrar diálogo de confirmación
+      if (mounted) {
+        final shouldEnable = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.fingerprint, color: Colors.blue, size: 32),
+                SizedBox(width: 12),
+                Text('Habilitar Biometría'),
+              ],
+            ),
+            content: const Text(
+              '¿Deseas usar tu huella o rostro para iniciar sesión más rápido la próxima vez?\n\n'
+              'Tus credenciales se guardarán de forma segura en el hardware de tu dispositivo.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Ahora no'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.check),
+                label: const Text('Habilitar'),
+              ),
+            ],
+          ),
+        );
+
+        // 4. Si acepta, guardar credenciales
+        if (shouldEnable == true) {
+          await _authService.saveCredentialsForBiometrics(email, password);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  '✓ Biometría habilitada. Podrás usarla en tu próximo inicio de sesión.',
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Silenciosamente ignorar errores en la configuración biométrica
+      // para no interrumpir el flujo de login
+      debugPrint('Error al configurar biometría: $e');
     }
   }
 
@@ -329,7 +400,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 20),
 
-                    if (_isBiometricAvailable)
+                    if (_hasBiometricHardware && _isBiometricConfigured)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 20),
                         child: OutlinedButton.icon(

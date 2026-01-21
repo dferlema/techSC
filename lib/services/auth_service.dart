@@ -223,4 +223,9 @@ class AuthService {
       rethrow;
     }
   }
+
+  /// Verifica si el dispositivo tiene hardware biométrico disponible
+  Future<bool> isBiometricHardwareAvailable() async {
+    return await _biometricService.isBiometricAvailable();
+  }
 }

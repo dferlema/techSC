@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/category_model.dart';
 import '../services/category_service.dart';
+import '../services/notification_service.dart';
 
 /// Pagina de formulario para crear o editar productos.
 /// Permite ingresar nombre, especificaciones, precio, categoría y URL de imagen.
@@ -126,8 +127,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
       } else {
         await db
             .collection('products')
-            .doc(widget.productId)
+            .doc(widget.productId!)
             .update(productData);
+      }
+
+      // 🔔 Notificar si el producto tiene etiqueta de "Oferta"
+      if (_selectedLabel == 'Oferta') {
+        // Solo notificamos si es un producto nuevo o si ya existía pero se acaba de poner en oferta
+        // (Para simplificar, notificamos siempre que se guarde como oferta)
+        await NotificationService().notifyNewOffer(name, price);
       }
 
       if (!mounted) return;

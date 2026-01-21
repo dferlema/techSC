@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../models/config_model.dart';
 import '../services/config_service.dart';
 import '../services/auth_service.dart';
+import '../services/role_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/cart_badge.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -28,6 +30,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _isLoading = false;
   bool _isBiometricEnabled = false;
+  bool _isAdmin = false;
+  bool _checkingRole = true;
 
   @override
   void initState() {
@@ -38,6 +42,22 @@ class _SettingsPageState extends State<SettingsPage> {
     _addressController = TextEditingController();
     _loadCurrentConfig();
     _loadBiometricStatus();
+    _checkRole();
+  }
+
+  Future<void> _checkRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final role = await RoleService().getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _isAdmin = role == RoleService.ADMIN;
+          _checkingRole = false;
+        });
+      }
+    } else {
+      if (mounted) setState(() => _checkingRole = false);
+    }
   }
 
   Future<void> _loadBiometricStatus() async {
@@ -49,118 +69,57 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _toggleBiometrics(bool value) async {
     if (value) {
-      // Para activar, pedimos al usuario su contraseña actual (o simplemente avisamos)
-      // En este flujo, solicitaremos login biométrico para confirmar
-      try {
-        // Mejor flujo: Al activar, advertimos que debe haber iniciado sesión manualmente.
-
-        // Diálogo de confirmación
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Activar Biometría'),
-            content: const Text(
-              'Para activar el inicio de sesión con huella o rostro, necesitamos guardar tus credenciales de forma segura. ¿Deseas continuar?',
+      // No permitimos habilitar desde aquí, solo desde el login
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Para habilitar la biometría, cierra sesión e inicia sesión manualmente. '
+              'Se te preguntará si deseas activarla.',
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Activar'),
-              ),
-            ],
+            duration: Duration(seconds: 4),
           ),
         );
-
-        if (confirm == true) {
-          // Solicitamos biometría para confirmar que el usuario es quien dice ser antes de guardar
-          setState(() => _isLoading = true);
-          final success = await _authService
-              .loginWithBiometrics(); // Esto pedirá la huella
-          if (success != null) {
-            // Si el usuario ya está logueado, necesitamos sus credenciales actuales.
-            // Una limitación de Firebase es que no nos da la contraseña.
-            // Implementación simplificada: Pedir contraseña en un diálogo.
-            _promptForPasswordToEnableBiometrics();
-          } else {
-            setState(() => _isBiometricEnabled = false);
-          }
-        } else {
-          setState(() => _isBiometricEnabled = false);
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-        setState(() => _isBiometricEnabled = false);
-      } finally {
-        setState(() => _isLoading = false);
       }
+      setState(() => _isBiometricEnabled = false);
     } else {
-      await _authService.disableBiometrics();
-      setState(() {
-        _isBiometricEnabled = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Inicio de sesión biométrico desactivado.'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _promptForPasswordToEnableBiometrics() async {
-    final passwordController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ingresa tu contraseña actual para habilitar la biometría:',
+      // Deshabilitar biometría
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Deshabilitar Biometría'),
+          content: const Text(
+            '¿Estás seguro de que deseas deshabilitar el inicio de sesión biométrico?\n\n'
+            'Tendrás que iniciar sesión manualmente la próxima vez.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Contraseña',
-                border: OutlineInputBorder(),
-              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Deshabilitar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, passwordController.text),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (result != null && result.isNotEmpty) {
-      final user = _authService.currentUser;
-      if (user != null && user.email != null) {
-        await _authService.saveCredentialsForBiometrics(user.email!, result);
-        setState(() => _isBiometricEnabled = true);
+      if (confirm == true) {
+        await _authService.disableBiometrics();
+        setState(() => _isBiometricEnabled = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biometría habilitada exitosamente.')),
+            const SnackBar(
+              content: Text('Inicio de sesión biométrico desactivado.'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
+      } else {
+        setState(() => _isBiometricEnabled = true);
       }
-    } else {
-      setState(() => _isBiometricEnabled = false);
     }
   }
 
@@ -284,6 +243,21 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_checkingRole) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // If not admin, show only security settings
+    if (!_isAdmin) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Configuraciones'),
+          actions: const [CartBadge(), SizedBox(width: 8)],
+        ),
+        body: _buildSecurityTab(),
+      );
     }
 
     return Scaffold(
@@ -499,23 +473,35 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.fingerprint, size: 32),
+                leading: Icon(
+                  Icons.fingerprint,
+                  size: 32,
+                  color: _isBiometricEnabled ? Colors.green : Colors.grey,
+                ),
                 title: const Text('Inicio de Sesión Biométrico'),
-                subtitle: const Text(
-                  'Usa tu huella o rostro para entrar rápido.',
+                subtitle: Text(
+                  _isBiometricEnabled
+                      ? 'Habilitado - Puedes iniciar sesión con tu huella o rostro'
+                      : 'Deshabilitado - Inicia sesión manualmente para habilitar',
                 ),
                 trailing: Switch(
                   value: _isBiometricEnabled,
                   onChanged: _toggleBiometrics,
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: Text(
-                  'Nota: Al activar esta opción, tus credenciales se guardarán de forma cifrada en el hardware seguro de tu dispositivo.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  _isBiometricEnabled
+                      ? 'Para deshabilitar, apaga el interruptor arriba.'
+                      : 'Para habilitar la biometría, cierra sesión e inicia sesión manualmente. Se te preguntará si deseas activarla.',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),

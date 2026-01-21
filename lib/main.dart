@@ -27,6 +27,7 @@ import 'screens/settings_page.dart';
 import 'screens/category_management_page.dart';
 import 'screens/marketing_campaign_page.dart';
 import 'services/deep_link_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,9 @@ void main() async {
 
   // Initialize Deep Link Service
   DeepLinkService().init();
+
+  // Initialize Notification Service
+  await NotificationService().initialize();
 
   runApp(const MyApp());
 }
