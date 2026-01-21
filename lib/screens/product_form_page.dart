@@ -121,21 +121,25 @@ class _ProductFormPageState extends State<ProductFormPage> {
         if (widget.productId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
 
+      String finalProductId;
       final db = FirebaseFirestore.instance;
+
       if (widget.productId == null) {
-        await db.collection('products').add(productData);
+        final docRef = await db.collection('products').add(productData);
+        finalProductId = docRef.id;
       } else {
         await db
             .collection('products')
             .doc(widget.productId!)
             .update(productData);
+        finalProductId = widget.productId!;
       }
 
       // 🔔 Notificar si el producto tiene etiqueta de "Oferta"
       if (_selectedLabel == 'Oferta') {
         // Solo notificamos si es un producto nuevo o si ya existía pero se acaba de poner en oferta
         // (Para simplificar, notificamos siempre que se guarde como oferta)
-        await NotificationService().notifyNewOffer(name, price);
+        await NotificationService().notifyNewOffer(name, price, finalProductId);
       }
 
       if (!mounted) return;

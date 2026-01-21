@@ -45,14 +45,14 @@ class DeepLinkService {
       if (id == null) return;
 
       if (uri.host == 'product') {
-        _navigateToProduct(id);
+        navigateToProduct(id);
       } else if (uri.host == 'service') {
-        _navigateToService(id);
+        navigateToService(id);
       }
     }
   }
 
-  Future<void> _navigateToProduct(String id) async {
+  Future<void> navigateToProduct(String id) async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('products')
@@ -72,7 +72,7 @@ class DeepLinkService {
     }
   }
 
-  Future<void> _navigateToService(String id) async {
+  Future<void> navigateToService(String id) async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('services')

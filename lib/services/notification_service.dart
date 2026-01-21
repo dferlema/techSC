@@ -6,6 +6,13 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../models/notification_model.dart';
 import 'role_service.dart';
+import 'deep_link_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('Handling a background message: ${message.messageId}');
+}
 
 /// Service to manage in-app notifications.
 /// Supports sending notifications and streaming them for the current user.
@@ -29,6 +36,11 @@ class NotificationService {
         debugPrint('NotificationService: Firebase no está inicializado.');
         return;
       }
+
+      // Configurar handler de background
+      FirebaseMessaging.onBackgroundMessage(
+        _firebaseMessagingBackgroundHandler,
+      );
 
       // 2. Solicitar permisos (especialmente en iOS y Android 13+)
       NotificationSettings settings = await _fcm.requestPermission(
@@ -60,6 +72,7 @@ class NotificationService {
         initializationSettings,
         onDidReceiveNotificationResponse: (details) {
           debugPrint('Notificación local clickeada: ${details.payload}');
+          _handleNotificationTap(details.payload);
         },
       );
 
@@ -76,6 +89,7 @@ class NotificationService {
         debugPrint(
           'App abierta desde notificación (background): ${message.data}',
         );
+        _handleMessageAction(message.data);
       });
 
       // 6. Manejar apertura desde notificación (Terminated)
@@ -84,6 +98,10 @@ class NotificationService {
         debugPrint(
           'App abierta desde notificación (terminated): ${initialMessage.data}',
         );
+        // Pequeño delay para asegurar que la app esté lista
+        Future.delayed(const Duration(seconds: 1), () {
+          _handleMessageAction(initialMessage.data);
+        });
       }
 
       // 7. Suscribirse a temas globales
@@ -105,6 +123,30 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error inicializando NotificationService: $e');
       // No lanzamos la excepción para no bloquear el inicio de la app
+    }
+  }
+
+  void _handleMessageAction(Map<String, dynamic> data) {
+    if (data['type'] == 'oferta' && data['productId'] != null) {
+      DeepLinkService().navigateToProduct(data['productId']);
+    }
+  }
+
+  void _handleNotificationTap(String? payload) {
+    if (payload == null) return;
+    // El payload viene como string, en este caso simplificado asumimos que es un Map.toString()
+    // Pero _showLocalNotification lo pone como message.data.toString() lo cual es difícil de parsear.
+    // Mejor lo cambiamos para que _handleNotificationTap reciba el ID si es posible,
+    // o mejorar cómo serializamos el payload.
+    // Por ahora, intentemos extraer el ID si es posible o simplemente navegar si podemos.
+    // DATA: {type: oferta, productId: ...}
+    // String: "{type: oferta, productId: ...}" (Map.toString default implementation in Dart)
+
+    // Mejor solución: En _showLocalNotification, serializar como JSON o separado por comas
+    // O mejor aún, solo pasar el ID y tipo concatenado "oferta:ID".
+    if (payload.startsWith('oferta:')) {
+      final productId = payload.split(':')[1];
+      DeepLinkService().navigateToProduct(productId);
     }
   }
 
@@ -140,12 +182,20 @@ class NotificationService {
       message.notification?.title,
       message.notification?.body,
       platformDetails,
-      payload: message.data.toString(),
+      // Payload simplificado para facilitar el parsing: "tipo:id"
+      payload:
+          message.data['type'] == 'oferta' && message.data['productId'] != null
+          ? 'oferta:${message.data['productId']}'
+          : message.data.toString(),
     );
   }
 
   /// Envía un aviso de oferta a todos los usuarios (vía Firestore + Topic)
-  Future<void> notifyNewOffer(String productName, double price) async {
+  Future<void> notifyNewOffer(
+    String productName,
+    double price,
+    String productId,
+  ) async {
     final title = '🔥 ¡NUEVA OFERTA! 🔥';
     final body =
         'El producto "$productName" está ahora en oferta a solo \$${price.toStringAsFixed(2)}. ¡Aprovecha!';
@@ -155,7 +205,7 @@ class NotificationService {
       title: title,
       body: body,
       type: 'oferta',
-      relatedId: 'promociones',
+      relatedId: productId, // Vinculamos con el ID del producto
       receiverRole: 'all', // ✅ Visible para todos los usuarios
     );
 
@@ -164,7 +214,11 @@ class NotificationService {
       await _showLocalNotification(
         RemoteMessage(
           notification: RemoteNotification(title: title, body: body),
-          data: {'type': 'oferta', 'productName': productName},
+          data: {
+            'type': 'oferta',
+            'productName': productName,
+            'productId': productId,
+          },
         ),
       );
     } catch (e) {

@@ -379,7 +379,13 @@ class _AppDrawerState extends State<AppDrawer> {
             selectedTileColor: Colors.amber[50],
             onTap: () => _navigateTo(context, '/quotes'),
           ),
-          ListTile(onTap: () => _navigateTo(context, '/contact')),
+          ListTile(
+            leading: const Icon(Icons.support_agent, color: Colors.teal),
+            title: const Text('Contáctanos'),
+            selected: widget.currentRoute == '/contact',
+            selectedTileColor: Colors.teal.withOpacity(0.1),
+            onTap: () => _navigateTo(context, '/contact'),
+          ),
           ListTile(
             leading: const Icon(Icons.settings, color: Colors.grey),
             title: const Text('Configuraciones'),

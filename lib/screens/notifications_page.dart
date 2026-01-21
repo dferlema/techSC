@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import 'reservation_detail_page.dart';
 import 'order_detail_page.dart';
 import 'quote_detail_page.dart';
+import '../services/deep_link_service.dart';
 
 class NotificationsPage extends StatelessWidget {
   const NotificationsPage({super.key});
@@ -80,6 +81,8 @@ class NotificationsPage extends StatelessWidget {
             ),
           );
         }
+      } else if (notification.type == 'oferta') {
+        await DeepLinkService().navigateToProduct(notification.relatedId);
       }
     } catch (e) {
       if (context.mounted) {
@@ -205,6 +208,8 @@ class NotificationsPage extends StatelessWidget {
         return Icons.security;
       case 'quote':
         return Icons.description;
+      case 'oferta':
+        return Icons.local_offer;
       default:
         return Icons.notifications;
     }
@@ -222,6 +227,8 @@ class NotificationsPage extends StatelessWidget {
         return Colors.red;
       case 'quote':
         return Colors.purple;
+      case 'oferta':
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }
