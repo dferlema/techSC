@@ -1,12 +1,10 @@
-// lib/screens/login_page.dart
-
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Necesario para ImageFilter
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
 import '../utils/prefs.dart';
 import '../utils/branding_helper.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -103,10 +101,10 @@ class _LoginPageState extends State<LoginPage> {
                 content: const Text(
                   'Por favor verifica tu correo electrónico antes de ingresar.',
                 ),
-                backgroundColor: Colors.orange,
+                backgroundColor: AppColors.warning,
                 action: SnackBarAction(
                   label: 'Reenviar',
-                  textColor: Colors.white,
+                  textColor: AppColors.white,
                   onPressed: () async {
                     try {
                       await user.sendEmailVerification();
@@ -122,7 +120,7 @@ class _LoginPageState extends State<LoginPage> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Error: $e'),
-                            backgroundColor: Colors.red,
+                            backgroundColor: AppColors.error,
                           ),
                         );
                       }
@@ -154,7 +152,10 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -178,7 +179,10 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -231,11 +235,11 @@ class _LoginPageState extends State<LoginPage> {
           await _authService.saveCredentialsForBiometrics(email, password);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text(
                   '✓ Biometría habilitada. Podrás usarla en tu próximo inicio de sesión.',
                 ),
-                backgroundColor: Colors.green,
+                backgroundColor: AppColors.success,
                 duration: Duration(seconds: 3),
               ),
             );
@@ -270,11 +274,7 @@ class _LoginPageState extends State<LoginPage> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  primaryColor,
-                  const Color(0xFF0D47A1), // Azul más intenso
-                  Colors.black87,
-                ],
+                colors: [primaryColor, AppColors.primaryDark, Colors.black87],
               ),
             ),
           ),
@@ -327,19 +327,19 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Header: Logo y Texto (Fuera del glass para limpieza)
-                  const Icon(
+                  Icon(
                     Icons.admin_panel_settings_outlined, // Icono Premium
                     size: 60,
-                    color: Colors.white,
+                    color: AppColors.white,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     BrandingHelper.appName,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppColors.white,
                       letterSpacing: 1.5,
                       shadows: [
                         Shadow(
@@ -355,7 +355,7 @@ class _LoginPageState extends State<LoginPage> {
                     'Bienvenido de nuevo',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.white.withOpacity(0.8),
+                      color: AppColors.white.withOpacity(0.8),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -369,15 +369,17 @@ class _LoginPageState extends State<LoginPage> {
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1), // Translucidez
+                          color: AppColors.white.withOpacity(
+                            0.1,
+                          ), // Translucidez
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: AppColors.white.withOpacity(0.2),
                             width: 1.0,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: AppColors.black.withOpacity(0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -388,18 +390,18 @@ class _LoginPageState extends State<LoginPage> {
                             // Campo Email
                             TextFormField(
                               controller: _emailController,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: AppColors.white),
                               decoration: InputDecoration(
                                 labelText: 'Correo Electrónico',
                                 labelStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: AppColors.white.withOpacity(0.8),
                                 ),
                                 prefixIcon: Icon(
                                   Icons.email_outlined,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: AppColors.white.withOpacity(0.9),
                                 ),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.1),
+                                fillColor: AppColors.white.withOpacity(0.1),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(30),
                                   borderSide: BorderSide.none,
@@ -417,27 +419,27 @@ class _LoginPageState extends State<LoginPage> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
-                              style: const TextStyle(color: Colors.white),
+                              style: TextStyle(color: AppColors.white),
                               decoration: InputDecoration(
                                 labelText: 'Contraseña',
                                 labelStyle: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: AppColors.white.withOpacity(0.8),
                                 ),
                                 prefixIcon: Icon(
                                   Icons.lock_outline,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: AppColors.white.withOpacity(0.9),
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
                                         ? Icons.visibility_off
                                         : Icons.visibility,
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: AppColors.white.withOpacity(0.7),
                                   ),
                                   onPressed: _togglePasswordVisibility,
                                 ),
                                 filled: true,
-                                fillColor: Colors.white.withOpacity(0.1),
+                                fillColor: AppColors.white.withOpacity(0.1),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(30),
                                   borderSide: BorderSide.none,
@@ -464,7 +466,7 @@ class _LoginPageState extends State<LoginPage> {
                                       child: Checkbox(
                                         value: _rememberMe,
                                         checkColor: primaryColor,
-                                        activeColor: Colors.white,
+                                        activeColor: AppColors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
                                             4,
@@ -484,7 +486,7 @@ class _LoginPageState extends State<LoginPage> {
                                     Text(
                                       'Recordarme',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
+                                        color: AppColors.white.withOpacity(0.9),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -500,13 +502,12 @@ class _LoginPageState extends State<LoginPage> {
                                   child: Text(
                                     '¿Olvidaste contraseña?',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: AppColors.white,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
                                       decoration: TextDecoration.underline,
-                                      decorationColor: Colors.white.withOpacity(
-                                        0.5,
-                                      ),
+                                      decorationColor: AppColors.white
+                                          .withOpacity(0.5),
                                     ),
                                   ),
                                 ),
@@ -540,15 +541,15 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                                 child: _isLoading
-                                    ? const CircularProgressIndicator(
-                                        color: Colors.white,
+                                    ? CircularProgressIndicator(
+                                        color: AppColors.white,
                                       )
-                                    : const Text(
+                                    : Text(
                                         'INGRESAR',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.white,
+                                          color: AppColors.white,
                                           letterSpacing: 1.2,
                                         ),
                                       ),
@@ -565,25 +566,25 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 24),
                     TextButton.icon(
                       onPressed: _onBiometricLoginPressed,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.fingerprint,
-                        color: Colors.white,
+                        color: AppColors.white,
                         size: 28,
                       ),
-                      label: const Text(
+                      label: Text(
                         'Usar Huella Digital',
-                        style: TextStyle(color: Colors.white, fontSize: 16),
+                        style: TextStyle(color: AppColors.white, fontSize: 16),
                       ),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
                           vertical: 12,
                         ),
-                        backgroundColor: Colors.white.withOpacity(0.1),
+                        backgroundColor: AppColors.white.withOpacity(0.1),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                           side: BorderSide(
-                            color: Colors.white.withOpacity(0.3),
+                            color: AppColors.white.withOpacity(0.3),
                           ),
                         ),
                       ),
@@ -602,14 +603,14 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pushNamed(context, '/register'),
-                        child: const Text(
+                        child: Text(
                           'Crea una aquí',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppColors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                             decoration: TextDecoration.underline,
-                            decorationColor: Colors.white,
+                            decorationColor: AppColors.white,
                           ),
                         ),
                       ),

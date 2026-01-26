@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/prefs.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 import '../services/config_service.dart';
 import '../utils/branding_helper.dart';
 
@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // Cargar nombres y configuraciones
     try {
       final config = await ConfigService().getConfig();
-      BrandingHelper.setAppName(config.companyName);
+      BrandingHelper.setConfig(config);
     } catch (e) {
       debugPrint('Error loading branding: $e');
     }

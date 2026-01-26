@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../utils/branding_helper.dart';
+import '../theme/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -166,8 +167,9 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(
         title: Text(
           BrandingHelper.appName,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: AppColors.white),
         ),
+        backgroundColor: AppColors.primaryBlue,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
@@ -190,14 +192,12 @@ class _RegisterPageState extends State<RegisterPage> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.1),
+                          color: AppColors.primaryBlue.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.person_add,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: AppColors.primaryBlue,
                           size: 40,
                         ),
                       ),
@@ -214,9 +214,9 @@ class _RegisterPageState extends State<RegisterPage> {
                       Text(
                         'Únete a ${BrandingHelper.appName} y accede a servicios exclusivos',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -360,7 +360,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               _obscurePassword
                                   ? Icons.visibility_off
                                   : Icons.visibility,
-                              color: Colors.grey,
+                              color: AppColors.textSecondary,
                             ),
                             onPressed: _togglePasswordVisibility,
                           ),
@@ -393,7 +393,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               _obscureConfirmPassword
                                   ? Icons.visibility_off
                                   : Icons.visibility,
-                              color: Colors.grey,
+                              color: AppColors.textSecondary,
                             ),
                             onPressed: _toggleConfirmPasswordVisibility,
                           ),
@@ -427,17 +427,15 @@ class _RegisterPageState extends State<RegisterPage> {
                             child: RichText(
                               text: TextSpan(
                                 text: 'Acepto los ',
-                                style: const TextStyle(
-                                  color: Colors.black87,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
                                   fontSize: 14,
                                 ),
                                 children: [
                                   TextSpan(
                                     text: 'términos y condiciones',
                                     style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
+                                      color: AppColors.primaryBlue,
                                       decoration: TextDecoration.underline,
                                     ),
                                     recognizer: _termsRecognizer,
@@ -446,9 +444,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   TextSpan(
                                     text: 'política de privacidad',
                                     style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
+                                      color: AppColors.primaryBlue,
                                       decoration: TextDecoration.underline,
                                     ),
                                     recognizer: _privacyRecognizer,
@@ -470,11 +466,11 @@ class _RegisterPageState extends State<RegisterPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           minimumSize: const Size(double.infinity, 50),
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: AppColors.white,
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
+                            ? CircularProgressIndicator(color: AppColors.white)
                             : const Text(
                                 'Registrarse',
                                 style: TextStyle(fontSize: 18),
@@ -494,7 +490,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             child: Text(
                               'Inicia sesión',
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: AppColors.primaryBlue,
                                 decoration: TextDecoration.underline,
                               ),
                             ),

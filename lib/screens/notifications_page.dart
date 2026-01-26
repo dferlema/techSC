@@ -5,7 +5,7 @@ import '../models/notification_model.dart';
 import '../models/reservation_model.dart';
 import '../models/quote_model.dart';
 import '../services/notification_service.dart';
-import '../theme/app_theme.dart';
+import '../theme/app_colors.dart';
 import 'reservation_detail_page.dart';
 import 'order_detail_page.dart';
 import 'quote_detail_page.dart';

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/config_model.dart';
@@ -79,6 +80,39 @@ class ConfigService {
     } catch (e) {
       print('Error deleting banner: $e');
       rethrow;
+    }
+  }
+
+  // --- Dynamic Color Configuration ---
+
+  Future<void> saveColorConfig(Map<String, int> colors) async {
+    try {
+      await _firestore.collection(_collection).doc('app_colors').set({
+        'colors': colors,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Error al guardar la configuración de colores: $e');
+    }
+  }
+
+  Future<Map<String, int>?> getColorConfig() async {
+    try {
+      final doc = await _firestore
+          .collection(_collection)
+          .doc('app_colors')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data.containsKey('colors')) {
+          final colorsMap = data['colors'] as Map<String, dynamic>;
+          return colorsMap.map((key, value) => MapEntry(key, value as int));
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error obteniendo configuración de colores: $e');
+      return null;
     }
   }
 }

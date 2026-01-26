@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'branding_helper.dart';
 
 /// Helper class to share products and services via WhatsApp
 class WhatsAppShareHelper {
@@ -51,7 +52,7 @@ class WhatsAppShareHelper {
     }
 
     message += '---\n';
-    message += '📱 Compartido desde TechServiceComputer';
+    message += '📱 Compartido desde ${BrandingHelper.appName}';
 
     if (imageUrl != null && imageUrl.isNotEmpty) {
       await _shareWithImage(message, imageUrl, context, subject: productName);
@@ -149,9 +150,6 @@ class WhatsAppShareHelper {
     message += '✨ *$productName*\n';
     message += 'Precio exclusivo para ti: *$promoPrice* ~$originalPrice~\n\n';
 
-    message +=
-        '¿Por qué esta $productType es perfecta para lo que necesitas?\n';
-
     // Try to extract specs into bullet points
     if (productData['specs'] != null) {
       String specs = productData['specs'].toString();
@@ -175,12 +173,11 @@ class WhatsAppShareHelper {
         '*$name*, guardamos esta oportunidad especialmente para ti. Pero el cupo es limitado y el tiempo corre.\n\n';
 
     message += '👉 *Sí, quiero aprovechar mi oferta*\n';
-    message += 'techsc://product?id=${productData['id']}\n\n';
 
     message +=
         'P.D. Solo 3 personas recibirán este precio hoy. Tú eres una de ellas.\n\n';
 
-    message += '🏢 *TechServiceComputer*';
+    message += '🏢 *${BrandingHelper.appName}*';
 
     return message;
   }
@@ -227,14 +224,8 @@ class WhatsAppShareHelper {
       message += '📝 Descripción:\n$description\n\n';
     }
 
-    // Add deep link for "Ver más"
-    if (serviceData['id'] != null) {
-      message += '🔗 *Ver más en la app:* \n';
-      message += 'techsc://service?id=${serviceData['id']}\n\n';
-    }
-
     message += '---\n';
-    message += '📱 Compartido desde TechServiceComputer';
+    message += '📱 Compartido desde ${BrandingHelper.appName}';
 
     if (imageUrl != null && imageUrl.isNotEmpty) {
       await _shareWithImage(message, imageUrl, context, subject: serviceTitle);

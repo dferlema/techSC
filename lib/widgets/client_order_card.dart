@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_colors.dart';
 
 class ClientOrderCard extends StatelessWidget {
   final String docId;
@@ -94,7 +95,7 @@ class ClientOrderCard extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               formattedDate,
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
           children: [
@@ -120,14 +121,14 @@ class ClientOrderCard extends StatelessWidget {
                         Text(
                           'Descuento (${discountPercentage.toStringAsFixed(0)}%)',
                           style: TextStyle(
-                            color: Colors.green[700],
+                            color: AppColors.success,
                             fontSize: 14,
                           ),
                         ),
                         Text(
                           '-\$${discountAmount.toStringAsFixed(2)}',
                           style: TextStyle(
-                            color: Colors.green[700],
+                            color: AppColors.success,
                             fontSize: 14,
                           ),
                         ),
@@ -162,7 +163,7 @@ class ClientOrderCard extends StatelessWidget {
                       child: ElevatedButton.icon(
                         onPressed: () => onPay(paymentLink),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: AppColors.success,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -198,7 +199,7 @@ class ClientOrderCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: AppColors.backgroundGray,
               borderRadius: BorderRadius.circular(8),
             ),
             child: item['image'] != null
@@ -207,14 +208,17 @@ class ClientOrderCard extends StatelessWidget {
                     child: Image.network(
                       item['image'],
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.image, size: 20, color: Colors.grey),
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.image,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   )
-                : const Icon(
+                : Icon(
                     Icons.shopping_bag_outlined,
                     size: 20,
-                    color: Colors.grey,
+                    color: AppColors.textSecondary,
                   ),
           ),
           const SizedBox(width: 12),
@@ -230,7 +234,10 @@ class ClientOrderCard extends StatelessWidget {
                 ),
                 Text(
                   'x${item['quantity']}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -247,15 +254,15 @@ class ClientOrderCard extends StatelessWidget {
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pendiente':
-        return Colors.orange;
+        return AppColors.warning;
       case 'confirmado':
-        return Colors.blue;
+        return AppColors.primaryBlue;
       case 'entregado':
-        return Colors.green;
+        return AppColors.success;
       case 'cancelado':
-        return Colors.red;
+        return AppColors.error;
       default:
-        return Colors.grey;
+        return AppColors.textSecondary;
     }
   }
 
@@ -285,19 +292,19 @@ class _StatusBadge extends StatelessWidget {
     Color color;
     switch (status.toLowerCase()) {
       case 'pendiente':
-        color = Colors.orange;
+        color = AppColors.warning;
         break;
       case 'confirmado':
-        color = Colors.blue;
+        color = AppColors.primaryBlue;
         break;
       case 'entregado':
-        color = Colors.green;
+        color = AppColors.success;
         break;
       case 'cancelado':
-        color = Colors.red;
+        color = AppColors.error;
         break;
       default:
-        color = Colors.grey;
+        color = AppColors.textSecondary;
     }
 
     return Container(

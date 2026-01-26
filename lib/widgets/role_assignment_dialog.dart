@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/role_service.dart';
+import '../theme/app_colors.dart';
 
 /// Diálogo para asignar o cambiar el rol de un usuario
 class RoleAssignmentDialog extends StatefulWidget {
@@ -52,7 +53,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
             content: Text(
               '✅ Rol actualizado a ${RoleService.getRoleName(_selectedRole)}',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context, true);
@@ -63,7 +64,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -83,7 +84,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
           children: [
             // Información del usuario
             Card(
-              color: Colors.blue[50],
+              color: AppColors.primaryBlue.withOpacity(0.05),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
@@ -91,12 +92,16 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.person, size: 20, color: Colors.blue),
+                        Icon(
+                          Icons.person,
+                          size: 20,
+                          color: AppColors.primaryBlue,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             widget.userName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -107,14 +112,18 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.email, size: 16, color: Colors.grey),
+                        Icon(
+                          Icons.email,
+                          size: 16,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             widget.userEmail,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -196,7 +205,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
           border: Border.all(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary
-                : Colors.grey.shade300,
+                : AppColors.divider,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
@@ -225,13 +234,16 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
                       fontSize: 16,
                       color: isSelected
                           ? Theme.of(context).colorScheme.primary
-                          : Colors.black87,
+                          : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     roleDescription,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),

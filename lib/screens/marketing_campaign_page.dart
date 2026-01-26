@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../services/marketing_service.dart';
 import '../models/user_model.dart';
 import '../utils/whatsapp_share_helper.dart';
+import '../theme/app_colors.dart';
 import 'dart:convert';
 
 /// Página de Campaña de Marketing
@@ -41,7 +42,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       appBar: AppBar(
         title: const Text('Campaña de Marketing WhatsApp'),
         elevation: 0,
-        backgroundColor: Colors.indigo[800],
+        backgroundColor: AppColors.primaryBlue,
       ),
       body: Column(
         children: [
@@ -70,7 +71,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
         ],
@@ -135,12 +136,14 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: isSelected
-                                ? Colors.indigo
+                                ? AppColors.primaryBlue
                                 : Colors.grey[300]!,
                             width: isSelected ? 2 : 1,
                           ),
                           borderRadius: BorderRadius.circular(8),
-                          color: isSelected ? Colors.indigo[50] : Colors.white,
+                          color: isSelected
+                              ? AppColors.primaryBlue.withOpacity(0.1)
+                              : AppColors.white,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -187,10 +190,10 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
   Widget _buildCampaignSummary() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.orange[50],
+      color: AppColors.warning.withOpacity(0.1),
       child: Row(
         children: [
-          const Icon(Icons.campaign, color: Colors.orange),
+          Icon(Icons.campaign, color: AppColors.warning),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -215,7 +218,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                     height: 24,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.file_download, color: Colors.indigo),
+                : Icon(Icons.file_download, color: AppColors.primaryBlue),
             tooltip: 'Exportar CSV para WaSender',
           ),
         ],
@@ -334,7 +337,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                     ),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.indigo[100],
+                        backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
                         child: Text(client.name[0].toUpperCase()),
                       ),
                       title: Text(client.name),
@@ -342,7 +345,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                       trailing: IconButton(
                         icon: const Icon(
                           Icons.send_rounded,
-                          color: Colors.green,
+                          color: AppColors.whatsapp,
                         ),
                         onPressed: () => _sendPromotion(client),
                       ),

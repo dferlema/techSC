@@ -46,9 +46,9 @@ service cloud.firestore {
       // READ: Users can read their own profile. Staff can read all.
       allow read: if isAuthenticated() && (request.auth.uid == userId || isStaff());
       
-      // CREATE: Allow during registration (Firebase Auth handles this)
-      // Users can create their own document during signup
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Create: Allow during registration (Firebase Auth handles this)
+      // Users can create their own document during signup OR Staff can create users
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isStaff());
       
       // UPDATE: 
       // - Users can update their own profile (but NOT their role)

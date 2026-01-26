@@ -13,6 +13,7 @@ import '../services/notification_service.dart';
 import '../services/role_service.dart';
 import '../widgets/notification_icon.dart';
 import '../widgets/cart_badge.dart';
+import '../utils/branding_helper.dart';
 
 /// Pantalla para reservar servicio técnico.
 /// Permite al usuario llenar un formulario con sus datos y detalles del problema.
@@ -256,7 +257,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               // Encabezado
               pw.Center(
                 child: pw.Text(
-                  'TechService Pro',
+                  BrandingHelper.appName,
                   style: pw.TextStyle(
                     fontSize: 24,
                     fontWeight: pw.FontWeight.bold,
@@ -316,7 +317,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               // Pie de página
               pw.Center(
                 child: pw.Text(
-                  '¡Gracias por confiar en TechService Pro!',
+                  '¡Gracias por confiar en ${BrandingHelper.appName}!',
                   style: pw.TextStyle(color: PdfColors.blue),
                 ),
               ),
@@ -490,7 +491,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
   /// Redirige al usuario a WhatsApp con un mensaje estructurado de la reserva.
   Future<void> _redirectToWhatsApp(Map<String, dynamic> data, String id) async {
-    const String phoneNumber = '593991090805'; // Número destino solicitado
+    String phoneNumber = BrandingHelper.companyPhone;
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '593${phoneNumber.substring(1)}';
+    }
     final String dateStr = data['scheduledDate'] != null
         ? DateFormat('dd/MM/yyyy').format(data['scheduledDate'])
         : 'Pendiente';
@@ -705,7 +709,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   children: [
-                    _buildInfoItem('Respaldo oficial TechService Pro'),
+                    _buildInfoItem(
+                      'Respaldo oficial ${BrandingHelper.appName}',
+                    ),
                     _buildInfoItem(
                       'Técnicos certificados con amplia experiencia',
                     ),

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
 import '../models/notification_model.dart';
 import 'role_service.dart';
 import 'deep_link_service.dart';
@@ -263,28 +264,118 @@ class NotificationService {
     return Stream.fromFuture(_roleService.getUserRole(user.uid)).asyncExpand((
       role,
     ) {
-      // Query notifications where receiverId == user.uid OR receiverRole == role
-      return _firestore
+      // Create independent streams for each criteria
+      final Stream<List<NotificationModel>> userStream = _firestore
           .collection('notifications')
-          .where(
-            Filter.or(
-              Filter('receiverId', isEqualTo: user.uid),
-              Filter('receiverRole', isEqualTo: role),
-              Filter(
-                'receiverRole',
-                isEqualTo: 'all',
-              ), // ✅ Include global notifications
-            ),
-          )
+          .where('receiverId', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
-          .limit(100)
+          .limit(50)
           .snapshots()
-          .map((snapshot) {
-            return snapshot.docs
-                .map((doc) => NotificationModel.fromFirestore(doc))
-                .toList();
-          });
+          .map(
+            (s) =>
+                s.docs.map((d) => NotificationModel.fromFirestore(d)).toList(),
+          );
+
+      final Stream<List<NotificationModel>> roleStream = _firestore
+          .collection('notifications')
+          .where('receiverRole', isEqualTo: role)
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots()
+          .map(
+            (s) =>
+                s.docs.map((d) => NotificationModel.fromFirestore(d)).toList(),
+          );
+
+      final Stream<List<NotificationModel>> broadcastStream = _firestore
+          .collection('notifications')
+          .where('receiverRole', isEqualTo: 'all')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots()
+          .map(
+            (s) =>
+                s.docs.map((d) => NotificationModel.fromFirestore(d)).toList(),
+          );
+
+      // Manual implementation of CombineLatest3 behavior
+      // This is necessary to avoid needing RxDart or complex deps
+      // We assume package:async is available or just use raw StreamController
+      // Here we implement a custom merger
+      return _combineThreeStreams(userStream, roleStream, broadcastStream);
     });
+  }
+
+  /// Helper to combine 3 streams of lists into one sorted list
+  Stream<List<NotificationModel>> _combineThreeStreams(
+    Stream<List<NotificationModel>> s1,
+    Stream<List<NotificationModel>> s2,
+    Stream<List<NotificationModel>> s3,
+  ) {
+    // Start with empty lists
+    List<NotificationModel> l1 = [];
+    List<NotificationModel> l2 = [];
+    List<NotificationModel> l3 = [];
+
+    // We need to keep track if the stream has emitted at least once to emit initial data?
+    // FireStore streams emit immediately locally usually.
+    // We will emit updates whenever any stream updates.
+
+    // Using a simple StreamController
+    final controller = StreamController<List<NotificationModel>>();
+
+    // Helper to merge and add
+    void mergeAndAdd() {
+      // Use a Set or Map to dedup by ID
+      final Map<String, NotificationModel> dedupMap = {};
+
+      for (var n in l1) {
+        dedupMap[n.id] = n;
+      }
+      for (var n in l2) {
+        dedupMap[n.id] =
+            n; // Overwrites if duplicates (shouldn't happen ideally)
+      }
+      for (var n in l3) {
+        dedupMap[n.id] = n;
+      }
+
+      final merged = dedupMap.values.toList();
+      // Sort in memory
+      merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      // Limit total
+      if (merged.length > 100) {
+        merged.length = 100;
+      }
+
+      if (!controller.isClosed) {
+        controller.add(merged);
+      }
+    }
+
+    final sub1 = s1.listen((data) {
+      l1 = data;
+      mergeAndAdd();
+    }, onError: (e) => debugPrint('Error in userStream: $e'));
+
+    final sub2 = s2.listen((data) {
+      l2 = data;
+      mergeAndAdd();
+    }, onError: (e) => debugPrint('Error in roleStream: $e'));
+
+    final sub3 = s3.listen((data) {
+      l3 = data;
+      mergeAndAdd();
+    }, onError: (e) => debugPrint('Error in broadcastStream: $e'));
+
+    controller.onCancel = () async {
+      await sub1.cancel();
+      await sub2.cancel();
+      await sub3.cancel();
+    };
+
+    return controller.stream;
   }
 
   /// Returns a stream of the total unread notifications count for the current user.

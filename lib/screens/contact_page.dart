@@ -4,11 +4,18 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../widgets/notification_icon.dart';
 import '../widgets/app_drawer.dart';
+import '../utils/branding_helper.dart';
 
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
 
-  final String _whatsappNumber = '593991090805';
+  String get _whatsappNumber {
+    String phone = BrandingHelper.companyPhone;
+    if (phone.startsWith('0')) {
+      return '593${phone.substring(1)}';
+    }
+    return phone;
+  }
 
   Future<void> _launchWhatsApp() async {
     final Uri url = Uri.parse('https://wa.me/$_whatsappNumber');
@@ -25,7 +32,7 @@ class ContactPage extends StatelessWidget {
   }
 
   Future<void> _sendEmail() async {
-    final Uri url = Uri.parse('mailto:techservicecomputer@hotmail.com');
+    final Uri url = Uri.parse('mailto:${BrandingHelper.companyEmail}');
     if (!await launchUrl(url)) {
       debugPrint('No se pudo abrir el correo');
     }
@@ -88,7 +95,13 @@ class ContactPage extends StatelessWidget {
                 color: colorScheme.primary,
                 size: 20,
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  Navigator.of(context).pushReplacementNamed('/home');
+                }
+              },
             )
           : Builder(
               builder: (context) => IconButton(
@@ -238,7 +251,7 @@ class ContactPage extends StatelessWidget {
           icon: Icons.phone_forwarded_rounded,
           color: Colors.blue,
           title: 'Línea Directa',
-          subtitle: _whatsappNumber,
+          subtitle: BrandingHelper.companyPhone,
           onTap: _makePhoneCall,
           colorScheme: colorScheme,
         ),
@@ -247,7 +260,7 @@ class ContactPage extends StatelessWidget {
           icon: Icons.alternate_email_rounded,
           color: Colors.orange,
           title: 'Correo Electrónico',
-          subtitle: 'techservicecomputer@hotmail.com',
+          subtitle: BrandingHelper.companyEmail,
           onTap: _sendEmail,
           colorScheme: colorScheme,
         ),
@@ -256,7 +269,7 @@ class ContactPage extends StatelessWidget {
           icon: Icons.location_on_rounded,
           color: Colors.redAccent,
           title: 'Ubicación Central',
-          subtitle: 'De los Guabos n47-313, Quito',
+          subtitle: BrandingHelper.companyAddress,
           onTap: () {},
           colorScheme: colorScheme,
         ),

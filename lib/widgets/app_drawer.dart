@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../screens/my_orders_page.dart';
 import '../services/role_service.dart';
 import '../services/preferences_service.dart';
+import '../utils/branding_helper.dart';
+import '../theme/app_colors.dart';
 
 class AppDrawer extends StatefulWidget {
   final String currentRoute;
@@ -58,8 +60,7 @@ class _AppDrawerState extends State<AppDrawer> {
   }
 
   void _navigateTo(BuildContext context, String route) {
-    // For these routes, we want to push them onto the stack so we can go back
-    if (route == '/profile-edit' || route == '/contact') {
+    if (route == '/profile-edit') {
       if (widget.currentRoute == route) {
         Navigator.pop(context);
         return;
@@ -77,6 +78,7 @@ class _AppDrawerState extends State<AppDrawer> {
         route == '/quotes' ||
         route == '/my-reservations' ||
         route == '/marketing' ||
+        route == '/app-colors-config' ||
         route == '/settings') {
       if (widget.currentRoute == route) {
         Navigator.pop(context);
@@ -87,7 +89,9 @@ class _AppDrawerState extends State<AppDrawer> {
       return;
     }
 
-    if (route == '/home' || route == '/reserve-service') {
+    if (route == '/home' ||
+        route == '/reserve-service' ||
+        route == '/contact') {
       Navigator.pushReplacementNamed(context, '/main', arguments: route);
       return;
     }
@@ -104,11 +108,9 @@ class _AppDrawerState extends State<AppDrawer> {
         padding: EdgeInsets.zero,
         children: [
           Container(
-            height: 180, // Fijo para evitar desbordamiento
+            height: 180,
             padding: const EdgeInsets.only(left: 16, bottom: 16, top: 40),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            decoration: BoxDecoration(color: AppColors.primaryBlue),
             child: SingleChildScrollView(
               physics: const NeverScrollableScrollPhysics(),
               child: Column(
@@ -124,8 +126,8 @@ class _AppDrawerState extends State<AppDrawer> {
                       return GestureDetector(
                         onTap: () => _navigateTo(context, '/profile-edit'),
                         child: CircleAvatar(
-                          radius: 30, // Reducido un poco para ahorrar espacio
-                          backgroundColor: Colors.white,
+                          radius: 30,
+                          backgroundColor: AppColors.white,
                           backgroundImage: imagePath != null
                               ? FileImage(File(imagePath))
                               : null,
@@ -133,7 +135,7 @@ class _AppDrawerState extends State<AppDrawer> {
                               ? Icon(
                                   Icons.person,
                                   size: 40,
-                                  color: Theme.of(context).colorScheme.primary,
+                                  color: AppColors.primaryBlue,
                                 )
                               : null,
                         ),
@@ -155,8 +157,8 @@ class _AppDrawerState extends State<AppDrawer> {
                               )
                             : Text(
                                 _displayName,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: AppColors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -175,9 +177,9 @@ class _AppDrawerState extends State<AppDrawer> {
                       ),
                     ],
                   ),
-                  const Text(
-                    'TechService Pro',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  Text(
+                    BrandingHelper.appName,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],
               ),
@@ -187,28 +189,28 @@ class _AppDrawerState extends State<AppDrawer> {
             leading: const Icon(Icons.home),
             title: const Text('Inicio'),
             selected: widget.currentRoute == '/home',
-            selectedTileColor: Colors.blue[50],
+            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/home'),
           ),
           ListTile(
             leading: const Icon(Icons.computer),
             title: const Text('Nuestros Productos'),
             selected: widget.currentRoute == '/products',
-            selectedTileColor: Colors.blue[50],
+            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/products'),
           ),
           ListTile(
             leading: const Icon(Icons.build_circle),
             title: const Text('Nuestros Servicios'),
             selected: widget.currentRoute == '/services',
-            selectedTileColor: Colors.blue[50],
+            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/services'),
           ),
           ListTile(
             leading: const Icon(Icons.build),
             title: const Text('Reservar Servicio'),
             selected: widget.currentRoute == '/reserve-service',
-            selectedTileColor: Colors.blue[50],
+            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/reserve-service'),
           ),
           if (user != null)
@@ -223,23 +225,25 @@ class _AppDrawerState extends State<AppDrawer> {
                   return Column(
                     children: [
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.admin_panel_settings,
-                          color: Colors.orange,
+                          color: AppColors.roleAdmin,
                         ),
                         title: const Text('Panel de Administración'),
                         selected: widget.currentRoute == '/admin',
-                        selectedTileColor: Colors.orange[50],
+                        selectedTileColor: AppColors.roleAdmin.withOpacity(0.1),
                         onTap: () => _navigateTo(context, '/admin'),
                       ),
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.build_circle,
-                          color: Colors.blueGrey,
+                          color: AppColors.roleTechnician,
                         ),
                         title: const Text('Panel Técnico'),
                         selected: widget.currentRoute == '/technician',
-                        selectedTileColor: Colors.blueGrey[50],
+                        selectedTileColor: AppColors.roleTechnician.withOpacity(
+                          0.1,
+                        ),
                         onTap: () => _navigateTo(context, '/technician'),
                       ),
                       ListTile(
@@ -249,7 +253,7 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                         title: const Text('Generar Reportes'),
                         selected: widget.currentRoute == '/reports',
-                        selectedTileColor: Colors.deepPurple[50],
+                        selectedTileColor: Colors.deepPurple.withOpacity(0.1),
                         onTap: () => _navigateTo(context, '/reports'),
                       ),
 
@@ -260,11 +264,21 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                         title: const Text('Marketing'),
                         selected: widget.currentRoute == '/marketing',
-                        selectedTileColor: Colors.indigo[50],
+                        selectedTileColor: Colors.indigo.withOpacity(0.1),
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.pushNamed(context, '/marketing');
                         },
+                      ),
+                      ListTile(
+                        leading: const Icon(
+                          Icons.palette,
+                          color: Colors.purple,
+                        ),
+                        title: const Text('Configurar Colores'),
+                        selected: widget.currentRoute == '/app-colors-config',
+                        selectedTileColor: Colors.purple.withOpacity(0.1),
+                        onTap: () => _navigateTo(context, '/app-colors-config'),
                       ),
                     ],
                   );
@@ -275,20 +289,20 @@ class _AppDrawerState extends State<AppDrawer> {
                   return Column(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.store, color: Colors.green),
+                        leading: Icon(Icons.store, color: AppColors.success),
                         title: const Text('Gestión de Ventas'),
                         selected: widget.currentRoute == '/admin',
-                        selectedTileColor: Colors.green[50],
+                        selectedTileColor: AppColors.success.withOpacity(0.1),
                         onTap: () => _navigateTo(context, '/admin'),
                       ),
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.assessment,
-                          color: Colors.green,
+                          color: AppColors.success,
                         ),
                         title: const Text('Reportes de Ventas'),
                         selected: widget.currentRoute == '/reports',
-                        selectedTileColor: Colors.green[50],
+                        selectedTileColor: AppColors.success.withOpacity(0.1),
                         onTap: () => _navigateTo(context, '/reports'),
                       ),
                       ListTile(
@@ -298,7 +312,7 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                         title: const Text('Marketing'),
                         selected: widget.currentRoute == '/marketing',
-                        selectedTileColor: Colors.indigo[50],
+                        selectedTileColor: Colors.indigo.withOpacity(0.1),
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.pushNamed(context, '/marketing');
@@ -313,23 +327,27 @@ class _AppDrawerState extends State<AppDrawer> {
                   return Column(
                     children: [
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.build_circle,
-                          color: Colors.blueGrey,
+                          color: AppColors.roleTechnician,
                         ),
                         title: const Text('Panel Técnico'),
                         selected: widget.currentRoute == '/technician',
-                        selectedTileColor: Colors.blueGrey[50],
+                        selectedTileColor: AppColors.roleTechnician.withOpacity(
+                          0.1,
+                        ),
                         onTap: () => _navigateTo(context, '/technician'),
                       ),
                       ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.assessment,
-                          color: Colors.blueGrey,
+                          color: AppColors.roleTechnician,
                         ),
                         title: const Text('Reportes Técnicos'),
                         selected: widget.currentRoute == '/reports',
-                        selectedTileColor: Colors.blueGrey[50],
+                        selectedTileColor: AppColors.roleTechnician.withOpacity(
+                          0.1,
+                        ),
                         onTap: () => _navigateTo(context, '/reports'),
                       ),
                       ListTile(
@@ -339,7 +357,7 @@ class _AppDrawerState extends State<AppDrawer> {
                         ),
                         title: const Text('Marketing'),
                         selected: widget.currentRoute == '/marketing',
-                        selectedTileColor: Colors.indigo[50],
+                        selectedTileColor: Colors.indigo.withOpacity(0.1),
                         onTap: () {
                           Navigator.pop(context);
                           Navigator.pushNamed(context, '/marketing');
@@ -356,14 +374,14 @@ class _AppDrawerState extends State<AppDrawer> {
             leading: const Icon(Icons.history, color: Colors.indigo),
             title: const Text('Mis Reservas'),
             selected: widget.currentRoute == '/my-reservations',
-            selectedTileColor: Colors.indigo[50],
+            selectedTileColor: Colors.indigo.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/my-reservations'),
           ),
           ListTile(
             leading: const Icon(Icons.receipt_long, color: Colors.blue),
             title: const Text('Mis Pedidos'),
             selected: widget.currentRoute == '/my_orders',
-            selectedTileColor: Colors.blue[50],
+            selectedTileColor: Colors.blue.withOpacity(0.1),
             onTap: () {
               Navigator.pop(context); // Cerrar Drawer
               Navigator.push(
@@ -376,7 +394,7 @@ class _AppDrawerState extends State<AppDrawer> {
             leading: const Icon(Icons.request_quote, color: Colors.amber),
             title: const Text('Cotizaciones'),
             selected: widget.currentRoute == '/quotes',
-            selectedTileColor: Colors.amber[50],
+            selectedTileColor: Colors.amber.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/quotes'),
           ),
           ListTile(
@@ -390,15 +408,15 @@ class _AppDrawerState extends State<AppDrawer> {
             leading: const Icon(Icons.settings, color: Colors.grey),
             title: const Text('Configuraciones'),
             selected: widget.currentRoute == '/settings',
-            selectedTileColor: Colors.grey[50],
+            selectedTileColor: Colors.grey.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/settings'),
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
+            leading: Icon(Icons.logout, color: AppColors.error),
+            title: Text(
               'Cerrar Sesión',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppColors.error),
             ),
             onTap: () async {
               await FirebaseAuth.instance.signOut();
