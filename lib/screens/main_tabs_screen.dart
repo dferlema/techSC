@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_drawer.dart';
-import '../utils/prefs.dart';
+import '../services/preferences_service.dart';
 import 'home_page.dart';
 import 'service_reservation_page.dart';
 import 'contact_page.dart';
@@ -46,10 +46,10 @@ class _MainTabsScreenState extends State<MainTabsScreen>
   }
 
   Future<void> _checkSession() async {
-    final expired = await AppPreferences().isSessionExpired();
+    final expired = await PreferencesService().isSessionExpired();
     if (expired && mounted) {
       await FirebaseAuth.instance.signOut();
-      await AppPreferences().clearSession();
+      await PreferencesService().clearSession();
       if (mounted) {
         Navigator.of(
           context,

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'role_service.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
-import 'role_service.dart';
 
 /// Servicio para gestionar operaciones de Marketing
 /// Maneja la obtención de clientes y productos desde Firestore

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../models/cart_item.dart';
 import 'notification_service.dart';
-import 'role_service.dart';
 
 /// Service to manage the shopping cart state and order creation.
 /// Uses the [ChangeNotifier] pattern for reactive UI updates.
@@ -79,6 +79,27 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Helper to generate a sequential Order ID (PyyyyMMdd-XX)
+  Future<String> _generateOrderId() async {
+    final now = DateTime.now();
+    final datePrefix = DateFormat('yyyyMMdd').format(now);
+
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day + 1);
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('orders')
+        .where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+        )
+        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
+
+    final nextIndex = snapshot.docs.length + 1;
+    return 'P$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+  }
+
   /// Converts the current cart items into a Firestore order.
   /// Generates a [QuoteModel]-compatible snapshot within the order for history tracking.
   /// Sends notifications to the user and relevant staff (Admins/Sellers).
@@ -144,8 +165,12 @@ class CartService extends ChangeNotifier {
       'total': orderTotal,
     };
 
+    // Generate Custom ID
+    final customOrderId = await _generateOrderId();
+
     // Crear objeto de orden con estructura compatible con quote-based orders
     final orderData = {
+      'id': customOrderId,
       'userId': user.uid,
       'userEmail': clientEmail,
       'quoteId':
@@ -160,37 +185,17 @@ class CartService extends ChangeNotifier {
       'createdAt': Timestamp.now(),
     };
 
-    // Guardar en Firestore
-    final docRef = await FirebaseFirestore.instance
+    // Guardar en Firestore con ID personalizado
+    await FirebaseFirestore.instance
         .collection('orders')
-        .add(orderData);
+        .doc(customOrderId)
+        .set(orderData);
 
-    // Enviar notificación al usuario
-    await NotificationService().sendNotification(
-      title: 'Pedido Realizado',
-      body:
-          'Tu pedido por \$${orderTotal.toStringAsFixed(2)} ha sido recibido.',
-      type: 'order',
-      relatedId: docRef.id,
-      receiverId: user.uid,
-    );
-
-    // Enviar notificación a administradores y vendedores
-    await NotificationService().sendNotification(
-      title: 'Nuevo Pedido',
-      body:
-          'Nuevo pedido de $clientName por \$${orderTotal.toStringAsFixed(2)}',
-      type: 'order',
-      relatedId: docRef.id,
-      receiverRole: RoleService.ADMIN, // Broadcast to admins
-    );
-    await NotificationService().sendNotification(
-      title: 'Nuevo Pedido',
-      body:
-          'Nuevo pedido de $clientName por \$${orderTotal.toStringAsFixed(2)}',
-      type: 'order',
-      relatedId: docRef.id,
-      receiverRole: RoleService.SELLER, // Broadcast to sellers
+    // Enviar notificación centralizada
+    await NotificationService().notifyOrderCreated(
+      orderId: customOrderId,
+      clientName: clientName,
+      customerUid: user.uid,
     );
 
     // Limpiar carrito

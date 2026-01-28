@@ -10,7 +10,6 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/notification_service.dart';
-import '../services/role_service.dart';
 import '../widgets/notification_icon.dart';
 import '../widgets/cart_badge.dart';
 import '../utils/branding_helper.dart';
@@ -359,6 +358,26 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     );
   }
 
+  /// Genera un ID secuencial para la reserva (RyyyyMMdd-XX)
+  Future<String> _generateReservationId() async {
+    final now = DateTime.now();
+    final datePrefix = DateFormat('yyyyMMdd').format(now);
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day + 1);
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('reservations')
+        .where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+        )
+        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
+
+    final nextIndex = snapshot.docs.length + 1;
+    return 'R$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+  }
+
   /// Valida el formulario y guarda la reserva en Firebase Firestore.
   /// Luego genera y comparte un PDF de confirmación.
   Future<void> _saveReservation() async {
@@ -413,39 +432,20 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // 4. Guardar en Firestore
-      final docRef = await FirebaseFirestore.instance
+      // 4. Guardar en Firestore con ID personalizado
+      final reservationId = await _generateReservationId();
+
+      await FirebaseFirestore.instance
           .collection('reservations')
-          .add(reservationData);
-      final reservationId = docRef.id;
+          .doc(reservationId)
+          .set(reservationData);
 
-      // Enviar notificación al usuario
-      if (_currentUser != null) {
-        await NotificationService().sendNotification(
-          title: 'Reserva Creada',
-          body: 'Tu reserva para ${_selectedService!} ha sido registrada.',
-          type: 'reservation',
-          relatedId: reservationId,
-          receiverId: _currentUser!.uid,
-        );
-      }
-
-      // Enviar notificación a administradores y técnicos
-      await NotificationService().sendNotification(
-        title: 'Nueva Reserva',
-        body:
-            'Nueva reserva de ${_nameController.text} para ${_selectedService!}',
-        type: 'reservation',
-        relatedId: reservationId,
-        receiverRole: RoleService.ADMIN,
-      );
-      await NotificationService().sendNotification(
-        title: 'Nueva Reserva',
-        body:
-            'Nueva reserva de ${_nameController.text} para ${_selectedService!}',
-        type: 'reservation',
-        relatedId: reservationId,
-        receiverRole: RoleService.TECHNICIAN,
+      // Enviar notificaciones usando el servicio centralizado
+      await NotificationService().notifyReservationCreated(
+        reservationId: reservationId,
+        clientName: _nameController.text.trim(),
+        serviceType: _selectedService!,
+        customerUid: _currentUser?.uid,
       );
 
       // 5. Generar PDF usando los datos locales + el ID generado

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:ui'; // Necesario para ImageFilter
 import '../services/auth_service.dart';
 import '../services/preferences_service.dart';
-import '../utils/prefs.dart';
 import '../utils/branding_helper.dart';
 import '../theme/app_colors.dart';
 
@@ -134,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         // Registrar inicio de sesión para el timeout de 10 min
-        await AppPreferences().setSessionStart(DateTime.now());
+        await PreferencesService().updateLastActivity();
 
         // Guardar email si "Recordarme" está marcado
         if (_rememberMe) {
@@ -173,7 +172,7 @@ class _LoginPageState extends State<LoginPage> {
       final user = await _authService.loginWithBiometrics();
       if (user != null && mounted) {
         // Registrar inicio de sesión
-        await AppPreferences().setSessionStart(DateTime.now());
+        await PreferencesService().updateLastActivity();
         Navigator.pushReplacementNamed(context, '/main');
       }
     } catch (e) {

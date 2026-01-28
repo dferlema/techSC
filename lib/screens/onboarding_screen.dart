@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/prefs.dart';
+import '../services/preferences_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -13,7 +13,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _backgroundController = PageController();
   int _currentPage = 0;
   bool _dontShowAgain = false;
-  final AppPreferences _prefs = AppPreferences();
+  final PreferencesService _prefs = PreferencesService();
 
   final List<Map<String, dynamic>> _pages = [
     {

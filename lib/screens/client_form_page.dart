@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/role_service.dart';
 
 /// Pagina de formulario para crear o editar clientes.
 /// Incluye validaciones específicas para cédula y teléfono de Ecuador.
@@ -167,7 +168,7 @@ class _ClientFormPageState extends State<ClientFormPage> {
         'address': address,
         'type': _clientType,
         if (_clientType == 'empresa') 'companyName': companyName,
-        'role': 'cliente',
+        'role': RoleService.CLIENT,
         if (widget.clientId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
 

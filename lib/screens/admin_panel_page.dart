@@ -10,7 +10,9 @@ import 'package:flutter_svg/flutter_svg.dart'; // 👈 Nuevo
 import 'product_form_page.dart';
 import 'service_form_page.dart';
 import 'client_form_page.dart';
+import 'admin/supplier_management_page.dart';
 import '../services/role_service.dart'; // 👈 Nuevo
+import '../services/notification_service.dart';
 import '../widgets/role_assignment_dialog.dart';
 import '../widgets/cart_badge.dart'; // 👈 Nuevo
 
@@ -44,7 +46,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   void initState() {
     super.initState();
     _checkRole();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -961,6 +963,11 @@ class _AdminPanelPageState extends State<AdminPanelPage>
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Pedidos',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.business_outlined),
+            selectedIcon: Icon(Icons.business),
+            label: 'Proveedores',
+          ),
         ],
       ),
     );
@@ -1003,6 +1010,19 @@ class _AdminPanelPageState extends State<AdminPanelPage>
         ),
         // 4. Pedidos
         _buildOrdersTab(),
+        // 5. Proveedores
+        _isAdminRole
+            ? const SupplierManagementPage()
+            : const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.security, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text('Solo administradores pueden gestionar proveedores'),
+                  ],
+                ),
+              ),
       ],
     );
   }
@@ -1385,7 +1405,7 @@ class _OrderCardState extends State<OrderCard> {
           child: const Icon(Icons.receipt_long, color: Colors.white),
         ),
         title: Text(
-          'Pedido #${widget.doc.id.substring(0, 5).toUpperCase()}',
+          'Pedido #${widget.doc.id.toUpperCase()}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
@@ -1633,12 +1653,21 @@ class _OrderCardState extends State<OrderCard> {
                                 ),
                               )
                               .toList(),
-                      onChanged: (newStatus) {
+                      onChanged: (newStatus) async {
                         if (newStatus != null) {
-                          FirebaseFirestore.instance
+                          await FirebaseFirestore.instance
                               .collection('orders')
                               .doc(widget.doc.id)
                               .update({'status': newStatus});
+
+                          // Notify User
+                          if (userId != null) {
+                            NotificationService().notifyOrderStatusChanged(
+                              widget.doc.id,
+                              userId,
+                              newStatus,
+                            );
+                          }
                         }
                       },
                     ),

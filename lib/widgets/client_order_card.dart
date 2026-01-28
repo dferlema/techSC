@@ -81,7 +81,7 @@ class ClientOrderCard extends StatelessWidget {
           title: Row(
             children: [
               Text(
-                'Pedido #${docId.substring(0, 5).toUpperCase()}',
+                'Pedido #${docId.toUpperCase()}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,

@@ -47,6 +47,18 @@ class ConfigService {
     return _firestore.collection('banners').snapshots();
   }
 
+  Future<void> addBannerByUrl(String imageUrl) async {
+    try {
+      await _firestore.collection('banners').add({
+        'imageUrl': imageUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error adding banner by URL: $e');
+      rethrow;
+    }
+  }
+
   Future<void> addBanner(File imageFile) async {
     try {
       final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -54,31 +66,30 @@ class ConfigService {
       await ref.putFile(imageFile);
       final String downloadUrl = await ref.getDownloadURL();
 
-      await _firestore.collection('banners').add({
-        'imageUrl': downloadUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await addBannerByUrl(downloadUrl);
     } catch (e) {
-      print('Error adding banner: $e');
+      debugPrint('Error adding banner: $e');
       rethrow;
     }
   }
 
   Future<void> deleteBanner(String docId, String imageUrl) async {
     try {
-      // 1. Delete from Storage
-      try {
-        final Reference ref = _storage.refFromURL(imageUrl);
-        await ref.delete();
-      } catch (e) {
-        print('Error deleting image from storage: $e');
-        // Continue to delete document even if storage delete fails
+      // 1. Delete from Storage (if applicable)
+      if (imageUrl.contains('firebasestorage.googleapis.com')) {
+        try {
+          final Reference ref = _storage.refFromURL(imageUrl);
+          await ref.delete();
+        } catch (e) {
+          debugPrint('Error deleting image from storage: $e');
+          // Continue to delete document even if storage delete fails
+        }
       }
 
       // 2. Delete from Firestore
       await _firestore.collection('banners').doc(docId).delete();
     } catch (e) {
-      print('Error deleting banner: $e');
+      debugPrint('Error deleting banner: $e');
       rethrow;
     }
   }

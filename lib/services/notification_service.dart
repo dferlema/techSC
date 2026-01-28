@@ -121,15 +121,68 @@ class NotificationService {
 
       // 9. Actualización inicial si ya hay sesión
       await updateToken();
+
+      // 10. Start listening to Firestore Stream for Local Notifications simulation (Foreground)
+      _startLocalNotificationListener();
     } catch (e) {
       debugPrint('Error inicializando NotificationService: $e');
       // No lanzamos la excepción para no bloquear el inicio de la app
     }
   }
 
+  StreamSubscription? _localListenerSub;
+
+  /// Listens to the user's notification stream and triggers a local notification
+  /// when a new item appears. This simulates "Push" notifications for active sessions
+  /// without a Cloud Function backend.
+  void _startLocalNotificationListener() {
+    _localListenerSub?.cancel();
+
+    // We only want to notify for *fresh* notifications.
+    // However, the stream returns the whole list.
+    // Strategy: checking timestamps is complex without state.
+    // Alternative: We check 'isRead' == false and createdAt > now - small_buffer?
+    // Or we just check cache.
+    // Let's implement a simple dedup based on IDs we've already notified or just the latest one if it's new.
+
+    Set<String> notifiedIds = {};
+    bool isFirstLoad = true;
+
+    _localListenerSub = getUserNotifications().listen((notifications) {
+      if (notifications.isEmpty) return;
+
+      if (isFirstLoad) {
+        // On first load, don't spam. Just mark existing as "known".
+        notifiedIds = notifications.map((e) => e.id).toSet();
+        isFirstLoad = false;
+        return;
+      }
+
+      // Find new notifications
+      for (final n in notifications) {
+        if (!notifiedIds.contains(n.id)) {
+          notifiedIds.add(n.id);
+
+          // Only notify if it's recent (e.g. created in last 5 minutes)
+          // to avoid spamming old unread stuff if app was closed for a long time
+          // and we rely on Cloud Functions for those.
+          final diff = DateTime.now().difference(n.createdAt);
+          if (diff.inMinutes < 5) {
+            _showLocalNotificationFromModel(n);
+          }
+        }
+      }
+    });
+  }
+
   void _handleMessageAction(Map<String, dynamic> data) {
     if (data['type'] == 'oferta' && data['productId'] != null) {
       DeepLinkService().navigateToProduct(data['productId']);
+    } else if (data['type'] == 'order' || data['type'] == 'reservation') {
+      // Navigate to notification center or specific page
+      DeepLinkService().navigatorKey.currentState?.pushNamed(
+        '/notifications',
+      ); // Fallback
     }
   }
 
@@ -163,6 +216,20 @@ class NotificationService {
         });
       }
     }
+  }
+
+  /// Helper to convert model to local notification display
+  Future<void> _showLocalNotificationFromModel(NotificationModel n) async {
+    await _showLocalNotification(
+      RemoteMessage(
+        notification: RemoteNotification(title: n.title, body: n.body),
+        data: {
+          'type': n.type,
+          'relatedId': n.relatedId,
+          // Add any other necessary data fields
+        },
+      ),
+    );
   }
 
   /// Muestra una notificación local (usado para mensajes en primer plano)
@@ -431,5 +498,94 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error deleting notification: $e');
     }
+  }
+
+  /// Sends a notification to the user when their order status changes.
+  Future<void> notifyOrderStatusChanged(
+    String orderId,
+    String userId,
+    String newStatus,
+  ) async {
+    final title = 'Estado de Pedido Actualizado';
+    final body =
+        'Tu pedido #$orderId ha cambiado a estado: ${newStatus.toUpperCase()}';
+
+    await sendNotification(
+      title: title,
+      body: body,
+      type: 'order',
+      relatedId: orderId,
+      receiverId: userId,
+    );
+  }
+
+  /// Sends a notification when a new order is created (Converted from quote).
+  Future<void> notifyOrderCreated({
+    required String orderId,
+    required String clientName,
+    String? customerUid,
+  }) async {
+    // 1. Notify the customer if they are a registered user
+    if (customerUid != null) {
+      await sendNotification(
+        title: 'Pedido Confirmado',
+        body: 'Tu pedido #$orderId se ha generado exitosamente.',
+        type: 'order',
+        relatedId: orderId,
+        receiverId: customerUid,
+      );
+    }
+
+    // 2. Notify Admins and Sellers
+    await sendNotification(
+      title: 'Nuevo Pedido',
+      body: 'Nuevo pedido #$orderId de $clientName',
+      type: 'order',
+      relatedId: orderId,
+      receiverRole: RoleService.ADMIN,
+    );
+    await sendNotification(
+      title: 'Nuevo Pedido',
+      body: 'Nuevo pedido #$orderId de $clientName',
+      type: 'order',
+      relatedId: orderId,
+      receiverRole: RoleService.SELLER,
+    );
+  }
+
+  /// Sends a notification when a new reservation is created.
+  Future<void> notifyReservationCreated({
+    required String reservationId,
+    required String clientName,
+    required String serviceType,
+    String? customerUid,
+  }) async {
+    // 1. Notify the customer if they are a registered user
+    if (customerUid != null) {
+      await sendNotification(
+        title: 'Reserva Creada',
+        body: 'Tu reserva para $serviceType ha sido registrada.',
+        type: 'reservation',
+        relatedId: reservationId,
+        receiverId: customerUid,
+      );
+    }
+
+    // 2. Notify Admins and Technicians
+    final body = 'Nueva reserva de $clientName para $serviceType';
+    await sendNotification(
+      title: 'Nueva Reserva',
+      body: body,
+      type: 'reservation',
+      relatedId: reservationId,
+      receiverRole: RoleService.ADMIN,
+    );
+    await sendNotification(
+      title: 'Nueva Reserva',
+      body: body,
+      type: 'reservation',
+      relatedId: reservationId,
+      receiverRole: RoleService.TECHNICIAN,
+    );
   }
 }

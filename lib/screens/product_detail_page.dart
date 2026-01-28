@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/cart_service.dart';
+import '../services/role_service.dart';
 import '../utils/whatsapp_share_helper.dart';
 import '../widgets/cart_badge.dart';
+import '../widgets/supplier_link_dialog.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -22,6 +25,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   double _currentRating = 0;
   bool _isRating = false;
   bool _isAdded = false; // State for the add-to-cart animation
+  String _userRole = RoleService.CLIENT; // Track user role
 
   @override
   void initState() {
@@ -29,6 +33,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _currentRating = (widget.product['rating'] is int)
         ? (widget.product['rating'] as int).toDouble()
         : (widget.product['rating'] as double? ?? 4.5);
+    _loadUserRole();
+  }
+
+  /// Load the current user's role
+  Future<void> _loadUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final role = await RoleService().getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _userRole = role;
+        });
+      }
+    }
   }
 
   void _addToCart() async {
@@ -135,6 +153,104 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   ),
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show popup dialog with supplier product link and web preview
+  void _showSupplierLinkDialog() {
+    final supplierLink = widget.product['supplierProductLink'] as String?;
+    final supplierName = widget.product['supplierName'] as String?;
+
+    if (supplierLink == null || supplierLink.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => SupplierLinkWebViewDialog(
+        url: supplierLink,
+        supplierName: supplierName,
+      ),
+    );
+  }
+
+  /// Build supplier link section (visible only to admin, seller, technician)
+  Widget? _buildSupplierLinkSection() {
+    // Check if user has permission
+    final hasPermission =
+        _userRole == RoleService.ADMIN ||
+        _userRole == RoleService.SELLER ||
+        _userRole == RoleService.TECHNICIAN;
+
+    if (!hasPermission) return null;
+
+    final supplierLink = widget.product['supplierProductLink'] as String?;
+    final supplierName = widget.product['supplierName'] as String?;
+
+    // Don't show if no link
+    if (supplierLink == null || supplierLink.isEmpty) return null;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue[50]!, Colors.blue[100]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.business, color: Colors.blue[700], size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Información del Proveedor',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF111111),
+                ),
+              ),
+            ],
+          ),
+          if (supplierName != null && supplierName.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              supplierName,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showSupplierLinkDialog,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              icon: const Icon(Icons.link),
+              label: const Text(
+                'Ver Link del Producto',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       ),
@@ -414,6 +530,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 32),
+                  ],
+                  // Supplier link section (role-based)
+                  if (_buildSupplierLinkSection() != null) ...[
+                    _buildSupplierLinkSection()!,
+                    const SizedBox(height: 100), // Bottom padding
+                  ] else ...[
                     const SizedBox(height: 100), // Bottom padding
                   ],
                 ],

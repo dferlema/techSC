@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/role_service.dart';
 
 /// Modelo de datos para representar un usuario en el sistema
 class UserModel {
@@ -30,7 +31,7 @@ class UserModel {
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',
       address: data['address'] ?? '',
-      role: data['role'] ?? 'cliente',
+      role: data['role'] ?? RoleService.CLIENT,
       id: data['id'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );

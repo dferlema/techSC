@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/category_model.dart';
+import '../models/supplier_model.dart';
 import '../services/category_service.dart';
 import '../services/notification_service.dart';
+import '../services/supplier_service.dart';
+import '../services/role_service.dart';
+import '../widgets/supplier_link_dialog.dart';
 
 /// Pagina de formulario para crear o editar productos.
 /// Permite ingresar nombre, especificaciones, precio, categoría y URL de imagen.
@@ -38,6 +43,14 @@ class _ProductFormPageState extends State<ProductFormPage> {
   // Lista de URLs de imágenes
   List<String> _imageUrls = [];
   final TextEditingController _newImageUrlController = TextEditingController();
+
+  // Supplier fields
+  String? _selectedSupplierId;
+  String? _selectedSupplierName;
+  late TextEditingController _supplierProductLinkController;
+
+  // Role checking
+  String _userRole = RoleService.CLIENT;
 
   bool _isSaving = false;
 
@@ -75,6 +88,28 @@ class _ProductFormPageState extends State<ProductFormPage> {
       // Compatibilidad con formato antiguo (una sola imagen)
       _imageUrls = [widget.initialData!['image']];
     }
+
+    // Cargar datos de proveedor
+    _selectedSupplierId = widget.initialData?['supplierId'];
+    _selectedSupplierName = widget.initialData?['supplierName'];
+    _supplierProductLinkController = TextEditingController(
+      text: widget.initialData?['supplierProductLink'] ?? '',
+    );
+
+    // Cargar rol del usuario
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final role = await RoleService().getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _userRole = role;
+        });
+      }
+    }
   }
 
   @override
@@ -84,6 +119,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _priceController.dispose();
     _descriptionController.dispose();
     _newImageUrlController.dispose();
+    _supplierProductLinkController.dispose();
     super.dispose();
   }
 
@@ -118,6 +154,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
         'rating': _rating,
         'images': _imageUrls,
         'image': _imageUrls.first,
+        // Supplier data (only if user is Admin or Seller)
+        if (_selectedSupplierId != null) 'supplierId': _selectedSupplierId,
+        if (_selectedSupplierName != null)
+          'supplierName': _selectedSupplierName,
+        if (_supplierProductLinkController.text.trim().isNotEmpty)
+          'supplierProductLink': _supplierProductLinkController.text.trim(),
         if (widget.productId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
 
@@ -454,6 +496,127 @@ class _ProductFormPageState extends State<ProductFormPage> {
                             Text(_rating.toStringAsFixed(1)),
                           ],
                         ),
+                        const SizedBox(height: 20),
+                        // Supplier fields (Admin/Seller only)
+                        if (_userRole == RoleService.ADMIN ||
+                            _userRole == RoleService.SELLER) ...[
+                          const Divider(height: 40),
+                          const Text(
+                            'Información del Proveedor',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          StreamBuilder<List<SupplierModel>>(
+                            stream: SupplierService().getSuppliers(),
+                            builder: (context, snapshot) {
+                              final suppliers = snapshot.data ?? [];
+
+                              return DropdownButtonFormField<String>(
+                                value: _selectedSupplierId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Proveedor (Opcional)',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.business),
+                                ),
+                                items: [
+                                  const DropdownMenuItem(
+                                    value: null,
+                                    child: Text('Sin proveedor'),
+                                  ),
+                                  ...suppliers.map(
+                                    (s) => DropdownMenuItem(
+                                      value: s.id,
+                                      child: Text(s.name),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (v) {
+                                  setState(() {
+                                    _selectedSupplierId = v;
+                                    if (v != null) {
+                                      _selectedSupplierName = suppliers
+                                          .firstWhere((s) => s.id == v)
+                                          .name;
+                                    } else {
+                                      _selectedSupplierName = null;
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _supplierProductLinkController,
+                                  decoration: const InputDecoration(
+                                    labelText:
+                                        'Link del Producto del Proveedor',
+                                    hintText: 'https://proveedor.com/producto',
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: Icon(Icons.link),
+                                  ),
+                                  keyboardType: TextInputType.url,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    final url = _supplierProductLinkController
+                                        .text
+                                        .trim();
+                                    if (url.isNotEmpty) {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) =>
+                                            SupplierLinkWebViewDialog(
+                                              url: url,
+                                              supplierName:
+                                                  _selectedSupplierName,
+                                            ),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Ingresa un link primero',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.visibility),
+                                      Text(
+                                        'Previa',
+                                        style: TextStyle(fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ],

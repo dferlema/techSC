@@ -187,6 +187,15 @@ service cloud.firestore {
       );
     }
     
+    // Suppliers (Proveedores)
+    match /suppliers/{supplierId} {
+      // READ: Staff can read all suppliers (needed for product form dropdown)
+      allow read: if isStaff();
+      
+      // CREATE, UPDATE, DELETE: Only admins can manage suppliers
+      allow create, update, delete: if isAdmin();
+    }
+    
     // Reservations
     match /reservations/{reservationId} {
       // READ: 

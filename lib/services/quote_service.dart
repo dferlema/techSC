@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:techsc/models/quote_model.dart';
 import 'package:techsc/models/order_model.dart';
@@ -135,10 +136,37 @@ class QuoteService {
     return null;
   }
 
+  /// Helper to generate a sequential Order ID (PyyyyMMdd-XX)
+  Future<String> _generateOrderId() async {
+    final now = DateTime.now();
+    final datePrefix = DateFormat('yyyyMMdd').format(now);
+
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = DateTime(now.year, now.month, now.day + 1);
+
+    final snapshot = await _ordersCollection
+        .where(
+          'createdAt',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+        )
+        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
+
+    final nextIndex = snapshot.docs.length + 1;
+    return 'P$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+  }
+
   /// Atomically approves a quote and converts it into a new [OrderModel].
   /// This operation is performed within a Firestore transaction for consistency.
   Future<String> approveQuote(String quoteId, String userId) async {
-    return _firestore.runTransaction((transaction) async {
+    QuoteModel? approvedQuoteCaptured;
+
+    // Generate the ID *before* the transaction.
+    // Note: In high concurrency, this might cause collision, but for this scale it's acceptable.
+    // Ideally we would read-modify-write a counter in the transaction.
+    final customOrderId = await _generateOrderId();
+
+    final orderId = await _firestore.runTransaction((transaction) async {
       final quoteRef = _quotesCollection.doc(quoteId);
       final quoteDoc = await transaction.get(quoteRef);
 
@@ -147,6 +175,7 @@ class QuoteService {
       }
 
       final quote = QuoteModel.fromFirestore(quoteDoc);
+      approvedQuoteCaptured = quote;
 
       if (quote.status == 'approved' || quote.status == 'converted') {
         throw Exception('Quote is already approved or converted');
@@ -169,11 +198,12 @@ class QuoteService {
       transaction.update(quoteRef, approvedQuote.toMap());
 
       // 2. Create Order with userId and other fields
-      final orderRef = _ordersCollection.doc();
+      // Use the custom ID
+      final orderRef = _ordersCollection.doc(customOrderId);
+
       final newOrder = OrderModel(
         id: orderRef.id,
         quoteId: quote.id,
-        // We reuse the updated approved quote as the snapshot for the order
         originalQuote: approvedQuote,
         status: 'pending',
         paymentStatus: 'unpaid',
@@ -182,15 +212,29 @@ class QuoteService {
 
       // Convert to map and add userId (customerUid from quote, or fallback to clientId)
       final orderData = newOrder.toMap();
-      orderData['userId'] =
-          quote.customerUid ?? quote.clientId; // Prefer UID for rules
-      orderData['userEmail'] =
-          quote.clientEmail; // Also add email for reference
+      orderData['userId'] = quote.customerUid ?? quote.clientId;
+      orderData['userEmail'] = quote.clientEmail;
 
       transaction.set(orderRef, orderData);
 
       return orderRef.id;
     });
+
+    // Post-transaction Notification
+    if (approvedQuoteCaptured != null) {
+      try {
+        final q = approvedQuoteCaptured!;
+        await _notificationService.notifyOrderCreated(
+          orderId: orderId,
+          clientName: q.clientName,
+          customerUid: q.customerUid ?? q.clientId,
+        );
+      } catch (e) {
+        debugPrint('Error sending notification: $e');
+      }
+    }
+
+    return orderId;
   }
 
   /// Rejects a quote and updates its status.

@@ -6,7 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
-import 'utils/prefs.dart';
+import 'services/preferences_service.dart';
 import 'utils/branding_helper.dart';
 
 import 'theme/app_theme.dart';
@@ -89,7 +89,7 @@ class MyApp extends StatelessWidget {
           builder: (context, child) {
             return Listener(
               onPointerDown: (_) {
-                AppPreferences().updateLastActivity();
+                PreferencesService().updateLastActivity();
               },
               child: child!,
             );

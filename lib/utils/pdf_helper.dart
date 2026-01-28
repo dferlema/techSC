@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -24,7 +25,7 @@ class PdfHelper {
           final provider = await networkImage(item.imageUrl!);
           imageCache[item.imageUrl!] = provider;
         } catch (e) {
-          print('Error pre-fetching image: $e');
+          debugPrint('Error pre-fetching image: $e');
         }
       }
     }

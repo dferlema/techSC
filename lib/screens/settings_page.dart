@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart';
 import '../models/config_model.dart';
 import '../services/config_service.dart';
 import '../services/auth_service.dart';
@@ -173,13 +171,36 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _addBanner() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final TextEditingController urlController = TextEditingController();
+    final String? imageUrl = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Agregar Banner por URL'),
+        content: TextField(
+          controller: urlController,
+          decoration: const InputDecoration(
+            hintText: 'https://ejemplo.com/imagen.jpg',
+            labelText: 'URL de la imagen',
+          ),
+          keyboardType: TextInputType.url,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, urlController.text.trim()),
+            child: const Text('Agregar'),
+          ),
+        ],
+      ),
+    );
 
-    if (pickedFile != null) {
+    if (imageUrl != null && imageUrl.isNotEmpty) {
       setState(() => _isLoading = true);
       try {
-        await _configService.addBanner(File(pickedFile.path));
+        await _configService.addBannerByUrl(imageUrl);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Banner agregado correctamente')),
