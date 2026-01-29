@@ -136,7 +136,11 @@ class QuoteService {
 
   /// Atomically approves a quote and converts it into a new [OrderModel].
   /// This operation is performed within a Firestore transaction for consistency.
-  Future<String> approveQuote(String quoteId, String userId) async {
+  Future<String> approveQuote(
+    String quoteId,
+    String userId, {
+    String? historyDescription,
+  }) async {
     QuoteModel? approvedQuoteCaptured;
 
     // Generate the ID *before* the transaction.
@@ -168,7 +172,8 @@ class QuoteService {
             date: DateTime.now(),
             userId: userId,
             action: 'approved',
-            description: 'Cotización aprobada por cliente',
+            description:
+                historyDescription ?? 'Cotización aprobada por cliente',
           ),
         ],
       );
@@ -216,7 +221,11 @@ class QuoteService {
   }
 
   /// Rejects a quote and updates its status.
-  Future<void> rejectQuote(String quoteId, String userId) async {
+  Future<void> rejectQuote(
+    String quoteId,
+    String userId, {
+    String? historyDescription,
+  }) async {
     final quoteRef = _quotesCollection.doc(quoteId);
 
     // Retrieve first to add history
@@ -232,7 +241,7 @@ class QuoteService {
           date: DateTime.now(),
           userId: userId,
           action: 'rejected',
-          description: 'Cotización rechazada por cliente',
+          description: historyDescription ?? 'Cotización rechazada por cliente',
         ),
       ],
     );

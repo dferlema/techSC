@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 
 import 'package:techsc/features/orders/models/quote_model.dart';
 import 'package:techsc/features/orders/services/quote_service.dart';
-import 'package:techsc/features/auth/services/auth_service.dart'; // To get current user ID
+import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/core/utils/pdf_helper.dart';
 import 'package:printing/printing.dart';
 
@@ -25,12 +26,39 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
   late QuoteModel _quote;
   final QuoteService _quoteService = QuoteService();
   final AuthService _authService = AuthService();
+  final RoleService _roleService = RoleService();
   bool _isLoading = false;
+  String _userRole = RoleService.CLIENT;
+
+  bool get _isAdmin => _userRole == RoleService.ADMIN;
+  bool get _isSeller => _userRole == RoleService.SELLER;
 
   @override
   void initState() {
     super.initState();
     _quote = widget.quote;
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      final role = await _roleService.getUserRole(user.uid);
+      if (mounted) {
+        setState(() {
+          _userRole = role;
+        });
+      }
+    }
+  }
+
+  String _getActionDescription(String action) {
+    String actor = 'cliente';
+    if (_isAdmin) actor = 'administrador';
+    if (_isSeller) actor = 'vendedor';
+    return action == 'approved'
+        ? 'Aprobado por $actor'
+        : 'Rechazado por $actor';
   }
 
   Future<void> _approveQuote() async {
@@ -39,7 +67,12 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
       final user = _authService.currentUser;
       if (user == null) return;
 
-      final orderId = await _quoteService.approveQuote(_quote.id, user.uid);
+      final historyDesc = _getActionDescription('approved');
+      final orderId = await _quoteService.approveQuote(
+        _quote.id,
+        user.uid,
+        historyDescription: historyDesc,
+      );
 
       if (mounted) {
         setState(() {
@@ -51,7 +84,7 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
                 date: DateTime.now(),
                 userId: user.uid,
                 action: 'approved',
-                description: 'Aprobado por cliente',
+                description: historyDesc,
               ),
             ],
           );
@@ -81,7 +114,12 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
       final user = _authService.currentUser;
       if (user == null) return;
 
-      await _quoteService.rejectQuote(_quote.id, user.uid);
+      final historyDesc = _getActionDescription('rejected');
+      await _quoteService.rejectQuote(
+        _quote.id,
+        user.uid,
+        historyDescription: historyDesc,
+      );
 
       if (mounted) {
         setState(() {
@@ -93,7 +131,7 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
                 date: DateTime.now(),
                 userId: user.uid,
                 action: 'rejected',
-                description: 'Rechazado por cliente',
+                description: historyDesc,
               ),
             ],
           );
@@ -136,7 +174,9 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    bool canApprove = widget.isClientView && _quote.status == 'sent';
+    bool canApprove =
+        (widget.isClientView || _isAdmin || _isSeller) &&
+        _quote.status == 'sent';
 
     return Scaffold(
       appBar: AppBar(
