@@ -79,25 +79,14 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Helper to generate a sequential Order ID (PyyyyMMdd-XX)
-  Future<String> _generateOrderId() async {
+  /// Helper to generate a unique Order ID (PyyyyMMdd-HHmmss-XXXX)
+  String _generateOrderId() {
     final now = DateTime.now();
-    final datePrefix = DateFormat('yyyyMMdd').format(now);
-
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = DateTime(now.year, now.month, now.day + 1);
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection('orders')
-        .where(
-          'createdAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-        )
-        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
-        .get();
-
-    final nextIndex = snapshot.docs.length + 1;
-    return 'P$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+    final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
+    final randomSuffix = DateTime.now().microsecondsSinceEpoch
+        .toString()
+        .substring(10); // Útimos 6 dígitos de microsegundos
+    return 'P$datePrefix-$randomSuffix';
   }
 
   /// Converts the current cart items into a Firestore order.
@@ -165,8 +154,8 @@ class CartService extends ChangeNotifier {
       'total': orderTotal,
     };
 
-    // Generate Custom ID
-    final customOrderId = await _generateOrderId();
+    // Generate Unique ID
+    final customOrderId = _generateOrderId();
 
     // Crear objeto de orden con estructura compatible con quote-based orders
     final orderData = {

@@ -1,0 +1,52 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Get user data from Firestore
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Helper: Check roles
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'administrador';
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (
+        getUserData().role == 'administrador' || 
+        getUserData().role == 'vendedor' || 
+        getUserData().role == 'tecnico'
+      );
+    }
+
+    // --- Banners ---
+    match /banners/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- Product Images ---
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // --- User Profiles ---
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // --- Default fallback ---
+    match /{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

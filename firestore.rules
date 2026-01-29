@@ -8,223 +8,138 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Fetch user data from 'users' collection
+    // Safer get user data function
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Check specific role
+    // Role checks (Use with caution for clients as they might lack a user doc)
     function hasRole(role) {
       return isAuthenticated() && getUserData().role == role;
     }
 
-    // Check if user is any staff member (Admin, Seller, Technician)
     function isStaff() {
-      return isAuthenticated() && (
-        getUserData().role == 'administrador' || 
-        getUserData().role == 'vendedor' || 
-        getUserData().role == 'tecnico'
-      );
+      return isAuthenticated() && getUserData().role in ['administrador', 'vendedor', 'tecnico'];
     }
 
     function isAdmin() {
       return hasRole('administrador');
     }
 
-    function isSeller() {
-      return hasRole('vendedor');
-    }
-
-    function isTechnician() {
-      return hasRole('tecnico');
-    }
-
     // --- Collection Rules ---
 
-    // Users: Complex rules to handle role management
+    // Users: Complex rules for privacy and role management
     match /users/{userId} {
-      // READ: Users can read their own profile. Staff can read all.
       allow read: if isAuthenticated() && (request.auth.uid == userId || isStaff());
       
-      // Create: Allow during registration (Firebase Auth handles this)
-      // Users can create their own document during signup OR Staff can create users
       allow create: if isAuthenticated() && (request.auth.uid == userId || isStaff());
       
-      // UPDATE: 
-      // - Users can update their own profile (but NOT their role)
-      // - Admins can update any user (including roles)
       allow update: if isAuthenticated() && (
-        // User updating their own profile (excluding role field)
+        // User updating their own profile (excluding role)
         (request.auth.uid == userId && 
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roleUpdatedAt', 'roleUpdatedBy'])) ||
-        // Admin can update any field including roles
+        // Admin can update everything
         isAdmin()
       );
       
-      // DELETE: Only admins can delete users
       allow delete: if isAdmin();
     }
 
-    // Products & Services: Public read, Staff write
+    // Catalog (Products, Services, Categories) & Config
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isStaff();
+      allow write: if isStaff();
     }
     
     match /services/{serviceId} {
       allow read: if true;
-      allow create, update, delete: if isStaff();
+      allow write: if isStaff();
     }
     
-    // Categories: Public read, Staff write
     match /categories/{categoryId} {
       allow read: if true;
-      allow create, update, delete: if isStaff();
+      allow write: if isStaff();
     }
 
-    // Banners: Public read, Admin write
     match /banners/{bannerId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
-    // Config: Public read, Admin write
     match /config/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Quotes (Cotizaciones)
+    // Quotes & Orders
     match /quotes/{quoteId} {
-      // READ: 
-      // - List: Allow staff to list all, clients to list by customerUid or clientId.
-      allow list: if isAuthenticated() && (
-        isStaff() || 
-        resource.data.customerUid == request.auth.uid ||
-        resource.data.clientId == request.auth.uid
-      );
-
-      allow get: if isAuthenticated() && (
-        isStaff() || 
-        resource.data.customerUid == request.auth.uid ||
-        resource.data.clientId == request.auth.uid ||
-        resource.data.clientId == getUserData().id
-      );
-
-      // CREATE: Only Staff can create quotes.
-      allow create: if isStaff();
-
-      // UPDATE: 
-      // - Staff can update anytime.
-      // - Clients can ONLY update the status to 'approved' or 'rejected'.
-      allow update: if isAuthenticated() && (
-        isStaff() || 
-        ((resource.data.customerUid == request.auth.uid || resource.data.clientId == getUserData().id) && 
-         request.resource.data.status in ['approved', 'rejected'])
-      );
-      
-      // DELETE: Only admins
-      allow delete: if isAdmin();
-    }
-
-    // Orders (Pedidos)
-    match /orders/{orderId} {
-      // READ: 
-      // - List: Only allow if querying by their own userId or if they are staff.
-      // - Get: Allow access through various identifiers.
-      allow list: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || 
+      allow read: if isAuthenticated() && (
+        resource.data.get('customerUid', '') == request.auth.uid ||
+        resource.data.get('clientId', '') == request.auth.uid ||
         isStaff()
       );
-
-      allow get: if isAuthenticated() && (
+      allow create: if isStaff();
+      allow update: if isAuthenticated() && (
         isStaff() || 
-        resource.data.userId == request.auth.uid ||
-        resource.data.originalQuote.customerUid == request.auth.uid ||
-        resource.data.originalQuote.clientId == request.auth.uid ||
-        resource.data.userId == getUserData().id
+        ((resource.data.get('customerUid', '') == request.auth.uid) && 
+         request.resource.data.status in ['approved', 'rejected'])
       );
-
-      // CREATE: 
-      // - Staff can manually create.
-      // - Clients can create if they are the owners of the order.
-      allow create: if isAuthenticated() && (
-        isStaff() || 
-        request.resource.data.userId == request.auth.uid
-      );
-
-      // UPDATE: Staff can update status and payment info.
-      allow update: if isStaff();
-      
-      // DELETE: Only admins
       allow delete: if isAdmin();
     }
-    
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.get('userId', '') == request.auth.uid ||
+        resource.data.get('originalQuote', {}).get('customerUid', '') == request.auth.uid ||
+        isStaff()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.get('userId', '') == request.auth.uid ||
+        isStaff()
+      );
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // Reservations
+    match /reservations/{reservationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.get('userId', '') == request.auth.uid ||
+        isStaff()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.get('userId', '') == request.auth.uid ||
+        isStaff()
+      );
+      allow update: if isAuthenticated() && (
+        isStaff() || 
+        (resource.data.get('userId', '') == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+      );
+      allow delete: if isAdmin();
+    }
+
     // Notifications
     match /notifications/{notificationId} {
-      // READ: Users can read their own notifications. Staff can read all.
-      // Allow read if staff OR if receiverId matches (with null check)
       allow read: if isAuthenticated() && (
-        isStaff() ||
-        (resource.data.keys().hasAny(['receiverId']) && resource.data.receiverId == request.auth.uid)
+        resource.data.get('receiverId', '') == request.auth.uid ||
+        isStaff() || 
+        resource.data.get('receiverRole', '') == getUserData().role ||
+        resource.data.get('receiverRole', '') == 'all'
       );
-      
-      // CREATE: Only staff can create notifications
-      // Ensure receiverId is set when creating
-      allow create: if isStaff() && request.resource.data.keys().hasAny(['receiverId']);
-      
-      // UPDATE: Users can mark their own notifications as read. Staff can update all.
+      allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        (resource.data.get('receiverId', null) == request.auth.uid && 
+        (resource.data.get('receiverId', '') == request.auth.uid && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])) ||
         isStaff()
       );
-      
-      // DELETE: Users can delete their own notifications. Staff can delete all.
-      allow delete: if isAuthenticated() && (
-        isStaff() ||
-        resource.data.get('receiverId', null) == request.auth.uid
-      );
+      allow delete: if resource.data.get('receiverId', '') == request.auth.uid || isStaff();
     }
-    
+
     // Suppliers (Proveedores)
     match /suppliers/{supplierId} {
-      // READ: Staff can read all suppliers (needed for product form dropdown)
       allow read: if isStaff();
-      
-      // CREATE, UPDATE, DELETE: Only admins can manage suppliers
-      allow create, update, delete: if isAdmin();
-    }
-    
-    // Reservations
-    match /reservations/{reservationId} {
-      // READ: 
-      // - List: Allow staff to list all, clients to list by their own userId.
-      allow list: if isAuthenticated() && (
-        isStaff() || resource.data.userId == request.auth.uid
-      );
-
-      allow get: if isAuthenticated() && (
-        isStaff() || resource.data.userId == request.auth.uid
-      );
-      
-      // CREATE: Any authenticated user can create a reservation for themselves, or Staff for anyone.
-      allow create: if isAuthenticated() && (
-        isStaff() || 
-        request.resource.data.userId == request.auth.uid
-      );
-      
-      // UPDATE: 
-      // - Staff can update everything
-      // - Clients can update their own (limited to status changes like cancellation)
-      allow update: if isAuthenticated() && (
-        isStaff() || 
-        (resource.data.userId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
-      );
-      
-      // DELETE: Only admins
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
   }
 }

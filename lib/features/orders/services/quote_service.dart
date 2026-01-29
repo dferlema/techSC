@@ -20,23 +20,11 @@ class QuoteService {
   Future<String> createQuote(QuoteModel quote) async {
     try {
       final now = DateTime.now();
-      final datePrefix = DateFormat('yyyyMMdd').format(now);
-
-      // Define today's range
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = DateTime(now.year, now.month, now.day + 1);
-
-      // Get current day's quotes to count them
-      final snapshot = await _quotesCollection
-          .where(
-            'createdAt',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-          )
-          .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
-          .get();
-
-      final nextIndex = snapshot.docs.length + 1;
-      final sequenceId = '$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+      final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
+      final randomSuffix = DateTime.now().microsecondsSinceEpoch
+          .toString()
+          .substring(10); // Útimos 6 dígitos de microsegundos
+      final sequenceId = 'Q$datePrefix-$randomSuffix';
 
       // Create document with the custom ID
       final docRef = _quotesCollection.doc(sequenceId);
@@ -136,24 +124,14 @@ class QuoteService {
     return null;
   }
 
-  /// Helper to generate a sequential Order ID (PyyyyMMdd-XX)
-  Future<String> _generateOrderId() async {
+  /// Helper to generate a unique Order ID (PyyyyMMdd-HHmmss-XXXX)
+  String _generateOrderId() {
     final now = DateTime.now();
-    final datePrefix = DateFormat('yyyyMMdd').format(now);
-
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = DateTime(now.year, now.month, now.day + 1);
-
-    final snapshot = await _ordersCollection
-        .where(
-          'createdAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-        )
-        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
-        .get();
-
-    final nextIndex = snapshot.docs.length + 1;
-    return 'P$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+    final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
+    final randomSuffix = DateTime.now().microsecondsSinceEpoch
+        .toString()
+        .substring(10);
+    return 'P$datePrefix-$randomSuffix';
   }
 
   /// Atomically approves a quote and converts it into a new [OrderModel].
@@ -164,7 +142,7 @@ class QuoteService {
     // Generate the ID *before* the transaction.
     // Note: In high concurrency, this might cause collision, but for this scale it's acceptable.
     // Ideally we would read-modify-write a counter in the transaction.
-    final customOrderId = await _generateOrderId();
+    final customOrderId = _generateOrderId();
 
     final orderId = await _firestore.runTransaction((transaction) async {
       final quoteRef = _quotesCollection.doc(quoteId);

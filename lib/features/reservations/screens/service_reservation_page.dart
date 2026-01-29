@@ -37,6 +37,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   final _deviceController = TextEditingController();
   final _addressController = TextEditingController();
   final _problemController = TextEditingController();
+  final _dateController = TextEditingController();
+  final _timeController = TextEditingController();
 
   // Variables de estado para selectores
   String? _selectedService;
@@ -201,6 +203,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     _deviceController.dispose();
     _addressController.dispose();
     _problemController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
     super.dispose();
   }
 
@@ -213,7 +217,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       lastDate: DateTime(DateTime.now().year + 1), // Máximo 1 año a futuro
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
     }
   }
 
@@ -224,7 +231,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       initialTime: _selectedTime ?? TimeOfDay.now(),
     );
     if (picked != null) {
-      setState(() => _selectedTime = picked);
+      setState(() {
+        _selectedTime = picked;
+        _timeController.text = picked.format(context);
+      });
     }
   }
 
@@ -358,24 +368,14 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
     );
   }
 
-  /// Genera un ID secuencial para la reserva (RyyyyMMdd-XX)
-  Future<String> _generateReservationId() async {
+  /// Genera un ID único para la reserva (RyyyyMMdd-HHmmss-XXXX)
+  String _generateReservationId() {
     final now = DateTime.now();
-    final datePrefix = DateFormat('yyyyMMdd').format(now);
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = DateTime(now.year, now.month, now.day + 1);
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection('reservations')
-        .where(
-          'createdAt',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-        )
-        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
-        .get();
-
-    final nextIndex = snapshot.docs.length + 1;
-    return 'R$datePrefix-${nextIndex.toString().padLeft(2, '0')}';
+    final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
+    final randomSuffix = DateTime.now().microsecondsSinceEpoch
+        .toString()
+        .substring(10); // Útimos 6 dígitos de microsegundos
+    return 'R$datePrefix-$randomSuffix';
   }
 
   /// Valida el formulario y guarda la reserva en Firebase Firestore.
@@ -432,8 +432,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      // 4. Guardar en Firestore con ID personalizado
-      final reservationId = await _generateReservationId();
+      // 4. Generar ID único para la reserva
+      final reservationId = _generateReservationId();
 
       await FirebaseFirestore.instance
           .collection('reservations')
@@ -540,6 +540,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       _selectedDate = null;
       _selectedTime = null;
       _selectedLocation = null;
+      _dateController.clear();
+      _timeController.clear();
     });
 
     // Los datos personales (nombre, email, teléfono, cédula, dirección)
@@ -908,13 +910,12 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 // Selector de Fecha
                 Expanded(
                   child: TextFormField(
+                    controller: _dateController,
                     readOnly: true,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.calendar_today),
                       labelText: 'Fecha *',
-                      hintText: _selectedDate != null
-                          ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                          : 'Seleccionar',
+                      hintText: 'Seleccionar',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -928,13 +929,12 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 // Selector de Hora
                 Expanded(
                   child: TextFormField(
+                    controller: _timeController,
                     readOnly: true,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.access_time),
                       labelText: 'Hora *',
-                      hintText: _selectedTime != null
-                          ? _selectedTime!.format(context)
-                          : 'Seleccionar',
+                      hintText: 'Seleccionar',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
