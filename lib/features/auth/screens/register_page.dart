@@ -37,15 +37,11 @@ class _RegisterPageState extends State<RegisterPage> {
     super.initState();
     _termsRecognizer = TapGestureRecognizer()
       ..onTap = () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Abriendo términos y condiciones...')),
-        );
+        Navigator.pushNamed(context, '/legal', arguments: 0);
       };
     _privacyRecognizer = TapGestureRecognizer()
       ..onTap = () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Abriendo política de privacidad...')),
-        );
+        Navigator.pushNamed(context, '/legal', arguments: 1);
       };
   }
 

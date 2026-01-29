@@ -34,6 +34,7 @@ import 'package:techsc/features/admin/screens/settings_page.dart';
 import 'package:techsc/features/catalog/screens/category_management_page.dart';
 import 'package:techsc/features/admin/screens/marketing_campaign_page.dart';
 import 'package:techsc/features/admin/screens/app_colors_config_page.dart';
+import 'package:techsc/features/home/screens/legal_info_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,6 +116,11 @@ class MyApp extends StatelessWidget {
             '/category-management': (context) => const CategoryManagementPage(),
             '/marketing': (context) => const MarketingCampaignPage(),
             '/app-colors-config': (context) => const AppColorsConfigPage(),
+            '/legal': (context) {
+              final args =
+                  ModalRoute.of(context)?.settings.arguments as int? ?? 0;
+              return LegalInfoPage(initialTabIndex: args);
+            },
             '/main': (context) => const MainTabsScreen(),
           },
         );

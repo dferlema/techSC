@@ -411,6 +411,16 @@ class _AppDrawerState extends State<AppDrawer> {
             selectedTileColor: Colors.grey.withOpacity(0.1),
             onTap: () => _navigateTo(context, '/settings'),
           ),
+          ListTile(
+            leading: const Icon(Icons.gavel, color: Colors.blueGrey),
+            title: const Text('Términos y Privacidad'),
+            selected: widget.currentRoute == '/legal',
+            selectedTileColor: Colors.blueGrey.withOpacity(0.1),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/legal');
+            },
+          ),
           const Divider(),
           ListTile(
             leading: Icon(Icons.logout, color: AppColors.error),

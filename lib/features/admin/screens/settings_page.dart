@@ -523,6 +523,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               const SizedBox(height: 8),
+              const SizedBox(height: 8),
             ],
           ),
         ),
