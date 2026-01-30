@@ -1397,8 +1397,18 @@ class _OrderCardState extends State<OrderCard> {
     final status = data['status'] ?? 'pendiente';
     final userId = data['userId'];
 
+    // 🔒 Define si el pedido está bloqueado para edición (solo si está 'entregado')
+    final bool isLocked = status.toLowerCase() == 'entregado';
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      // Si está bloqueado, aplicamos un color de fondo sutilmente diferente o borde
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isLocked
+            ? BorderSide(color: Colors.green.withOpacity(0.5), width: 1)
+            : BorderSide.none,
+      ),
       child: ExpansionTile(
         leading: CircleAvatar(
           backgroundColor: widget.statusColorCallback(status),
@@ -1429,6 +1439,52 @@ class _OrderCardState extends State<OrderCard> {
                   ],
                 ),
                 const Divider(),
+
+                // 📝 Banner de Pedido Bloqueado (Seguridad y Resguardo de Datos)
+                if (isLocked) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 20,
+                          color: Colors.green.shade700,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pedido Entregado - Bloqueado',
+                                style: TextStyle(
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Por seguridad, este pedido ya no puede ser editado.',
+                                style: TextStyle(
+                                  color: Colors.green.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Info Cliente
                 if (userId != null)
@@ -1494,12 +1550,15 @@ class _OrderCardState extends State<OrderCard> {
                     Expanded(
                       child: TextField(
                         controller: _paymentLinkController,
-                        decoration: const InputDecoration(
+                        readOnly: isLocked, // Bloqueado si entregado
+                        decoration: InputDecoration(
                           labelText: 'Link de Pago',
                           hintText: 'https://...',
                           isDense: true,
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.link),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.link),
+                          fillColor: isLocked ? Colors.grey.shade100 : null,
+                          filled: isLocked,
                         ),
                       ),
                     ),
@@ -1511,8 +1570,13 @@ class _OrderCardState extends State<OrderCard> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : IconButton(
-                            onPressed: _savePaymentLink,
-                            icon: const Icon(Icons.save, color: Colors.blue),
+                            onPressed: isLocked
+                                ? null
+                                : _savePaymentLink, // Bloqueado si entregado
+                            icon: Icon(
+                              Icons.save,
+                              color: isLocked ? Colors.grey : Colors.blue,
+                            ),
                             tooltip: 'Guardar Link',
                           ),
                   ],
@@ -1531,18 +1595,23 @@ class _OrderCardState extends State<OrderCard> {
                       child: TextField(
                         controller: _discountController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        readOnly: isLocked, // Bloqueado si entregado
+                        decoration: InputDecoration(
                           labelText: 'Descuento (%)',
                           hintText: 'Ej: 5',
                           isDense: true,
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.percent),
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.percent),
+                          fillColor: isLocked ? Colors.grey.shade100 : null,
+                          filled: isLocked,
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: _savePaymentDetails,
+                      onPressed: isLocked
+                          ? null
+                          : _savePaymentDetails, // Bloqueado si entregado
                       child: const Text('Aplicar'),
                     ),
                   ],
@@ -1553,22 +1622,27 @@ class _OrderCardState extends State<OrderCard> {
                     const Text('Pago Realizado:'),
                     Switch(
                       value: _isPaid,
-                      onChanged: (val) {
-                        setState(() => _isPaid = val);
-                        _savePaymentDetails();
-                      },
+                      onChanged: isLocked
+                          ? null
+                          : (val) {
+                              // Bloqueado si entregado
+                              setState(() => _isPaid = val);
+                              _savePaymentDetails();
+                            },
                       activeThumbColor: Colors.green,
                     ),
                   ],
                 ),
                 // Metodo de pago opciones
                 DropdownButtonFormField<String>(
-                  initialValue: _paymentMethod,
-                  decoration: const InputDecoration(
+                  value: _paymentMethod, // Corregido: initialValue -> value
+                  decoration: InputDecoration(
                     labelText: 'Método de Pago',
                     isDense: true,
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.payment),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.payment),
+                    fillColor: isLocked ? Colors.grey.shade100 : null,
+                    filled: isLocked,
                   ),
                   items: const [
                     DropdownMenuItem(
@@ -1581,39 +1655,50 @@ class _OrderCardState extends State<OrderCard> {
                     ),
                     DropdownMenuItem(value: 'tarjeta', child: Text('Tarjeta')),
                   ],
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _paymentMethod = val);
-                      _savePaymentDetails();
-                    }
-                  },
+                  onChanged: isLocked
+                      ? null
+                      : (val) {
+                          // Bloqueado si entregado
+                          if (val != null) {
+                            setState(() => _paymentMethod = val);
+                            _savePaymentDetails();
+                          }
+                        },
                 ),
                 if (_paymentMethod == 'transferencia') ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: _institutionController,
-                    decoration: const InputDecoration(
+                    readOnly: isLocked, // Bloqueado si entregado
+                    decoration: InputDecoration(
                       labelText: 'Institución Financiera',
                       isDense: true,
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.account_balance),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.account_balance),
+                      fillColor: isLocked ? Colors.grey.shade100 : null,
+                      filled: isLocked,
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _voucherController,
-                    decoration: const InputDecoration(
+                    readOnly: isLocked, // Bloqueado si entregado
+                    decoration: InputDecoration(
                       labelText: 'Número de Comprobante/Voucher',
                       isDense: true,
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.receipt),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.receipt),
+                      fillColor: isLocked ? Colors.grey.shade100 : null,
+                      filled: isLocked,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton.icon(
-                      onPressed: _savePaymentDetails,
+                      onPressed: isLocked
+                          ? null
+                          : _savePaymentDetails, // Bloqueado si entregado
                       icon: const Icon(Icons.save_alt, size: 16),
                       label: const Text('Guardar Detalles Transferencia'),
                     ),
@@ -1653,23 +1738,26 @@ class _OrderCardState extends State<OrderCard> {
                                 ),
                               )
                               .toList(),
-                      onChanged: (newStatus) async {
-                        if (newStatus != null) {
-                          await FirebaseFirestore.instance
-                              .collection('orders')
-                              .doc(widget.doc.id)
-                              .update({'status': newStatus});
+                      onChanged: isLocked
+                          ? null // El estado no se puede cambiar una vez entregado
+                          : (newStatus) async {
+                              if (newStatus != null) {
+                                await FirebaseFirestore.instance
+                                    .collection('orders')
+                                    .doc(widget.doc.id)
+                                    .update({'status': newStatus});
 
-                          // Notify User
-                          if (userId != null) {
-                            NotificationService().notifyOrderStatusChanged(
-                              widget.doc.id,
-                              userId,
-                              newStatus,
-                            );
-                          }
-                        }
-                      },
+                                // Notificar cambio de estado
+                                if (userId != null) {
+                                  NotificationService()
+                                      .notifyOrderStatusChanged(
+                                        widget.doc.id,
+                                        userId,
+                                        newStatus,
+                                      );
+                                }
+                              }
+                            },
                     ),
                   ],
                 ),
@@ -1699,11 +1787,18 @@ class _OrderCardState extends State<OrderCard> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: widget.onDelete,
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text(
+                    onPressed: isLocked
+                        ? null
+                        : widget.onDelete, // Bloqueado si entregado
+                    icon: Icon(
+                      Icons.delete,
+                      color: isLocked ? Colors.grey : Colors.red,
+                    ),
+                    label: Text(
                       'Eliminar Pedido',
-                      style: TextStyle(color: Colors.red),
+                      style: TextStyle(
+                        color: isLocked ? Colors.grey : Colors.red,
+                      ),
                     ),
                   ),
                 ),
