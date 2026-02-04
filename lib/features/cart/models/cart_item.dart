@@ -20,7 +20,8 @@ class CartItem {
   // Convertir a Map para Firestore
   Map<String, dynamic> toMap() {
     return {
-      'productId': id,
+      'id': id, // ID del producto/servicio para lookup
+      'productId': id, // Mantener por compatibilidad
       'name': name,
       'price': price,
       'quantity': quantity,

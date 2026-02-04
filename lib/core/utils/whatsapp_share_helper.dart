@@ -48,7 +48,8 @@ class WhatsAppShareHelper {
     // Add deep link for "Ver más"
     if (productData['id'] != null) {
       message += '🔗 *Ver más en la app:* \n';
-      message += 'techsc://product?id=${productData['id']}\n\n';
+      message +=
+          '*Solicita la aplicación para ver más detalles y ofertas exclusivas*\n';
     }
 
     message += '---\n';
@@ -121,7 +122,9 @@ class WhatsAppShareHelper {
     final String promoPrice = price.toStringAsFixed(2);
 
     // Determine dynamic product type for the message
+
     String productType = 'producto';
+
     final String lowerName = productName.toLowerCase();
     final String category = (productData['category'] ?? '')
         .toString()
@@ -341,7 +344,7 @@ class WhatsAppShareHelper {
     final String message =
         'Buen día $firstName, le escribo de ${BrandingHelper.appName}. '
         'Quisiera realizar un pedido de: *$productName*. '
-        'Por favor, ¿me confirma disponibilidad y precio?';
+        'Por favor, ¿me confirma disponibilidad y precio? *¡Muchas gracias!*';
 
     final String encodedMessage = Uri.encodeComponent(message);
     final Uri whatsappUrl = Uri.parse(

@@ -15,6 +15,7 @@ import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/core/services/notification_service.dart';
 import 'package:techsc/features/admin/widgets/role_assignment_dialog.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
+import 'package:techsc/features/orders/utils/supplier_order_helper.dart';
 
 /// Página principal del panel de administración.
 ///
@@ -1247,9 +1248,14 @@ class _OrderCardState extends State<OrderCard> {
   String _paymentMethod = 'efectivo';
   bool _isPaid = false;
 
+  // Product cache for supplier info
+  final Map<String, Map<String, dynamic>?> _productCache = {};
+  bool _isLoadingProducts = false;
+
   @override
   void initState() {
     super.initState();
+    debugPrint('🆕 OrderCard initState for order: ${widget.doc.id}');
     final data = widget.doc.data() as Map<String, dynamic>;
     _paymentLinkController = TextEditingController(
       text: data['paymentLink'] ?? '',
@@ -1265,6 +1271,7 @@ class _OrderCardState extends State<OrderCard> {
     );
     _paymentMethod = data['paymentMethod'] ?? 'efectivo';
     _isPaid = data['isPaid'] ?? false;
+    _fetchProductDetails();
   }
 
   @override
@@ -1350,6 +1357,285 @@ class _OrderCardState extends State<OrderCard> {
     }
   }
 
+  Future<void> _fetchProductDetails() async {
+    if (!mounted) return;
+    setState(() => _isLoadingProducts = true);
+
+    final data = widget.doc.data() as Map<String, dynamic>;
+    final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
+    final items =
+        (data['items'] as List<dynamic>?) ??
+        (originalQuote?['items'] as List<dynamic>?) ??
+        [];
+
+    debugPrint('🔍 Fetching product details for ${items.length} items');
+
+    for (var item in items) {
+      final productId = item['id'];
+      debugPrint('  - Item: ${item['name']}, ID: $productId');
+
+      if (productId != null && !_productCache.containsKey(productId)) {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('products')
+              .doc(productId)
+              .get();
+          if (doc.exists) {
+            final productData = doc.data();
+            _productCache[productId] = productData;
+            debugPrint(
+              '    ✅ Product loaded: supplierId=${productData?['supplierId']}, supplierName=${productData?['supplierName']}',
+            );
+          } else {
+            _productCache[productId] = null;
+            debugPrint('    ❌ Product not found in Firestore');
+          }
+        } catch (e) {
+          debugPrint('    ⚠️ Error fetching product $productId: $e');
+        }
+      } else if (productId == null) {
+        debugPrint('    ⚠️ Item has no product ID');
+      } else {
+        debugPrint('    ℹ️ Product already in cache');
+      }
+    }
+
+    if (mounted) {
+      setState(() => _isLoadingProducts = false);
+    }
+  }
+
+  Future<void> _updateItemCost(int index, double newCost) async {
+    try {
+      final data = widget.doc.data() as Map<String, dynamic>;
+      final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
+      final items = List<Map<String, dynamic>>.from(
+        ((data['items'] as List<dynamic>?) ??
+                (originalQuote?['items'] as List<dynamic>?) ??
+                [])
+            .map((x) => Map<String, dynamic>.from(x as Map)),
+      );
+
+      items[index]['purchaseCost'] = newCost;
+
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.doc.id)
+          .update({'items': items});
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('✅ Costo actualizado')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  void _showCostDialog(int index, double currentCost) {
+    final controller = TextEditingController(
+      text: currentCost > 0 ? currentCost.toString() : '',
+    );
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Costo de Compra'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Valor (\$)',
+            prefixText: '\$ ',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text);
+              if (val != null) {
+                _updateItemCost(index, val);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleSupplierOrder(
+    String supplierId,
+    String supplierName,
+    List<Map<String, dynamic>> products,
+  ) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(supplierId)
+          .get();
+      if (!doc.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Proveedor no encontrado')),
+          );
+        }
+        return;
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      final phone = data['contactPhone'] as String?;
+
+      if (phone == null || phone.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Proveedor sin teléfono registrado')),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        SupplierOrderHelper.sendSupplierOrder(
+          items: products,
+          supplierPhone: phone,
+          supplierName: supplierName,
+          context: context,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Widget _buildSupplierActions(List<dynamic> items) {
+    final Map<String, List<Map<String, dynamic>>> supplierItems = {};
+    final Map<String, String> supplierNames = {};
+
+    // Get order status to determine if locked
+    final data = widget.doc.data() as Map<String, dynamic>;
+    final status = data['status'] ?? 'pendiente';
+    final bool isLocked = status.toLowerCase() == 'entregado';
+
+    debugPrint(
+      '🏪 [${widget.doc.id}] Building supplier actions for ${items.length} items',
+    );
+    debugPrint(
+      '   [${widget.doc.id}] Product cache has ${_productCache.length} entries: ${_productCache.keys.toList()}',
+    );
+
+    for (var item in items) {
+      final pid = item['id'];
+      debugPrint('  - Checking item: ${item['name']}, productId: $pid');
+
+      final product = _productCache[pid];
+      if (product == null) {
+        debugPrint('    ⚠️ Product not in cache');
+        continue;
+      }
+
+      debugPrint('    Product data keys: ${product.keys.toList()}');
+      debugPrint(
+        '    supplierId: ${product['supplierId']}, supplierName: ${product['supplierName']}',
+      );
+
+      if (product.containsKey('supplierId')) {
+        final sid = product['supplierId'] as String?;
+        if (sid != null && sid.isNotEmpty) {
+          if (!supplierItems.containsKey(sid)) {
+            supplierItems[sid] = [];
+            supplierNames[sid] =
+                (product['supplierName'] as String?) ?? 'Proveedor';
+            debugPrint('    ✅ Added supplier: $sid - ${supplierNames[sid]}');
+          }
+          supplierItems[sid]!.add({
+            'name': item['name'],
+            'quantity': item['quantity'],
+          });
+        } else {
+          debugPrint('    ⚠️ supplierId is null or empty');
+        }
+      } else {
+        debugPrint('    ⚠️ Product does not have supplierId field');
+      }
+    }
+
+    debugPrint('📊 Final supplier groups: ${supplierItems.length}');
+
+    if (supplierItems.isEmpty) {
+      // Count items without IDs
+      final itemsWithoutId = items
+          .where((item) => item['id'] == null || item['id'] == '')
+          .length;
+
+      return Padding(
+        padding: const EdgeInsets.only(top: 8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'No hay proveedores vinculados a estos productos.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            if (itemsWithoutId > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                '⚠️ $itemsWithoutId producto(s) sin ID. Estos pedidos antiguos no tienen la información necesaria.',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.orange,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: supplierItems.entries.map((entry) {
+        final supplierId = entry.key;
+        final name = supplierNames[supplierId]!;
+        final products = entry.value;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: isLocked
+                  ? null
+                  : () => _handleSupplierOrder(supplierId, name, products),
+              icon: const Icon(Icons.chat, size: 18),
+              label: Text('Pedir a $name (${products.length} productos)'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isLocked ? Colors.grey : Colors.green[700],
+                side: BorderSide(
+                  color: isLocked ? Colors.grey[300]! : Colors.green[200]!,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = widget.doc.data() as Map<String, dynamic>;
@@ -1399,6 +1685,9 @@ class _OrderCardState extends State<OrderCard> {
 
     // 🔒 Define si el pedido está bloqueado para edición (solo si está 'entregado')
     final bool isLocked = status.toLowerCase() == 'entregado';
+    debugPrint(
+      '📦 [${widget.doc.id}] Order status: $status, isLocked: $isLocked',
+    );
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1768,22 +2057,110 @@ class _OrderCardState extends State<OrderCard> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                ...items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ...items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  final cost =
+                      (item['purchaseCost'] as num?)?.toDouble() ?? 0.0;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text('${item['quantity']}x ${item['name']}'),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item['quantity']}x ${item['name']}',
+                              ),
+                            ),
+                            Text(
+                              '\$${((item['price'] ?? 0) * (item['quantity'] ?? 1)).toStringAsFixed(2)}',
+                            ),
+                          ],
                         ),
-                        Text(
-                          '\$${((item['price'] ?? 0) * (item['quantity'] ?? 1)).toStringAsFixed(2)}',
-                        ),
+                        if (!isLocked)
+                          InkWell(
+                            onTap: () => _showCostDialog(index, cost),
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                top: 4.0,
+                                left: 16,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    cost > 0
+                                        ? 'Costo: \$${cost.toStringAsFixed(2)}'
+                                        : 'Agregar costo',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: cost > 0
+                                          ? Colors.green[700]
+                                          : Colors.orange,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.edit,
+                                    size: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                       ],
                     ),
-                  ),
+                  );
+                }),
+
+                // Debug: Log supplier section visibility
+                Builder(
+                  builder: (context) {
+                    debugPrint(
+                      '🔍 [${widget.doc.id}] Supplier section check: isLocked=$isLocked, _isLoadingProducts=$_isLoadingProducts, cacheSize=${_productCache.length}',
+                    );
+                    return const SizedBox.shrink();
+                  },
                 ),
+
+                // Supplier Actions Section
+                if (!_isLoadingProducts) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  Row(
+                    children: [
+                      const Text(
+                        'Gestión de Proveedores',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      if (isLocked) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.lock, size: 14, color: Colors.grey),
+                        const Text(
+                          ' (Solo lectura)',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildSupplierActions(items),
+                ],
+
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerRight,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/theme/app_colors.dart';
 
 class ClientOrderCard extends StatelessWidget {
@@ -22,13 +22,12 @@ class ClientOrderCard extends StatelessWidget {
     final status = data['status'] ?? 'pendiente';
     final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
 
-    // Robustly get items
     final items =
         (data['items'] as List<dynamic>?) ??
         (originalQuote?['items'] as List<dynamic>?) ??
         [];
 
-    // Robustly get total
+    // Calculate totals
     double total = 0.0;
     double subtotal = 0.0;
     final discountPercentage =
@@ -49,7 +48,6 @@ class ClientOrderCard extends StatelessWidget {
       total = (data['total'] as num).toDouble();
     } else {
       total = taxableAmount;
-      // Apply tax if applicable in originalQuote
       if (originalQuote?['applyTax'] == true) {
         final taxRate = (originalQuote?['taxRate'] as num?)?.toDouble() ?? 0.15;
         total += taxableAmount * taxRate;
@@ -70,6 +68,7 @@ class ClientOrderCard extends StatelessWidget {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          initiallyExpanded: true,
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -81,7 +80,7 @@ class ClientOrderCard extends StatelessWidget {
           title: Row(
             children: [
               Text(
-                'Pedido #${docId.toUpperCase()}',
+                'Pedido #${docId.toUpperCase().substring(0, 8)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -112,8 +111,11 @@ class ClientOrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   ...items.map((item) => _buildOrderItem(item)),
+
                   const SizedBox(height: 16),
                   const Divider(),
+
+                  // Totals
                   if (discountPercentage > 0) ...[
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -156,12 +158,13 @@ class ClientOrderCard extends StatelessWidget {
                       ),
                     ],
                   ),
+
                   if (showPayButton) ...[
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => onPay(paymentLink),
+                        onPressed: () => onPay(paymentLink!),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
                           foregroundColor: Colors.white,
@@ -284,7 +287,6 @@ class ClientOrderCard extends StatelessWidget {
 
 class _StatusBadge extends StatelessWidget {
   final String status;
-
   const _StatusBadge({required this.status});
 
   @override

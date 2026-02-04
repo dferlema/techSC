@@ -483,6 +483,7 @@ class _HomePageState extends State<HomePage> {
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('products')
+            .where('isFeatured', isEqualTo: true)
             .limit(5)
             .snapshots(),
         builder: (context, snapshot) {
