@@ -21,7 +21,8 @@ class BrandingHelper {
     if (config.companyName.isNotEmpty) _appName = config.companyName;
     if (config.companyEmail.isNotEmpty) _companyEmail = config.companyEmail;
     if (config.companyPhone.isNotEmpty) _companyPhone = config.companyPhone;
-    if (config.companyAddress.isNotEmpty)
+    if (config.companyAddress.isNotEmpty) {
       _companyAddress = config.companyAddress;
+    }
   }
 }

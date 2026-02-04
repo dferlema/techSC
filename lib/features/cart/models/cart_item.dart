@@ -4,6 +4,7 @@ class CartItem {
   final double price;
   int quantity;
   final String? image;
+  final String type; // 'product' or 'service'
 
   CartItem({
     required this.id,
@@ -11,6 +12,7 @@ class CartItem {
     required this.price,
     this.quantity = 1,
     this.image,
+    this.type = 'product',
   });
 
   double get totalPrice => price * quantity;
@@ -23,6 +25,7 @@ class CartItem {
       'price': price,
       'quantity': quantity,
       'image': image,
+      'type': type,
       'subtotal': totalPrice,
     };
   }

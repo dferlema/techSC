@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
+import 'package:techsc/features/cart/services/cart_service.dart';
 
 class ServiceDetailPage extends StatefulWidget {
   final Map<String, dynamic> service;
@@ -20,6 +21,7 @@ class ServiceDetailPage extends StatefulWidget {
 class _ServiceDetailPageState extends State<ServiceDetailPage> {
   double _currentRating = 0;
   bool _isRating = false;
+  bool _isAdded = false; // Add state for animation
 
   @override
   void initState() {
@@ -48,6 +50,23 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
           _isRating = false;
         });
       }
+    }
+  }
+
+  void _addToCart() async {
+    if (_isAdded) return;
+
+    CartService.instance.addToCart(widget.service, type: 'service');
+
+    setState(() {
+      _isAdded = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (mounted) {
+      setState(() {
+        _isAdded = false;
+      });
     }
   }
 
@@ -404,37 +423,90 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
           ],
         ),
         child: SafeArea(
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  '/main',
-                  arguments: '/reserve-service',
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _addToCart,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isAdded
+                          ? Colors.green[600]
+                          : theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _isAdded
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              key: ValueKey('added'),
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  "¡Agregado!",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              key: ValueKey('normal'),
+                              children: [
+                                Icon(Icons.shopping_bag_outlined),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Al Carrito",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
                 ),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.calendar_today_outlined),
-                  SizedBox(width: 8),
-                  Text(
-                    "Reservar este Servicio",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 56,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pushReplacementNamed(
+                      context,
+                      '/main',
+                      arguments: '/reserve-service',
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    side: BorderSide(color: theme.colorScheme.primary),
                   ),
-                ],
+                  child: const Row(
+                    children: [
+                      Icon(Icons.calendar_today_outlined),
+                      SizedBox(width: 8),
+                      Text(
+                        "Reservar",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

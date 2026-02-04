@@ -6,6 +6,8 @@ import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
+import 'package:techsc/features/catalog/services/supplier_service.dart';
+import 'package:techsc/features/catalog/models/supplier_model.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -26,6 +28,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   bool _isRating = false;
   bool _isAdded = false; // State for the add-to-cart animation
   String _userRole = RoleService.CLIENT; // Track user role
+  SupplierModel? _supplier; // Store supplier details
 
   @override
   void initState() {
@@ -44,6 +47,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       if (mounted) {
         setState(() {
           _userRole = role;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadSupplierDetails() async {
+    final supplierId = widget.product['supplierId'] as String?;
+    if (supplierId != null && supplierId.isNotEmpty) {
+      final supplier = await SupplierService().getSupplierById(supplierId);
+      if (mounted) {
+        setState(() {
+          _supplier = supplier;
         });
       }
     }
@@ -185,6 +200,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     if (!hasPermission) return null;
 
+    // Load supplier details if not loaded and has permission
+    if (_supplier == null && widget.product['supplierId'] != null) {
+      _loadSupplierDetails();
+    }
+
     final supplierLink = widget.product['supplierProductLink'] as String?;
     final supplierName = widget.product['supplierName'] as String?;
 
@@ -252,6 +272,37 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               ),
             ),
           ),
+
+          if (_supplier != null && _supplier!.contactPhone.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  WhatsAppShareHelper.sendSupplierOrder(
+                    productData: widget.product,
+                    supplierPhone: _supplier!.contactPhone,
+                    supplierContactName: _supplier!.contactName,
+                    context: context,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.shopping_cart_checkout),
+                label: const Text(
+                  'Realizar Pedido (WhatsApp)',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

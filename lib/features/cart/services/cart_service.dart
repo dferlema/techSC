@@ -22,25 +22,26 @@ class CartService extends ChangeNotifier {
 
   int get itemCount => _items.fold(0, (sum, item) => sum + item.quantity);
 
-  /// Adds a product to the cart or increases its quantity if already present.
-  void addToCart(Map<String, dynamic> product) {
-    // Si el producto no tiene ID, no podemos agregarlo correctamente
-    final String productId = product['id'] ?? '';
-    if (productId.isEmpty) return;
+  /// Adds a product/service to the cart or increases its quantity if already present.
+  void addToCart(Map<String, dynamic> item, {String type = 'product'}) {
+    // Si el item no tiene ID, no podemos agregarlo correctamente
+    final String itemId = item['id'] ?? '';
+    if (itemId.isEmpty) return;
 
-    final index = _items.indexWhere((item) => item.id == productId);
+    final index = _items.indexWhere((i) => i.id == itemId);
 
     if (index >= 0) {
       _items[index].quantity++;
     } else {
       _items.add(
         CartItem(
-          id: productId,
-          name: product['name'] ?? 'Producto sin nombre',
-          price: (product['price'] is int)
-              ? (product['price'] as int).toDouble()
-              : (product['price'] as double? ?? 0.0),
-          image: product['image'],
+          id: itemId,
+          name: item['name'] ?? item['title'] ?? 'Item sin nombre',
+          price: (item['price'] is int)
+              ? (item['price'] as int).toDouble()
+              : (item['price'] as double? ?? 0.0),
+          image: item['image'] ?? item['imageUrl'],
+          type: type,
         ),
       );
     }
@@ -122,7 +123,7 @@ class CartService extends ChangeNotifier {
           (item) => {
             'id': item.id,
             'name': item.name,
-            'type': 'product',
+            'type': item.type,
             'price': item.price,
             'quantity': item.quantity,
             'description': '',

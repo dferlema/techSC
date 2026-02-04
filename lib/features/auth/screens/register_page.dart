@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:techsc/features/auth/services/auth_service.dart';
 import 'package:techsc/core/utils/branding_helper.dart';
+import 'package:techsc/core/utils/validators.dart';
 import 'package:techsc/core/theme/app_colors.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -132,31 +133,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // 🔢 Función para validar cédula ecuatoriana (algoritmo oficial)
-  bool isValidEcuadorianId(String id) {
-    if (id.length != 10 || !RegExp(r'^\d{10}$').hasMatch(id)) return false;
-
-    final digits = id.split('').map(int.parse).toList();
-    final province = digits[0] * 10 + digits[1];
-    if (province < 1 || province > 24) {
-      return false; // Provincias válidas: 01-24
-    }
-
-    // Algoritmo de verificación (módulo 10)
-    int sum = 0;
-    for (int i = 0; i < 9; i++) {
-      int digit = digits[i];
-      if (i % 2 == 0) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-      sum += digit;
-    }
-
-    final verifier = (sum % 10 == 0) ? 0 : 10 - (sum % 10);
-    return verifier == digits[9];
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,13 +213,13 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Cédula
+                      // Cédula o RUC
                       TextFormField(
                         controller: _idController,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.badge),
-                          labelText: 'Cédula',
-                          hintText: '1798745823',
+                          labelText: 'Cédula o RUC',
+                          hintText: 'Ingrese su identificación',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -251,16 +227,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(13),
                         ],
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'La cédula es obligatoria';
+                            return 'La identificación es obligatoria';
                           }
-                          if (value.length != 10) {
-                            return 'La cédula debe tener 10 dígitos';
-                          }
-                          if (!isValidEcuadorianId(value)) {
-                            return 'Cédula ecuatoriana inválida';
+                          if (!Validators.isValidEcuadorianId(value)) {
+                            return 'Cédula o RUC inválido';
                           }
                           return null;
                         },

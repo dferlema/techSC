@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/services/role_service.dart';
+import 'package:techsc/core/utils/validators.dart';
 
 /// Pagina de formulario para crear o editar clientes.
 /// Incluye validaciones específicas para cédula y teléfono de Ecuador.
@@ -66,38 +67,6 @@ class _ClientFormPageState extends State<ClientFormPage> {
     super.dispose();
   }
 
-  // 🔢 Validación de cédula ecuatoriana
-  // Verifica longitud, provincia y dígito verificador.
-  bool _isValidEcuadorianId(String id) {
-    if (id.length != 10 || !RegExp(r'^\d{10}$').hasMatch(id)) return false;
-    final digits = id.split('').map(int.parse).toList();
-    final province = digits[0] * 10 + digits[1];
-
-    // Validar código de provincia (1-24)
-    if (province < 1 || province > 24) return false;
-
-    int sum = 0;
-    // Algoritmo de validación del último dígito (módulo 10)
-    for (int i = 0; i < 9; i++) {
-      int digit = digits[i];
-      if (i % 2 == 0) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-      sum += digit;
-    }
-    final verifier = (sum % 10 == 0) ? 0 : 10 - (sum % 10);
-    return verifier == digits[9];
-  }
-
-  // 📱 Validación de teléfono ecuatoriano
-  bool _isValidEcuadorianPhone(String phone) {
-    return phone.length == 10 &&
-        phone.startsWith('09') &&
-        RegExp(r'^\d{10}$').hasMatch(phone);
-  }
-
-  // 💾 Guardar cliente
   // Valida todos los campos antes de guardar en Firestore.
   Future<void> _saveClient() async {
     if (!_formKey.currentState!.validate()) return;
@@ -110,10 +79,10 @@ class _ClientFormPageState extends State<ClientFormPage> {
     final companyName = _companyNameController.text.trim();
 
     // Validaciones manuales adicionales
-    if (id.isEmpty || !_isValidEcuadorianId(id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cédula ecuatoriana inválida')),
-      );
+    if (id.isEmpty || !Validators.isValidEcuadorianId(id)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cédula o RUC inválido')));
       return;
     }
 
@@ -134,7 +103,7 @@ class _ClientFormPageState extends State<ClientFormPage> {
       return;
     }
 
-    if (phone.isEmpty || !_isValidEcuadorianPhone(phone)) {
+    if (phone.isEmpty || !Validators.isValidEcuadorianPhone(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Teléfono ecuatoriano inválido (debe ser 09XXXXXXXX)'),
@@ -217,11 +186,11 @@ class _ClientFormPageState extends State<ClientFormPage> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    // 📇 Cédula
+                    // 📇 Cédula o RUC
                     TextFormField(
                       controller: _idController,
                       decoration: InputDecoration(
-                        labelText: 'Cédula *',
+                        labelText: 'Cédula o RUC *',
                         hintText: 'Ej: 1716472038',
                         prefixIcon: const Icon(Icons.badge),
                         border: OutlineInputBorder(),
@@ -231,9 +200,8 @@ class _ClientFormPageState extends State<ClientFormPage> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
                         }
-                        if (value.trim().length != 10) return '10 dígitos';
-                        if (!_isValidEcuadorianId(value.trim())) {
-                          return 'Cédula inválida';
+                        if (!Validators.isValidEcuadorianId(value.trim())) {
+                          return 'Cédula o RUC inválido';
                         }
                         return null;
                       },
@@ -297,7 +265,7 @@ class _ClientFormPageState extends State<ClientFormPage> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Obligatorio';
                         }
-                        if (!_isValidEcuadorianPhone(value.trim())) {
+                        if (!Validators.isValidEcuadorianPhone(value.trim())) {
                           return 'Teléfono ecuatoriano inválido';
                         }
                         return null;

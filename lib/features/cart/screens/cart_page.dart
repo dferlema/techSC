@@ -35,7 +35,7 @@ class _CartPageState extends State<CartPage> {
                         size: 80,
                         color: Colors.grey,
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Text(
                         'Tu carrito está vacío',
                         style: TextStyle(fontSize: 18, color: Colors.grey),

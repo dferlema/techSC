@@ -196,8 +196,9 @@ class AuthService {
     try {
       // 1. Verificar si el hardware está disponible
       final available = await _biometricService.isBiometricAvailable();
-      if (!available)
+      if (!available) {
         throw 'La biometría no está disponible en este dispositivo.';
+      }
 
       // 2. Pedir autenticación al usuario
       final authenticated = await _biometricService.authenticate(

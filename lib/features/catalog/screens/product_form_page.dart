@@ -39,6 +39,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late String _selectedLabel;
   late String _selectedTaxStatus;
   late double _rating;
+  bool _isFeatured = false;
 
   // Lista de URLs de imágenes
   List<String> _imageUrls = [];
@@ -80,6 +81,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _selectedLabel = widget.initialData?['label'] ?? 'Ninguna';
     _selectedTaxStatus = widget.initialData?['taxStatus'] ?? 'Incluye impuesto';
     _rating = (widget.initialData?['rating'] as num?)?.toDouble() ?? 4.5;
+    _isFeatured = widget.initialData?['isFeatured'] ?? false;
 
     // Cargar imágenes existentes
     if (widget.initialData?['images'] != null) {
@@ -152,6 +154,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
         'label': _selectedLabel,
         'taxStatus': _selectedTaxStatus,
         'rating': _rating,
+        'isFeatured': _isFeatured,
         'images': _imageUrls,
         'image': _imageUrls.first,
         // Supplier data (only if user is Admin or Seller)
@@ -497,6 +500,23 @@ class _ProductFormPageState extends State<ProductFormPage> {
                           ],
                         ),
                         const SizedBox(height: 20),
+                        SwitchListTile(
+                          title: const Text(
+                            'Producto Destacado',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: const Text(
+                            'Aparecerá en la sección de destacados del inicio',
+                          ),
+                          value: _isFeatured,
+                          activeThumbColor: Colors.amber,
+                          onChanged: (bool value) {
+                            setState(() {
+                              _isFeatured = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 20),
                         // Supplier fields (Admin/Seller only)
                         if (_userRole == RoleService.ADMIN ||
                             _userRole == RoleService.SELLER) ...[
@@ -515,7 +535,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                               final suppliers = snapshot.data ?? [];
 
                               return DropdownButtonFormField<String>(
-                                value: _selectedSupplierId,
+                                initialValue: _selectedSupplierId,
                                 decoration: const InputDecoration(
                                   labelText: 'Proveedor (Opcional)',
                                   border: OutlineInputBorder(),

@@ -952,64 +952,146 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Future<void> _generateCatalogPDF() async {
-    final config = await ConfigService().getConfig();
-    final productsDocs = await FirebaseFirestore.instance
-        .collection('products')
-        .get();
-    final servicesDocs = await FirebaseFirestore.instance
-        .collection('services')
-        .get();
+    try {
+      final config = await ConfigService().getConfig();
+      final productsDocs = await FirebaseFirestore.instance
+          .collection('products')
+          .get();
+      final servicesDocs = await FirebaseFirestore.instance
+          .collection('services')
+          .get();
 
-    final pdf = pw.Document();
-
-    // Group products by category
-    Map<String, List<Map<String, dynamic>>> groupedProducts = {};
-    for (var doc in productsDocs.docs) {
-      final data = doc.data();
-      final category = (data['category'] ?? 'General').toString().toUpperCase();
-      if (!groupedProducts.containsKey(category)) {
-        groupedProducts[category] = [];
+      // Group products by category
+      Map<String, List<Map<String, dynamic>>> groupedProducts = {};
+      for (var doc in productsDocs.docs) {
+        final data = doc.data();
+        final category = (data['category'] ?? 'General')
+            .toString()
+            .toUpperCase();
+        if (!groupedProducts.containsKey(category)) {
+          groupedProducts[category] = [];
+        }
+        groupedProducts[category]!.add(data);
       }
-      groupedProducts[category]!.add(data);
-    }
 
-    pdf.addPage(
-      pw.MultiPage(
-        header: (context) => _buildPDFHeader(
-          'CATÁLOGO DE PRODUCTOS Y SERVICIOS',
-          DateFormat('dd/MM/yyyy').format(DateTime.now()),
-          config,
-        ),
-        footer: (context) => _buildPDFFooter(config),
-        build: (context) => [
-          // Products Section
-          pw.Header(
-            level: 0,
-            text: 'PRODUCTOS',
-            textStyle: pw.TextStyle(
-              fontSize: 18,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blue800,
-            ),
+      // Helper for cell building
+      pw.Widget buildCell(String text, {bool isHeader = false}) {
+        return pw.Padding(
+          padding: const pw.EdgeInsets.all(6),
+          child: pw.Text(
+            text,
+            maxLines: 4,
+            overflow: pw.TextOverflow.span,
+            style: isHeader
+                ? pw.TextStyle(
+                    color: PdfColors.white,
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 11,
+                  )
+                : const pw.TextStyle(fontSize: 10),
           ),
-          for (var entry in groupedProducts.entries) ...[
+        );
+      }
+
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(20),
+          header: (context) => _buildPDFHeader(
+            'Catálogo de Productos',
+            DateFormat('dd/MM/yyyy').format(DateTime.now()),
+            config,
+          ),
+          footer: (context) => _buildPDFFooter(config),
+          build: (context) => [
+            // Products Section
             pw.Header(
-              level: 1,
-              text: entry.key,
+              level: 0,
+              text: 'PRODUCTOS',
               textStyle: pw.TextStyle(
-                fontSize: 14,
+                fontSize: 18,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColors.blueGrey700,
+                color: PdfColors.blue800,
+              ),
+            ),
+            for (var entry in groupedProducts.entries) ...[
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 15, bottom: 8),
+                child: pw.Text(
+                  entry.key,
+                  style: pw.TextStyle(
+                    fontSize: 15,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blueGrey800,
+                  ),
+                ),
+              ),
+              pw.Table(
+                border: pw.TableBorder.all(
+                  width: 0.5,
+                  color: PdfColors.grey300,
+                ),
+                columnWidths: {
+                  0: const pw.FlexColumnWidth(3), // Name
+                  1: const pw.FlexColumnWidth(5), // Specs/Description
+                  2: const pw.FlexColumnWidth(2), // Price
+                },
+                children: [
+                  // Header Row
+                  pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.blue800,
+                    ),
+                    children: [
+                      buildCell('Producto', isHeader: true),
+                      buildCell('Descripción', isHeader: true),
+                      buildCell('Precio', isHeader: true),
+                    ],
+                  ),
+                  // Data Rows
+                  for (var p in entry.value)
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(
+                        border: pw.Border(
+                          bottom: pw.BorderSide(
+                            color: PdfColors.grey200,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      children: [
+                        buildCell(p['name'] ?? '—'),
+                        buildCell(p['specs'] ?? p['description'] ?? '—'),
+                        buildCell('\$${p['price'] ?? 0}'),
+                      ],
+                    ),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+            ],
+
+            pw.SizedBox(height: 20),
+
+            // Services Section
+            pw.Header(
+              level: 0,
+              text: 'SERVICIOS TÉCNICOS',
+              textStyle: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.green800,
               ),
             ),
             pw.Table.fromTextArray(
               data: [
-                ['Producto', 'Descripción', 'Precio'],
-                for (var p in entry.value)
+                ['Servicio', 'Descripción', 'Precio Base'],
+                for (var doc in servicesDocs.docs)
                   [
-                    p['name'] ?? '—',
-                    p['specs'] ?? p['description'] ?? '—',
-                    '\$${p['price'] ?? 0}',
+                    doc.data()['title'] ?? '—',
+                    doc.data()['description'] ?? '—',
+                    '\$${doc.data()['price'] ?? 0}',
                   ],
               ],
               border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey400),
@@ -1018,7 +1100,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 color: PdfColors.white,
               ),
               headerDecoration: const pw.BoxDecoration(
-                color: PdfColors.blue700,
+                color: PdfColors.green700,
               ),
               cellAlignment: pw.Alignment.centerLeft,
               columnWidths: {
@@ -1027,63 +1109,33 @@ class _ReportsPageState extends State<ReportsPage> {
                 2: const pw.FlexColumnWidth(2),
               },
             ),
-            pw.SizedBox(height: 15),
-          ],
 
-          pw.SizedBox(height: 20),
-
-          // Services Section
-          pw.Header(
-            level: 0,
-            text: 'SERVICIOS TÉCNICOS',
-            textStyle: pw.TextStyle(
-              fontSize: 18,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.green800,
-            ),
-          ),
-          pw.Table.fromTextArray(
-            data: [
-              ['Servicio', 'Descripción', 'Precio Base'],
-              for (var doc in servicesDocs.docs)
-                [
-                  (doc.data())['title'] ?? '—',
-                  (doc.data())['description'] ?? '—',
-                  '\$${(doc.data())['price'] ?? 0}',
-                ],
-            ],
-            border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey400),
-            headerStyle: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
-            ),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.green700),
-            cellAlignment: pw.Alignment.centerLeft,
-            columnWidths: {
-              0: const pw.FlexColumnWidth(3),
-              1: const pw.FlexColumnWidth(5),
-              2: const pw.FlexColumnWidth(2),
-            },
-          ),
-
-          pw.SizedBox(height: 40),
-          pw.Divider(color: PdfColors.grey400),
-          pw.Container(
-            alignment: pw.Alignment.center,
-            child: pw.Text(
-              'TODOS NUESTROS PRECIOS INCLUYEN IMPUESTOS',
-              style: pw.TextStyle(
-                fontSize: 12,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColors.grey800,
+            pw.SizedBox(height: 40),
+            pw.Divider(color: PdfColors.grey400),
+            pw.Container(
+              alignment: pw.Alignment.center,
+              child: pw.Text(
+                'TODOS NUESTROS PRECIOS INCLUYEN IMPUESTOS',
+                style: pw.TextStyle(
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey800,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
 
-    await Printing.layoutPdf(onLayout: (format) => pdf.save());
+      await Printing.layoutPdf(onLayout: (format) => pdf.save());
+    } catch (e) {
+      debugPrint('Error generating catalog: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Error al generar catálogo: $e')),
+        );
+      }
+    }
   }
 
   pw.Widget _buildPDFFooter(ConfigModel config) {

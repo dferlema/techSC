@@ -1635,7 +1635,8 @@ class _OrderCardState extends State<OrderCard> {
                 ),
                 // Metodo de pago opciones
                 DropdownButtonFormField<String>(
-                  value: _paymentMethod, // Corregido: initialValue -> value
+                  initialValue:
+                      _paymentMethod, // Corregido: initialValue -> value
                   decoration: InputDecoration(
                     labelText: 'Método de Pago',
                     isDense: true,

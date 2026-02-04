@@ -224,6 +224,12 @@ class WhatsAppShareHelper {
       message += '📝 Descripción:\n$description\n\n';
     }
 
+    // Add deep link for "Ver más"
+    if (serviceData['id'] != null) {
+      message += '🔗 *Ver más en la app:* \n';
+      message += 'techsc://service?id=${serviceData['id']}\n\n';
+    }
+
     message += '---\n';
     message += '📱 Compartido desde ${BrandingHelper.appName}';
 
@@ -307,5 +313,52 @@ class WhatsAppShareHelper {
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  /// Sends an order message to a supplier via WhatsApp
+  static Future<void> sendSupplierOrder({
+    required Map<String, dynamic> productData,
+    required String supplierPhone,
+    required String supplierContactName,
+    required BuildContext context,
+  }) async {
+    // Limpiar el número de teléfono
+    String cleanPhone = supplierPhone.replaceAll(RegExp(r'\D'), '');
+    if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
+      cleanPhone = '593${cleanPhone.substring(1)}';
+    } else if (cleanPhone.length == 9) {
+      cleanPhone = '593$cleanPhone';
+    }
+
+    // Extraer solo el primer nombre del contacto
+    final String firstName = supplierContactName.split(' ').first;
+
+    // Obtener nombre del producto
+    final String productName = productData['name'] ?? 'Producto';
+
+    // Generar mensaje con el formato solicitado
+    // "Buen día [Nombre], le escribo de [Nombre de la empresa]. Quisiera realizar un pedido de: [Producto]. Por favor, ¿me confirma disponibilidad y precio?"
+    final String message =
+        'Buen día $firstName, le escribo de ${BrandingHelper.appName}. '
+        'Quisiera realizar un pedido de: *$productName*. '
+        'Por favor, ¿me confirma disponibilidad y precio?';
+
+    final String encodedMessage = Uri.encodeComponent(message);
+    final Uri whatsappUrl = Uri.parse(
+      'https://wa.me/$cleanPhone?text=$encodedMessage',
+    );
+
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'No se pudo abrir WhatsApp para $cleanPhone';
+      }
+    } catch (e) {
+      debugPrint('Error launching supplier order: $e');
+      if (context.mounted) {
+        _showErrorSnackBar(context, 'Error al contactar proveedor: $e');
+      }
+    }
   }
 }

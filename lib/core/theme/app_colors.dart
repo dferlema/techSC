@@ -79,14 +79,18 @@ class AppColors {
 
   /// Actualiza los colores desde un mapa y notifica a los listeners.
   static void updateColors(Map<String, int> colors) {
-    if (colors.containsKey('primaryBlue'))
+    if (colors.containsKey('primaryBlue')) {
       primaryBlue = Color(colors['primaryBlue']!);
-    if (colors.containsKey('primaryDark'))
+    }
+    if (colors.containsKey('primaryDark')) {
       primaryDark = Color(colors['primaryDark']!);
-    if (colors.containsKey('accentOrange'))
+    }
+    if (colors.containsKey('accentOrange')) {
       accentOrange = Color(colors['accentOrange']!);
-    if (colors.containsKey('backgroundGray'))
+    }
+    if (colors.containsKey('backgroundGray')) {
       backgroundGray = Color(colors['backgroundGray']!);
+    }
 
     if (colors.containsKey('white')) white = Color(colors['white']!);
     if (colors.containsKey('black')) black = Color(colors['black']!);
@@ -94,21 +98,27 @@ class AppColors {
     if (colors.containsKey('success')) success = Color(colors['success']!);
     if (colors.containsKey('warning')) warning = Color(colors['warning']!);
 
-    if (colors.containsKey('textPrimary'))
+    if (colors.containsKey('textPrimary')) {
       textPrimary = Color(colors['textPrimary']!);
-    if (colors.containsKey('textSecondary'))
+    }
+    if (colors.containsKey('textSecondary')) {
       textSecondary = Color(colors['textSecondary']!);
+    }
 
     if (colors.containsKey('divider')) divider = Color(colors['divider']!);
 
-    if (colors.containsKey('roleAdmin'))
+    if (colors.containsKey('roleAdmin')) {
       roleAdmin = Color(colors['roleAdmin']!);
-    if (colors.containsKey('roleSeller'))
+    }
+    if (colors.containsKey('roleSeller')) {
       roleSeller = Color(colors['roleSeller']!);
-    if (colors.containsKey('roleTechnician'))
+    }
+    if (colors.containsKey('roleTechnician')) {
       roleTechnician = Color(colors['roleTechnician']!);
-    if (colors.containsKey('roleClient'))
+    }
+    if (colors.containsKey('roleClient')) {
       roleClient = Color(colors['roleClient']!);
+    }
 
     // Notificar cambios incrementando el valor
     notifier.value++;
