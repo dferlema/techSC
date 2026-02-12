@@ -164,7 +164,7 @@ class ClientOrderCard extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => onPay(paymentLink!),
+                        onPressed: () => onPay(paymentLink),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
                           foregroundColor: Colors.white,

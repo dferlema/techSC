@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
+import 'package:techsc/core/widgets/cart_badge.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/features/cart/screens/cart_page.dart';
 import 'package:techsc/features/catalog/screens/product_detail_page.dart';
 
-class ProductsPage extends StatefulWidget {
+class ProductsPage extends ConsumerStatefulWidget {
   final String routeName;
   const ProductsPage({super.key, this.routeName = '/products'});
 
   @override
-  State<ProductsPage> createState() => _ProductsPageState();
+  ConsumerState<ProductsPage> createState() => _ProductsPageState();
 }
 
-class _ProductsPageState extends State<ProductsPage> {
+class _ProductsPageState extends ConsumerState<ProductsPage> {
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -35,7 +35,7 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   void _addToCart(Map<String, dynamic> product) {
-    CartService.instance.addToCart(product);
+    ref.read(cartServiceProvider).addToCart(product);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('✅ ${product['name']} agregado al carrito'),
@@ -53,8 +53,12 @@ class _ProductsPageState extends State<ProductsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final categoriesAsync = ref
+        .watch(categoryServiceProvider)
+        .getCategories(CategoryType.product);
+
     return StreamBuilder<List<CategoryModel>>(
-      stream: CategoryService().getCategories(CategoryType.product),
+      stream: categoriesAsync,
       builder: (context, snapshot) {
         final categories = snapshot.data ?? [];
         if (_selectedCategoryId == null && categories.isNotEmpty) {
@@ -106,7 +110,7 @@ class _ProductsPageState extends State<ProductsPage> {
                   });
                 },
               ),
-              _buildCartButton(),
+              const CartBadge(),
               const SizedBox(width: 8),
             ],
             bottom: categories.isEmpty
@@ -186,51 +190,6 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
 
-  Widget _buildCartButton() {
-    return AnimatedBuilder(
-      animation: CartService.instance,
-      builder: (context, child) {
-        final count = CartService.instance.itemCount;
-        return Stack(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.shopping_cart, color: Colors.white),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CartPage()),
-              ),
-            ),
-            if (count > 0)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    '$count',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildEmptyState(bool isLoading) {
     if (isLoading) return const Center(child: CircularProgressIndicator());
     return const Center(
@@ -250,21 +209,22 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   Widget _buildProductList(String categoryId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+    final productsStream = ref
+        .watch(productServiceProvider)
+        .getProducts(categoryId);
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: productsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        final filteredProducts = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          bool matchesCategory = data['categoryId'] == categoryId;
-          if (!matchesCategory) return false;
-
-          final name = data['name']?.toString().toLowerCase() ?? '';
-          final desc = data['description']?.toString().toLowerCase() ?? '';
+        final products = snapshot.data ?? [];
+        final filteredProducts = products.where((product) {
+          final name = product['name']?.toString().toLowerCase() ?? '';
+          final desc = product['description']?.toString().toLowerCase() ?? '';
           final query = _searchQuery.toLowerCase();
           return name.contains(query) || desc.contains(query);
         }).toList();
@@ -299,9 +259,8 @@ class _ProductsPageState extends State<ProductsPage> {
           padding: const EdgeInsets.symmetric(vertical: 12),
           itemCount: filteredProducts.length,
           itemBuilder: (context, index) {
-            final doc = filteredProducts[index];
-            final data = doc.data() as Map<String, dynamic>;
-            return _buildProductCard({...data, 'id': doc.id});
+            final product = filteredProducts[index];
+            return _buildProductCard(product);
           },
         );
       },

@@ -8,11 +8,7 @@ import 'package:techsc/core/services/notification_service.dart';
 /// Service to manage the shopping cart state and order creation.
 /// Uses the [ChangeNotifier] pattern for reactive UI updates.
 class CartService extends ChangeNotifier {
-  // Singleton pattern
-  static final CartService _instance = CartService._internal();
-  static CartService get instance => _instance;
-
-  CartService._internal();
+  CartService();
 
   final List<CartItem> _items = [];
 

@@ -16,14 +16,26 @@ class CategoryModel {
   });
 
   factory CategoryModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return CategoryModel.fromFirestoreMap(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
+    );
+  }
+
+  factory CategoryModel.fromFirestoreMap(Map<String, dynamic> data, String id) {
     return CategoryModel(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? '',
       type: data['type'] == 'product'
           ? CategoryType.product
           : CategoryType.service,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
+          : (data['createdAt'] is String
+                ? DateTime.tryParse(data['createdAt'])
+                : (data['createdAt'] is int
+                      ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'])
+                      : null)),
     );
   }
 
@@ -31,7 +43,9 @@ class CategoryModel {
     return {
       'name': name,
       'type': type == CategoryType.product ? 'product' : 'service',
-      'createdAt': createdAt ?? FieldValue.serverTimestamp(),
+      'createdAt':
+          createdAt?.millisecondsSinceEpoch ??
+          DateTime.now().millisecondsSinceEpoch,
     };
   }
 }

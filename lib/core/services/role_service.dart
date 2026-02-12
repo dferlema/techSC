@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:techsc/core/services/cache_service.dart';
 
 /// Servicio centralizado para gestión de roles y permisos de usuarios
 class RoleService {
@@ -10,30 +11,59 @@ class RoleService {
   static const String TECHNICIAN = 'tecnico';
   static const String CLIENT = 'cliente';
 
-  static final RoleService _instance = RoleService._internal();
-  factory RoleService() => _instance;
-  RoleService._internal();
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CacheService? _cache;
+
+  static final RoleService _instance = RoleService._internal();
+  factory RoleService({CacheService? cache}) {
+    if (cache != null && _instance._cache == null) {
+      return RoleService._withCache(cache);
+    }
+    return _instance;
+  }
+
+  RoleService._internal() : _cache = null;
+  RoleService._withCache(CacheService cache) : _cache = cache;
 
   Future<String> getUserRole(String uid) async {
+    // 1. Try cache first
+    if (_cache != null) {
+      final cached = _cache.getCachedProfile(uid);
+      if (cached != null && cached['role'] != null) {
+        return cached['role'] as String;
+      }
+    }
+
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists && doc.data()?['role'] != null) {
         String role = (doc.data()!['role'] as String).toLowerCase().trim();
 
         // Normalización para compatibilidad
-        if (role == 'admin') return ADMIN;
-        if (role == 'administrador') return ADMIN;
-        if (role == 'seller') return SELLER;
-        if (role == 'vendedor') return SELLER;
-        if (role == 'technician') return TECHNICIAN;
-        if (role == 'tecnico') return TECHNICIAN;
-        if (role == 'client') return CLIENT;
-        if (role == 'cliente') return CLIENT;
+        if (role == 'admin') {
+          role = ADMIN;
+        } else if (role == 'administrador')
+          role = ADMIN;
+        else if (role == 'seller')
+          role = SELLER;
+        else if (role == 'vendedor')
+          role = SELLER;
+        else if (role == 'technician')
+          role = TECHNICIAN;
+        else if (role == 'tecnico')
+          role = TECHNICIAN;
+        else if (role == 'client')
+          role = CLIENT;
+        else if (role == 'cliente')
+          role = CLIENT;
 
-        return role; // Si es un rol desconocido, devolver tal cual
+        // 2. Save to cache
+        if (_cache != null) {
+          await _cache.cacheUserProfile(uid, {'role': role});
+        }
+
+        return role;
       }
       return CLIENT; // Default
     } on FirebaseException catch (e) {

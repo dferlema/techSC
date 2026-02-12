@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
@@ -9,7 +10,7 @@ import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
 import 'package:techsc/features/catalog/services/supplier_service.dart';
 import 'package:techsc/features/catalog/models/supplier_model.dart';
 
-class ProductDetailPage extends StatefulWidget {
+class ProductDetailPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> product;
   final String productId;
 
@@ -20,14 +21,13 @@ class ProductDetailPage extends StatefulWidget {
   });
 
   @override
-  State<ProductDetailPage> createState() => _ProductDetailPageState();
+  ConsumerState<ProductDetailPage> createState() => _ProductDetailPageState();
 }
 
-class _ProductDetailPageState extends State<ProductDetailPage> {
+class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   double _currentRating = 0;
   bool _isRating = false;
   bool _isAdded = false; // State for the add-to-cart animation
-  String _userRole = RoleService.CLIENT; // Track user role
   SupplierModel? _supplier; // Store supplier details
 
   @override
@@ -36,20 +36,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _currentRating = (widget.product['rating'] is int)
         ? (widget.product['rating'] as int).toDouble()
         : (widget.product['rating'] as double? ?? 4.5);
-    _loadUserRole();
-  }
-
-  /// Load the current user's role
-  Future<void> _loadUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final role = await RoleService().getUserRole(user.uid);
-      if (mounted) {
-        setState(() {
-          _userRole = role;
-        });
-      }
-    }
   }
 
   Future<void> _loadSupplierDetails() async {
@@ -68,7 +54,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     if (_isAdded) return; // Prevent double clicks during animation
 
     final productToAdd = {...widget.product, 'id': widget.productId};
-    CartService.instance.addToCart(productToAdd);
+    ref.read(cartServiceProvider).addToCart(productToAdd);
 
     // Trigger animation state
     setState(() {
@@ -95,8 +81,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           .collection('products')
           .doc(widget.productId)
           .update({'rating': rating});
-
-      // Optional: Small tactile feedback or toast could go here, but avoiding SnackBar for now
     } catch (e) {
       debugPrint('Error submit rating: $e');
     } finally {
@@ -174,7 +158,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  /// Show popup dialog with supplier product link and web preview
   void _showSupplierLinkDialog() {
     final supplierLink = widget.product['supplierProductLink'] as String?;
     final supplierName = widget.product['supplierName'] as String?;
@@ -190,17 +173,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  /// Build supplier link section (visible only to admin, seller, technician)
-  Widget? _buildSupplierLinkSection() {
-    // Check if user has permission
+  Widget? _buildSupplierLinkSection(String userRole) {
     final hasPermission =
-        _userRole == RoleService.ADMIN ||
-        _userRole == RoleService.SELLER ||
-        _userRole == RoleService.TECHNICIAN;
+        userRole == RoleService.ADMIN ||
+        userRole == RoleService.SELLER ||
+        userRole == RoleService.TECHNICIAN;
 
     if (!hasPermission) return null;
 
-    // Load supplier details if not loaded and has permission
     if (_supplier == null && widget.product['supplierId'] != null) {
       _loadSupplierDetails();
     }
@@ -208,7 +188,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     final supplierLink = widget.product['supplierProductLink'] as String?;
     final supplierName = widget.product['supplierName'] as String?;
 
-    // Don't show if no link
     if (supplierLink == null || supplierLink.isEmpty) return null;
 
     return Container(
@@ -312,9 +291,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
+    final user = FirebaseAuth.instance.currentUser;
+    final roleAsync = user != null
+        ? ref.watch(userRoleProvider(user.uid))
+        : const AsyncValue.data(RoleService.CLIENT);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Clean off-white
+      backgroundColor: const Color(0xFFF8F9FA),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -486,9 +469,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     widget.product['name'] ?? 'Producto',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: const Color(
-                        0xFF111111,
-                      ), // Almost black for better contrast
+                      color: const Color(0xFF111111),
                       height: 1.3,
                       fontSize: 24,
                     ),
@@ -539,7 +520,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     style: const TextStyle(
                       fontSize: 17,
                       height: 1.6,
-                      color: Color(0xFF444444), // Darker grey for body text
+                      color: Color(0xFF444444),
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -549,9 +530,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(
-                          0xFFF3F4F6,
-                        ), // Slightly darker background
+                        color: const Color(0xFFF3F4F6),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFE5E7EB)),
                       ),
@@ -571,9 +550,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             widget.product['specs'].toString(),
                             style: const TextStyle(
                               fontSize: 16,
-                              color: Color(
-                                0xFF4B5563,
-                              ), // Darker grey for better contrast
+                              color: Color(0xFF4B5563),
                               height: 1.6,
                               letterSpacing: 0.2,
                             ),
@@ -584,12 +561,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     const SizedBox(height: 32),
                   ],
                   // Supplier link section (role-based)
-                  if (_buildSupplierLinkSection() != null) ...[
-                    _buildSupplierLinkSection()!,
-                    const SizedBox(height: 100), // Bottom padding
-                  ] else ...[
-                    const SizedBox(height: 100), // Bottom padding
-                  ],
+                  roleAsync.when(
+                    data: (role) {
+                      final supplierSection = _buildSupplierLinkSection(role);
+                      return supplierSection ?? const SizedBox.shrink();
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -611,7 +592,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         child: SafeArea(
           child: SizedBox(
             width: double.infinity,
-            height: 56, // Fixed height for button
+            height: 56,
             child: ElevatedButton(
               onPressed: _addToCart,
               style: ElevatedButton.styleFrom(

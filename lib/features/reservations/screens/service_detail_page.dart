@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
 
-class ServiceDetailPage extends StatefulWidget {
+class ServiceDetailPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> service;
   final String serviceId;
 
@@ -15,10 +16,10 @@ class ServiceDetailPage extends StatefulWidget {
   });
 
   @override
-  State<ServiceDetailPage> createState() => _ServiceDetailPageState();
+  ConsumerState<ServiceDetailPage> createState() => _ServiceDetailPageState();
 }
 
-class _ServiceDetailPageState extends State<ServiceDetailPage> {
+class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
   double _currentRating = 0;
   bool _isRating = false;
   bool _isAdded = false; // Add state for animation
@@ -56,7 +57,7 @@ class _ServiceDetailPageState extends State<ServiceDetailPage> {
   void _addToCart() async {
     if (_isAdded) return;
 
-    CartService.instance.addToCart(widget.service, type: 'service');
+    ref.read(cartServiceProvider).addToCart(widget.service, type: 'service');
 
     setState(() {
       _isAdded = true;

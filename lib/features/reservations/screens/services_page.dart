@@ -1,35 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/features/reservations/screens/service_detail_page.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
 import 'package:techsc/features/catalog/models/category_model.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
 import 'package:techsc/features/cart/screens/cart_page.dart';
 
-class ServicesPage extends StatefulWidget {
+class ServicesPage extends ConsumerStatefulWidget {
   final String routeName;
   const ServicesPage({super.key, this.routeName = '/services'});
 
   @override
-  State<ServicesPage> createState() => _ServicesPageState();
+  ConsumerState<ServicesPage> createState() => _ServicesPageState();
 }
 
-class _ServicesPageState extends State<ServicesPage> {
+class _ServicesPageState extends ConsumerState<ServicesPage> {
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCategoryId; // null para 'Todos'
   late PageController _pageController;
 
-  bool _canManage = false;
-
   @override
   void initState() {
     super.initState();
-    _checkUserRole();
     _pageController = PageController();
   }
 
@@ -38,19 +35,6 @@ class _ServicesPageState extends State<ServicesPage> {
     _searchController.dispose();
     _pageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final role = await RoleService().getUserRole(user.uid);
-      if (mounted) {
-        setState(
-          () => _canManage =
-              (role == RoleService.ADMIN || role == RoleService.TECHNICIAN),
-        );
-      }
-    }
   }
 
   Future<void> _deleteService(String serviceId) async {
@@ -65,7 +49,7 @@ class _ServicesPageState extends State<ServicesPage> {
   }
 
   void _addToCart(Map<String, dynamic> service) {
-    CartService.instance.addToCart(service, type: 'service');
+    ref.read(cartServiceProvider).addToCart(service, type: 'service');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('✅ ${service['title']} agregado al carrito'),
@@ -81,18 +65,20 @@ class _ServicesPageState extends State<ServicesPage> {
     );
   }
 
-  Widget _buildServiceList(String? categoryId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('services').snapshots(),
+  Widget _buildServiceList(String? categoryId, bool canManage) {
+    final servicesStream = ref
+        .watch(serviceServiceProvider)
+        .getServices(categoryId);
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: servicesStream,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData &&
+            snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final allServices = snapshot.data!.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {...data, 'id': doc.id};
-        }).toList();
+        final allServices = snapshot.data ?? [];
 
         // 1. Filtrar por categoryId (si no es null/Todos)
         var filtered = categoryId == null || categoryId.isEmpty
@@ -140,6 +126,7 @@ class _ServicesPageState extends State<ServicesPage> {
             return _buildServiceCard(
               service: service,
               serviceId: service['id'],
+              canManage: canManage,
             );
           },
         );
@@ -149,8 +136,17 @@ class _ServicesPageState extends State<ServicesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final roleAsync = user != null
+        ? ref.watch(userRoleProvider(user.uid))
+        : const AsyncValue.data(RoleService.CLIENT);
+
+    final categoriesAsync = ref
+        .watch(categoryServiceProvider)
+        .getCategories(CategoryType.service);
+
     return StreamBuilder<List<CategoryModel>>(
-      stream: CategoryService().getCategories(CategoryType.service),
+      stream: categoriesAsync,
       builder: (context, snapshot) {
         final categories = snapshot.data ?? [];
         // Preparar lista con "Todos" al inicio
@@ -279,15 +275,26 @@ class _ServicesPageState extends State<ServicesPage> {
               ),
             ),
           ),
-          body: PageView.builder(
-            controller: _pageController,
-            itemCount: fullCategories.length,
-            onPageChanged: (index) {
-              setState(() => _selectedCategoryId = fullCategories[index].id);
+          body: roleAsync.when(
+            data: (role) {
+              final canManage =
+                  (role == RoleService.ADMIN || role == RoleService.TECHNICIAN);
+              return PageView.builder(
+                controller: _pageController,
+                itemCount: fullCategories.length,
+                onPageChanged: (index) {
+                  setState(
+                    () => _selectedCategoryId = fullCategories[index].id,
+                  );
+                },
+                itemBuilder: (context, index) {
+                  return _buildServiceList(fullCategories[index].id, canManage);
+                },
+              );
             },
-            itemBuilder: (context, index) {
-              return _buildServiceList(fullCategories[index].id);
-            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) =>
+                const Center(child: Text('Error al cargar servicios')),
           ),
         );
       },
@@ -297,6 +304,7 @@ class _ServicesPageState extends State<ServicesPage> {
   Widget _buildServiceCard({
     required Map<String, dynamic> service,
     String? serviceId,
+    required bool canManage,
   }) {
     final theme = Theme.of(context);
     final price = service['price'] ?? 0;
@@ -426,7 +434,7 @@ class _ServicesPageState extends State<ServicesPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '\$${price.toStringAsFixed(2)}',
+                                '\$${price is num ? price.toStringAsFixed(2) : '0.00'}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 22,
@@ -435,7 +443,7 @@ class _ServicesPageState extends State<ServicesPage> {
                               ),
                             ],
                           ),
-                          if (!_canManage)
+                          if (!canManage)
                             Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
