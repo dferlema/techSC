@@ -14,18 +14,23 @@ import 'package:techsc/core/widgets/notification_icon.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/core/utils/branding_helper.dart';
 
+import 'package:techsc/l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 /// Pantalla para reservar servicio técnico.
 /// Permite al usuario llenar un formulario con sus datos y detalles del problema.
 /// Genera un PDF de confirmación al guardar.
-class ServiceReservationPage extends StatefulWidget {
+class ServiceReservationPage extends ConsumerStatefulWidget {
   final bool isManualRegistration;
   const ServiceReservationPage({super.key, this.isManualRegistration = false});
 
   @override
-  State<ServiceReservationPage> createState() => _ServiceReservationPageState();
+  ConsumerState<ServiceReservationPage> createState() =>
+      _ServiceReservationPageState();
 }
 
-class _ServiceReservationPageState extends State<ServiceReservationPage> {
+class _ServiceReservationPageState
+    extends ConsumerState<ServiceReservationPage> {
   // Clave global para validar el formulario
   final _formKey = GlobalKey<FormState>();
 
@@ -132,8 +137,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             SnackBar(
               content: Text(
                 filledFields > 0
-                    ? '✅ Se autocompletaron $filledFields campos de tu perfil'
-                    : '⚠️ Tu perfil está incompleto. Completa tus datos para autocompletar.',
+                    ? AppLocalizations.of(
+                        context,
+                      )!.autocompleteSuccess(filledFields)
+                    : AppLocalizations.of(context)!.incompleteProfileWarning,
               ),
               duration: const Duration(seconds: 3),
               backgroundColor: filledFields > 0 ? Colors.green : Colors.orange,
@@ -150,11 +157,11 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                '⚠️ Perfil no encontrado. Por favor completa tus datos.',
+                AppLocalizations.of(context)!.profileNotFoundWarning,
               ),
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
               backgroundColor: Colors.orange,
             ),
           );
@@ -174,8 +181,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Error cargando perfil: ${e.toString()}'),
-            duration: Duration(seconds: 3),
+            content: Text(
+              AppLocalizations.of(context)!.errorLoadingProfile(e.toString()),
+            ),
+            duration: const Duration(seconds: 3),
             backgroundColor: Colors.red,
           ),
         );
@@ -249,7 +258,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       );
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('📍 Ubicación obtenida correctamente')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.locationSuccess)),
     );
   }
 
@@ -257,10 +266,11 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
   /// Retorna los bytes del PDF generado.
   Future<Uint8List> _generatePDF(Map<String, dynamic> data) async {
     final pdf = pw.Document();
+    final l10n = AppLocalizations.of(context)!;
 
     pdf.addPage(
       pw.Page(
-        build: (pw.Context context) {
+        build: (pw.Context pdfContext) {
           return pw.Column(
             children: [
               // Encabezado
@@ -276,7 +286,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               pw.SizedBox(height: 10),
               pw.Center(
                 child: pw.Text(
-                  'Confirmación de Reserva',
+                  'Confirmación de Reserva', // TODO: Localize this if needed
                   style: pw.TextStyle(fontSize: 18),
                 ),
               ),
@@ -285,25 +295,43 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               pw.SizedBox(height: 10),
 
               // Detalles de la reserva
-              _buildPdfRow('Cliente', data['clientName']),
-              _buildPdfRow('Cédula', data['clientId']),
-              _buildPdfRow('Correo', data['clientEmail']),
-              _buildPdfRow('Teléfono', data['clientPhone']),
-              _buildPdfRow('Dispositivo', data['device']),
-              _buildPdfRow('Servicio', data['serviceType']),
               _buildPdfRow(
-                'Fecha',
+                l10n.fullNameLabelRequired.replaceAll(' *', ''),
+                data['clientName'],
+              ),
+              _buildPdfRow(
+                l10n.idLabelRequired.replaceAll(' *', ''),
+                data['clientId'],
+              ),
+              _buildPdfRow(
+                l10n.emailLabelRequired.replaceAll(' *', ''),
+                data['clientEmail'],
+              ),
+              _buildPdfRow(
+                l10n.phoneLabelRequired.replaceAll(' *', ''),
+                data['clientPhone'],
+              ),
+              _buildPdfRow(
+                l10n.deviceModelLabelRequired.replaceAll(' *', ''),
+                data['device'],
+              ),
+              _buildPdfRow(
+                l10n.serviceTypeLabelRequired.replaceAll(' *', ''),
+                data['serviceType'],
+              ),
+              _buildPdfRow(
+                l10n.date,
                 data['scheduledDate'] != null
                     ? DateFormat('dd/MM/yyyy').format(data['scheduledDate'])
                     : '—',
               ),
-              _buildPdfRow('Hora', data['scheduledTime'] ?? '—'),
-              _buildPdfRow('Dirección', data['address']),
+              _buildPdfRow(l10n.time, data['scheduledTime'] ?? '—'),
+              _buildPdfRow(l10n.address, data['address']),
 
               // Coordenadas si existen
               if (data['location'] != null)
                 _buildPdfRow(
-                  'Ubicación',
+                  l10n.location,
                   '${data['location']['lat'].toStringAsFixed(6)}, ${data['location']['lng'].toStringAsFixed(6)}',
                 ),
 
@@ -311,7 +339,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
               // Descripción del problema
               pw.Text(
-                'Descripción del Problema:',
+                '${l10n.problemDescription}:',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
               pw.Padding(
@@ -326,14 +354,14 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               // Pie de página
               pw.Center(
                 child: pw.Text(
-                  '¡Gracias por confiar en ${BrandingHelper.appName}!',
+                  l10n.thanksForTrusting(BrandingHelper.appName),
                   style: pw.TextStyle(color: PdfColors.blue),
                 ),
               ),
               pw.SizedBox(height: 5),
               pw.Center(
                 child: pw.Text(
-                  'Presente este comprobante al momento de la cita.',
+                  l10n.bringAccessoriesInfo,
                   style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey,
@@ -386,15 +414,15 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
 
     // 2. Validar campos personalizados (Fecha/Hora)
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Selecciona una fecha')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.selectDatePrompt)),
+      );
       return;
     }
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Selecciona una hora')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.selectTimePrompt)),
+      );
       return;
     }
 
@@ -467,8 +495,11 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('✅ Reserva creada con éxito'),
-            action: SnackBarAction(label: 'Listo', onPressed: () {}),
+            content: Text(AppLocalizations.of(context)!.reservationSuccess),
+            action: SnackBarAction(
+              label: AppLocalizations.of(context)!.doneButton,
+              onPressed: () {},
+            ),
           ),
         );
 
@@ -483,7 +514,11 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
       if (mounted) {
         Navigator.pop(context); // Cerrar loading
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Error al guardar: ${e.toString()}')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.errorSaving(e.toString()),
+            ),
+          ),
         );
       }
     }
@@ -582,17 +617,17 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Servicio Técnico',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.technicalServiceTitle,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 2),
             Text(
               widget.isManualRegistration
-                  ? 'Registro de Trabajo (Taller)'
+                  ? AppLocalizations.of(context)!.workshopRegistration
                   : (_isReservationStarted
-                        ? 'Completa los detalles de tu requerimiento'
-                        : 'Agenda tu cita con profesionales'),
+                        ? AppLocalizations.of(context)!.completeRequestDetails
+                        : AppLocalizations.of(context)!.scheduleWithPros),
               style: const TextStyle(fontSize: 13, color: Colors.white70),
             ),
           ],
@@ -601,9 +636,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
           if (_isReservationStarted)
             TextButton(
               onPressed: _cancelReservation,
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                AppLocalizations.of(context)!.cancelButton,
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           const NotificationIcon(),
@@ -644,10 +679,10 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
             ),
             const SizedBox(height: 32),
-            const Text(
-              '¿Necesitas ayuda técnica?',
+            Text(
+              AppLocalizations.of(context)!.needTechnicalHelp,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -656,8 +691,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             const SizedBox(height: 16),
             Text(
               widget.isManualRegistration
-                  ? 'Registra un trabajo para un cliente que no está en la aplicación. Podrás dar seguimiento y generar comprobante.'
-                  : 'Agenda una revisión para tus equipos hoy mismo. Cargaremos tus datos guardados automáticamente para tu comodidad.',
+                  ? AppLocalizations.of(context)!.workshopWelcomeDesc
+                  : AppLocalizations.of(context)!.reservationWelcomeDesc,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
@@ -688,8 +723,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                   const SizedBox(width: 12),
                   Text(
                     widget.isManualRegistration
-                        ? 'REGISTRAR NUEVO TRABAJO'
-                        : 'COMENZAR NUEVA RESERVA',
+                        ? AppLocalizations.of(context)!.registerNewJob
+                        : AppLocalizations.of(context)!.startNewReservation,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -712,12 +747,14 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 child: Column(
                   children: [
                     _buildInfoItem(
-                      'Respaldo oficial ${BrandingHelper.appName}',
+                      AppLocalizations.of(
+                        context,
+                      )!.officialSupport(BrandingHelper.appName),
                     ),
                     _buildInfoItem(
-                      'Técnicos certificados con amplia experiencia',
+                      AppLocalizations.of(context)!.certifiedTechs,
                     ),
-                    _buildInfoItem('Garantía total en todos los repuestos'),
+                    _buildInfoItem(AppLocalizations.of(context)!.fullWarranty),
                   ],
                 ),
               ),
@@ -739,9 +776,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Sección 1: Información Personal ---
-            const Text(
-              'Información Personal',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.personalInfoSection,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
@@ -750,13 +787,15 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               controller: _nameController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.person),
-                labelText: 'Nombre Completo *',
+                labelText: AppLocalizations.of(context)!.fullNameLabelRequired,
                 hintText: 'Ej: Diego Lema',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (v) => v!.trim().isEmpty ? 'Obligatorio' : null,
+              validator: (v) => v!.trim().isEmpty
+                  ? AppLocalizations.of(context)!.requiredField
+                  : null,
             ),
             const SizedBox(height: 20),
 
@@ -765,14 +804,16 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               controller: _idController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.badge),
-                labelText: 'Cédula *',
+                labelText: AppLocalizations.of(context)!.idLabelRequired,
                 hintText: '17XXXXXXXX',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               keyboardType: TextInputType.number,
-              validator: (v) => v!.trim().length != 10 ? '10 dígitos' : null,
+              validator: (v) => v!.trim().length != 10
+                  ? AppLocalizations.of(context)!.tenDigits
+                  : null,
             ),
             const SizedBox(height: 20),
 
@@ -781,7 +822,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               controller: _emailController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.email),
-                labelText: 'Correo Electrónico *',
+                labelText: AppLocalizations.of(context)!.emailLabelRequired,
                 hintText: 'tu@email.com',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -790,7 +831,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               keyboardType: TextInputType.emailAddress,
               validator: (v) =>
                   !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v!)
-                  ? 'Correo inválido'
+                  ? AppLocalizations.of(context)!.invalidEmail
                   : null,
             ),
             const SizedBox(height: 20),
@@ -808,7 +849,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               ),
               keyboardType: TextInputType.phone,
               validator: (v) => v!.trim().length != 10 || !v.startsWith('09')
-                  ? 'Debe iniciar con 09 y tener 10 dígitos'
+                  ? AppLocalizations.of(context)!.phoneFormatError
                   : null,
             ),
             const SizedBox(height: 20),
@@ -817,9 +858,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             const SizedBox(height: 16),
 
             // --- Sección 2: Detalles del Equipo ---
-            const Text(
-              'Detalles del Equipo',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.deviceDetailsSection,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
@@ -828,13 +869,17 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               controller: _deviceController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.laptop),
-                labelText: 'Dispositivo / Modelo *',
+                labelText: AppLocalizations.of(
+                  context,
+                )!.deviceModelLabelRequired,
                 hintText: 'Ej: Laptop HP Pavilion 15',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (v) => v!.trim().isEmpty ? 'Obligatorio' : null,
+              validator: (v) => v!.trim().isEmpty
+                  ? AppLocalizations.of(context)!.requiredField
+                  : null,
             ),
             const SizedBox(height: 20),
 
@@ -843,21 +888,25 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               controller: _addressController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.location_on),
-                labelText: 'Dirección de Retiro *',
+                labelText: AppLocalizations.of(
+                  context,
+                )!.pickupAddressLabelRequired,
                 hintText: 'Calles principales y referencia',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               maxLines: 2,
-              validator: (v) => v!.trim().isEmpty ? 'Obligatorio' : null,
+              validator: (v) => v!.trim().isEmpty
+                  ? AppLocalizations.of(context)!.requiredField
+                  : null,
             ),
             const SizedBox(height: 20),
 
             // --- Sección 3: Servicio y Problema ---
-            const Text(
-              'Seleccionar Servicio',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.serviceProblemSection,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
@@ -865,7 +914,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             DropdownButtonFormField<String>(
               initialValue: _selectedService,
               decoration: InputDecoration(
-                labelText: 'Tipo de Servicio *',
+                labelText: AppLocalizations.of(
+                  context,
+                )!.serviceTypeLabelRequired,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -874,7 +925,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
               onChanged: (v) => setState(() => _selectedService = v),
-              validator: (v) => v == null ? 'Selecciona un servicio' : null,
+              validator: (v) => v == null
+                  ? AppLocalizations.of(context)!.selectDatePrompt
+                  : null, // Fix: use appropriate key
             ),
             const SizedBox(height: 20),
 
@@ -882,7 +935,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             TextFormField(
               controller: _problemController,
               decoration: InputDecoration(
-                labelText: 'Describe el Problema *',
+                labelText: AppLocalizations.of(
+                  context,
+                )!.describeProblemLabelRequired,
                 hintText: 'Ej: El equipo se calienta mucho y se apaga...',
                 alignLabelWithHint: true,
                 border: OutlineInputBorder(
@@ -890,8 +945,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 ),
               ),
               maxLines: 4,
-              validator: (v) =>
-                  v!.trim().isEmpty ? 'Describe el problema' : null,
+              validator: (v) => v!.trim().isEmpty
+                  ? AppLocalizations.of(context)!.describeProblemLabelRequired
+                  : null,
             ),
             const SizedBox(height: 20),
 
@@ -899,9 +955,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
             const SizedBox(height: 16),
 
             // --- Sección 4: Cita ---
-            const Text(
-              'Programar Cita',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.scheduleAppointmentSection,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
@@ -914,15 +970,18 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                     readOnly: true,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.calendar_today),
-                      labelText: 'Fecha *',
-                      hintText: 'Seleccionar',
+                      labelText: AppLocalizations.of(
+                        context,
+                      )!.dateLabelRequired,
+                      hintText: AppLocalizations.of(context)!.selectDatePrompt,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     onTap: () => _selectDate(context),
-                    validator: (v) =>
-                        _selectedDate == null ? 'Requerido' : null,
+                    validator: (v) => _selectedDate == null
+                        ? AppLocalizations.of(context)!.requiredField
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -933,15 +992,18 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                     readOnly: true,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.access_time),
-                      labelText: 'Hora *',
-                      hintText: 'Seleccionar',
+                      labelText: AppLocalizations.of(
+                        context,
+                      )!.timeLabelRequired,
+                      hintText: AppLocalizations.of(context)!.selectTimePrompt,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     onTap: () => _selectTime(context),
-                    validator: (v) =>
-                        _selectedTime == null ? 'Requerido' : null,
+                    validator: (v) => _selectedTime == null
+                        ? AppLocalizations.of(context)!.requiredField
+                        : null,
                   ),
                 ),
               ],
@@ -954,8 +1016,8 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
               icon: const Icon(Icons.gps_fixed),
               label: Text(
                 _selectedLocation != null
-                    ? 'Ubicación seleccionada'
-                    : 'Usar mi ubicación actual',
+                    ? AppLocalizations.of(context)!.locationSelected
+                    : AppLocalizations.of(context)!.useCurrentLocation,
                 style: TextStyle(
                   color: _selectedLocation != null ? Colors.green[800] : null,
                 ),
@@ -994,7 +1056,7 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Información Importante',
+                          AppLocalizations.of(context)!.importantInfoSection,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -1005,18 +1067,20 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                     ),
                     const SizedBox(height: 12),
                     _buildInfoItem(
-                      '• Te contactaremos para confirmar tu cita en las próximas 2 horas',
+                      AppLocalizations.of(context)!.contactConfirmationInfo,
                     ),
                     const SizedBox(height: 8),
                     _buildInfoItem(
-                      '• Si necesitas cancelar, hazlo con al menos 24 horas de anticipación',
+                      AppLocalizations.of(context)!.cancelNoticeInfo,
                     ),
                     const SizedBox(height: 8),
                     _buildInfoItem(
-                      '• Trae tu dispositivo con el cargador y accesorios necesarios',
+                      AppLocalizations.of(context)!.bringAccessoriesInfo,
                     ),
                     const SizedBox(height: 8),
-                    _buildInfoItem('• El diagnóstico inicial es gratuito'),
+                    _buildInfoItem(
+                      AppLocalizations.of(context)!.freeDiagnosticInfo,
+                    ),
                   ],
                 ),
               ),
@@ -1037,9 +1101,9 @@ class _ServiceReservationPageState extends State<ServiceReservationPage> {
                 shadowColor: Colors.blueAccent.withOpacity(0.4),
                 minimumSize: const Size(double.infinity, 55),
               ),
-              child: const Text(
-                'CONFIRMAR RESERVA',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.of(context)!.confirmReservationButton,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1,

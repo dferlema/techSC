@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:techsc/core/models/config_model.dart';
 import 'package:techsc/core/services/config_service.dart';
 import 'package:techsc/features/auth/services/auth_service.dart';
 import 'package:techsc/core/services/role_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
+import 'package:techsc/features/admin/providers/admin_providers.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   int _currentIndex = 0;
   final ConfigService _configService = ConfigService();
   final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  // Company Info Controllers
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
@@ -28,8 +28,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _isLoading = false;
   bool _isBiometricEnabled = false;
-  bool _isAdmin = false;
-  bool _checkingRole = true;
 
   @override
   void initState() {
@@ -38,67 +36,51 @@ class _SettingsPageState extends State<SettingsPage> {
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
-    _loadCurrentConfig();
-    _loadBiometricStatus();
-    _checkRole();
+    _loadInitialData();
   }
 
-  Future<void> _checkRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final role = await RoleService().getUserRole(user.uid);
-      if (mounted) {
-        setState(() {
-          _isAdmin = role == RoleService.ADMIN;
-          _checkingRole = false;
-        });
-      }
-    } else {
-      if (mounted) setState(() => _checkingRole = false);
+  Future<void> _loadInitialData() async {
+    final config = await _configService.getConfig();
+    _nameController.text = config.companyName;
+    _emailController.text = config.companyEmail;
+    _phoneController.text = config.companyPhone;
+    _addressController.text = config.companyAddress;
+
+    final biometricEnabled = await _authService.isBiometricAuthEnabled();
+    if (mounted) {
+      setState(() {
+        _isBiometricEnabled = biometricEnabled;
+      });
     }
   }
 
-  Future<void> _loadBiometricStatus() async {
-    final enabled = await _authService.isBiometricAuthEnabled();
-    setState(() {
-      _isBiometricEnabled = enabled;
-    });
-  }
-
   Future<void> _toggleBiometrics(bool value) async {
+    final l10n = AppLocalizations.of(context)!;
     if (value) {
-      // No permitimos habilitar desde aquí, solo desde el login
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Para habilitar la biometría, cierra sesión e inicia sesión manualmente. '
-              'Se te preguntará si deseas activarla.',
-            ),
-            duration: Duration(seconds: 4),
+          SnackBar(
+            content: Text(l10n.biometricEnableInstructions),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
       setState(() => _isBiometricEnabled = false);
     } else {
-      // Deshabilitar biometría
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Deshabilitar Biometría'),
-          content: const Text(
-            '¿Estás seguro de que deseas deshabilitar el inicio de sesión biométrico?\n\n'
-            'Tendrás que iniciar sesión manualmente la próxima vez.',
-          ),
+          title: Text(l10n.biometricDisableDialogTitle),
+          content: Text(l10n.biometricDisableDialogContent),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
+              child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Deshabilitar'),
+              child: Text(l10n.biometricDisableDialogAction),
             ),
           ],
         ),
@@ -109,8 +91,8 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _isBiometricEnabled = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Inicio de sesión biométrico desactivado.'),
+            SnackBar(
+              content: Text(l10n.biometricDisabledSuccess),
               backgroundColor: Colors.orange,
             ),
           );
@@ -119,16 +101,6 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() => _isBiometricEnabled = true);
       }
     }
-  }
-
-  Future<void> _loadCurrentConfig() async {
-    final config = await _configService.getConfig();
-    setState(() {
-      _nameController.text = config.companyName;
-      _emailController.text = config.companyEmail;
-      _phoneController.text = config.companyPhone;
-      _addressController.text = config.companyAddress;
-    });
   }
 
   @override
@@ -140,7 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  Future<void> _saveCompanyInfo() async {
+  Future<void> _saveCompanyInfo(AppLocalizations l10n) async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -153,45 +125,43 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       await _configService.updateConfig(config);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Información actualizada correctamente'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.settingsUpdateSuccess)));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
+        ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _addBanner() async {
+  Future<void> _addBanner(AppLocalizations l10n) async {
     final TextEditingController urlController = TextEditingController();
     final String? imageUrl = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Agregar Banner por URL'),
+        title: Text(l10n.addBannerDialogTitle),
         content: TextField(
           controller: urlController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'https://ejemplo.com/imagen.jpg',
-            labelText: 'URL de la imagen',
+            labelText: l10n.bannerUrlLabel,
           ),
           keyboardType: TextInputType.url,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, urlController.text.trim()),
-            child: const Text('Agregar'),
+            child: Text(l10n.addBannerDialogAction),
           ),
         ],
       ),
@@ -202,15 +172,15 @@ class _SettingsPageState extends State<SettingsPage> {
       try {
         await _configService.addBannerByUrl(imageUrl);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Banner agregado correctamente')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.bannerAddedSuccess)));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al agregar banner: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -218,22 +188,27 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _deleteBanner(String docId, String imageUrl) async {
+  Future<void> _deleteBanner(
+    String docId,
+    String imageUrl,
+    AppLocalizations l10n,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar Banner'),
-        content: const Text(
-          '¿Estás seguro de que deseas eliminar este banner?',
-        ),
+        title: Text(l10n.deleteBannerDialogTitle),
+        content: Text(l10n.deleteBannerDialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: Text(
+              l10n.deleteBannerDialogAction,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -244,15 +219,15 @@ class _SettingsPageState extends State<SettingsPage> {
       try {
         await _configService.deleteBanner(docId, imageUrl);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Banner eliminado correctamente')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.bannerDeletedSuccess)));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error al eliminar banner: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -262,73 +237,71 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final userRoleAsync = ref.watch(currentUserRoleProvider);
+
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_checkingRole) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return userRoleAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (role) {
+        final isAdmin = role == RoleService.ADMIN;
 
-    // If not admin, show only security settings
-    if (!_isAdmin) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Configuraciones'),
-          actions: const [CartBadge(), SizedBox(width: 8)],
-        ),
-        body: _buildSecurityTab(),
-      );
-    }
+        if (!isAdmin) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(l10n.settingsPageTitle),
+              actions: const [CartBadge(), SizedBox(width: 8)],
+            ),
+            body: _buildSecurityTab(l10n),
+          );
+        }
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.of(context).pushReplacementNamed('/main');
-            }
-          },
-        ),
-        title: const Text('Configuraciones'),
-        actions: const [CartBadge(), SizedBox(width: 8)],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _buildCompanyInfoTab(),
-          _buildBannersTab(),
-          _buildSecurityTab(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.business_outlined),
-            selectedIcon: Icon(Icons.business),
-            label: 'Información',
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(l10n.settingsPageTitle),
+            actions: const [CartBadge(), SizedBox(width: 8)],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.image_outlined),
-            selectedIcon: Icon(Icons.image),
-            label: 'Banners',
+          body: IndexedStack(
+            index: _currentIndex,
+            children: [
+              _buildCompanyInfoTab(l10n),
+              _buildBannersTab(l10n),
+              _buildSecurityTab(l10n),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.security_outlined),
-            selectedIcon: Icon(Icons.security),
-            label: 'Seguridad',
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) =>
+                setState(() => _currentIndex = index),
+            destinations: [
+              NavigationDestination(
+                icon: const Icon(Icons.business_outlined),
+                selectedIcon: const Icon(Icons.business),
+                label: l10n.companyInfoTab,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.image_outlined),
+                selectedIcon: const Icon(Icons.image),
+                label: l10n.bannersTab,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.security_outlined),
+                selectedIcon: const Icon(Icons.security),
+                label: l10n.securityTab,
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildCompanyInfoTab() {
+  Widget _buildCompanyInfoTab(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Form(
@@ -337,38 +310,42 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             _buildTextField(
               controller: _nameController,
-              label: 'Nombre de la Empresa',
+              label: l10n.companyNameLabel,
               icon: Icons.store,
+              l10n: l10n,
             ),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _emailController,
-              label: 'Correo Electrónico',
+              label: l10n.companyEmailLabel,
               icon: Icons.email,
               keyboardType: TextInputType.emailAddress,
+              l10n: l10n,
             ),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _phoneController,
-              label: 'Teléfono (WhatsApp, sin +)',
+              label: l10n.companyPhoneLabel,
               icon: Icons.phone,
               keyboardType: TextInputType.phone,
-              helperText: 'Ej: 593991090805',
+              helperText: l10n.companyPhoneHelper,
+              l10n: l10n,
             ),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _addressController,
-              label: 'Dirección',
+              label: l10n.companyAddressLabel,
               icon: Icons.location_on,
               maxLines: 2,
+              l10n: l10n,
             ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _saveCompanyInfo,
+                onPressed: () => _saveCompanyInfo(l10n),
                 icon: const Icon(Icons.save),
-                label: const Text('Guardar Cambios'),
+                label: Text(l10n.saveSettingsButton),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
@@ -384,6 +361,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required AppLocalizations l10n,
     TextInputType? keyboardType,
     int maxLines = 1,
     String? helperText,
@@ -400,43 +378,43 @@ class _SettingsPageState extends State<SettingsPage> {
       maxLines: maxLines,
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Este campo es requerido';
+          return l10n.requiredField;
         }
         return null;
       },
     );
   }
 
-  Widget _buildBannersTab() {
+  Widget _buildBannersTab(AppLocalizations l10n) {
+    final bannersAsync = ref.watch(bannersProvider);
+
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: ElevatedButton.icon(
-            onPressed: _addBanner,
+            onPressed: () => _addBanner(l10n),
             icon: const Icon(Icons.add_photo_alternate),
-            label: const Text('Agregar Nuevo Banner'),
+            label: Text(l10n.addBannerButton),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
             ),
           ),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _configService.getBannersStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text('No hay banners configurados'));
+          child: bannersAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
+            data: (snapshot) {
+              if (snapshot.docs.isEmpty) {
+                return Center(child: Text(l10n.noBannersConfigured));
               }
 
               return ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: snapshot.data!.docs.length,
+                itemCount: snapshot.docs.length,
                 itemBuilder: (context, index) {
-                  final doc = snapshot.data!.docs[index];
+                  final doc = snapshot.docs[index];
                   final data = doc.data() as Map<String, dynamic>;
                   final imageUrl = data['imageUrl'] as String;
 
@@ -467,7 +445,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             backgroundColor: Colors.white,
                             child: IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteBanner(doc.id, imageUrl),
+                              onPressed: () =>
+                                  _deleteBanner(doc.id, imageUrl, l10n),
                             ),
                           ),
                         ),
@@ -483,7 +462,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSecurityTab() {
+  Widget _buildSecurityTab(AppLocalizations l10n) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -499,11 +478,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   size: 32,
                   color: _isBiometricEnabled ? Colors.green : Colors.grey,
                 ),
-                title: const Text('Inicio de Sesión Biométrico'),
+                title: Text(l10n.biometricLoginLabel),
                 subtitle: Text(
                   _isBiometricEnabled
-                      ? 'Habilitado - Puedes iniciar sesión con tu huella o rostro'
-                      : 'Deshabilitado - Inicia sesión manualmente para habilitar',
+                      ? l10n.biometricEnabledStatus
+                      : l10n.biometricDisabledStatus,
                 ),
                 trailing: Switch(
                   value: _isBiometricEnabled,
@@ -517,12 +496,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 child: Text(
                   _isBiometricEnabled
-                      ? 'Para deshabilitar, apaga el interruptor arriba.'
-                      : 'Para habilitar la biometría, cierra sesión e inicia sesión manualmente. Se te preguntará si deseas activarla.',
+                      ? l10n.biometricDisableWarning
+                      : l10n.biometricEnableInstructions,
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
-              const SizedBox(height: 8),
               const SizedBox(height: 8),
             ],
           ),

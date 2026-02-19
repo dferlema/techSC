@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:techsc/features/catalog/screens/product_form_page.dart';
 import 'package:techsc/features/reservations/screens/service_form_page.dart';
 import 'package:techsc/features/catalog/screens/supplier_management_page.dart';
@@ -12,9 +11,9 @@ import 'package:techsc/features/admin/widgets/admin_orders_tab.dart';
 import 'package:techsc/features/admin/widgets/admin_clients_tab.dart';
 import 'package:techsc/features/admin/widgets/admin_product_card.dart';
 import 'package:techsc/features/admin/widgets/admin_service_card.dart';
+import 'package:techsc/features/admin/providers/admin_providers.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
-/// Página principal del panel de administración.
-/// Reestructurada para usar widgets modulares y Riverpod.
 class AdminPanelPage extends ConsumerStatefulWidget {
   const AdminPanelPage({super.key});
 
@@ -26,7 +25,6 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late TextEditingController _searchController;
-  String _searchQuery = '';
 
   @override
   void initState() {
@@ -34,15 +32,19 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
     _tabController = TabController(length: 5, vsync: this);
     _searchController = TextEditingController();
 
-    // Limpiar búsqueda al cambiar de pestaña
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
-        setState(() {
-          _searchQuery = '';
-          _searchController.clear();
-        });
+        _clearSearch();
       }
     });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    final index = _tabController.index;
+    if (index == 1) ref.read(adminProductsQueryProvider.notifier).state = '';
+    if (index == 2) ref.read(adminServicesQueryProvider.notifier).state = '';
+    if (index == 3) ref.read(adminOrdersQueryProvider.notifier).state = '';
   }
 
   @override
@@ -54,224 +56,214 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Por favor, inicie sesión.')),
-      );
-    }
+    final l10n = AppLocalizations.of(context)!;
+    final userAsync = ref.watch(authStateProvider);
 
-    final roleAsync = ref.watch(userRoleProvider(user.uid));
-
-    return roleAsync.when(
+    return userAsync.when(
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (err, stack) =>
-          Scaffold(body: Center(child: Text('Error al cargar rol: $err'))),
-      data: (userRole) {
-        final bool canAccessPanel =
-            userRole == RoleService.ADMIN || userRole == RoleService.SELLER;
-        final bool isAdmin = userRole == RoleService.ADMIN;
-
-        if (!canAccessPanel) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Acceso Denegado'),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).canPop()
-                    ? Navigator.of(context).pop()
-                    : Navigator.of(context).pushReplacementNamed('/main'),
-              ),
-            ),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.lock, size: 60, color: Colors.red),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Solo personal autorizado puede acceder.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Volver'),
-                  ),
-                ],
-              ),
-            ),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (user) {
+        if (user == null) {
+          return const Scaffold(
+            body: Center(child: Text('Por favor, inicie sesión.')),
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.of(context).pop();
-                } else {
-                  Navigator.of(context).pushReplacementNamed('/main');
-                }
-              },
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Panel de Administración',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+        final roleAsync = ref.watch(userRoleProvider(user.uid));
+
+        return roleAsync.when(
+          loading: () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
+          error: (err, stack) =>
+              Scaffold(body: Center(child: Text('Error al cargar rol: $err'))),
+          data: (userRole) {
+            final bool canAccessPanel =
+                userRole == RoleService.ADMIN || userRole == RoleService.SELLER;
+            final bool isAdmin = userRole == RoleService.ADMIN;
+
+            if (!canAccessPanel) {
+              return _buildAccessDenied(l10n);
+            }
+
+            return Scaffold(
+              appBar: AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.of(context).canPop()
+                      ? Navigator.of(context).pop()
+                      : Navigator.of(context).pushReplacementNamed('/main'),
+                ),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.adminPanelTitle,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      l10n.adminPanelSubtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.category, color: Colors.white),
+                    tooltip: l10n.manageCategories,
+                    onPressed: () =>
+                        Navigator.pushNamed(context, '/category-management'),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Gestiona clientes, productos, servicios y banners',
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.category, color: Colors.white),
-                tooltip: 'Gestionar Categorías',
-                onPressed: () =>
-                    Navigator.pushNamed(context, '/category-management'),
+                  const CartBadge(),
+                  const SizedBox(width: 8),
+                ],
               ),
-              const CartBadge(),
-              const SizedBox(width: 8),
-            ],
-          ),
-          body: _buildBody(isAdmin),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _tabController.index,
-            onDestinationSelected: (int index) {
-              setState(() {
-                _tabController.animateTo(index);
-              });
-            },
-            destinations: const <NavigationDestination>[
-              NavigationDestination(
-                icon: Icon(Icons.people_outline),
-                selectedIcon: Icon(Icons.people),
-                label: 'Clientes',
+              body: _buildBody(isAdmin, l10n),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: _tabController.index,
+                onDestinationSelected: (int index) {
+                  setState(() => _tabController.animateTo(index));
+                },
+                destinations: <NavigationDestination>[
+                  NavigationDestination(
+                    icon: const Icon(Icons.people_outline),
+                    selectedIcon: const Icon(Icons.people),
+                    label: l10n.clientsTab,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.inventory_2_outlined),
+                    selectedIcon: const Icon(Icons.inventory_2),
+                    label: l10n.productsTab,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.build_outlined),
+                    selectedIcon: const Icon(Icons.build),
+                    label: l10n.servicesTab,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    selectedIcon: const Icon(Icons.receipt_long),
+                    label: l10n.ordersTab,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.business_outlined),
+                    selectedIcon: const Icon(Icons.business),
+                    label: l10n.suppliersTab,
+                  ),
+                ],
               ),
-              NavigationDestination(
-                icon: Icon(Icons.inventory_2_outlined),
-                selectedIcon: Icon(Icons.inventory_2),
-                label: 'Productos',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.build_outlined),
-                selectedIcon: Icon(Icons.build),
-                label: 'Servicios',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long),
-                label: 'Pedidos',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.business_outlined),
-                selectedIcon: Icon(Icons.business),
-                label: 'Proveedores',
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildBody(bool isAdmin) {
+  Widget _buildAccessDenied(AppLocalizations l10n) {
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.accessDenied)),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.lock, size: 60, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(
+              l10n.authorizedPersonnelOnly,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.backButton),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(bool isAdmin, AppLocalizations l10n) {
     return TabBarView(
       controller: _tabController,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        // 1. Clientes
         isAdmin
             ? const AdminClientsTab()
-            : const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.security, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text('Solo administradores pueden gestionar clientes'),
-                  ],
-                ),
-              ),
-        // 2. Productos
+            : _buildPermissionRestriction(l10n.onlyAdminClients),
         _buildTabContent(
-          collection: 'products',
+          provider: adminProductsProvider,
+          queryNotifier: adminProductsQueryProvider,
           builder: (doc) => AdminProductCard(doc: doc),
-          addButtonLabel: 'Agregar Producto',
+          addButtonLabel: l10n.addProduct,
+          collection: 'products',
         ),
-        // 3. Servicios
         _buildTabContent(
-          collection: 'services',
+          provider: adminServicesProvider,
+          queryNotifier: adminServicesQueryProvider,
           builder: (doc) => AdminServiceCard(doc: doc),
-          addButtonLabel: 'Agregar Servicio',
+          addButtonLabel: l10n.addService,
+          collection: 'services',
         ),
-        // 4. Pedidos
         const AdminOrdersTab(),
-        // 5. Proveedores
         isAdmin
             ? const SupplierManagementPage()
-            : const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.security, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text('Solo administradores pueden gestionar proveedores'),
-                  ],
-                ),
-              ),
+            : _buildPermissionRestriction(l10n.onlyAdminSuppliers),
       ],
     );
   }
 
-  // 🧩 Widget reutilizable para Productos y Servicios
+  Widget _buildPermissionRestriction(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.security, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(message),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTabContent({
-    required String collection,
+    required StreamProvider<List<DocumentSnapshot>> provider,
+    required StateProvider<String> queryNotifier,
     required Widget Function(DocumentSnapshot) builder,
     required String addButtonLabel,
+    required String collection,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    final itemsAsync = ref.watch(provider);
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           TextField(
             controller: _searchController,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Buscar...',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: l10n.searchHint,
+              border: const OutlineInputBorder(),
             ),
-            onChanged: (value) => setState(() => _searchQuery = value),
+            onChanged: (value) =>
+                ref.read(queryNotifier.notifier).state = value,
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () async {
-              Widget page;
-              String successMessage;
-
-              if (collection == 'products') {
-                page = const ProductFormPage();
-                successMessage = '✅ Producto guardado';
-              } else if (collection == 'services') {
-                page = const ServiceFormPage();
-                successMessage = '✅ Servicio guardado';
-              } else {
-                return;
-              }
-
+              Widget page = collection == 'products'
+                  ? const ProductFormPage()
+                  : const ServiceFormPage();
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => page),
@@ -279,7 +271,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
               if (result == true && mounted) {
                 ScaffoldMessenger.of(
                   context,
-                ).showSnackBar(SnackBar(content: Text(successMessage)));
+                ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
               }
             },
             icon: const Icon(Icons.add),
@@ -289,37 +281,16 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection(collection)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No hay elementos'));
-                }
-
-                // Filtrado del lado del cliente
-                final docs = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final query = _searchQuery.toLowerCase();
-
-                  if (query.isEmpty) return true;
-
-                  // Búsqueda genérica en valores del mapa
-                  return data.values.any(
-                    (value) => value.toString().toLowerCase().contains(query),
-                  );
-                }).toList();
-
+            child: itemsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) =>
+                  Center(child: Text('${l10n.errorPrefix}: $err')),
+              data: (docs) {
                 if (docs.isEmpty) {
-                  return const Center(child: Text('No hay coincidencias'));
+                  return Center(child: Text(l10n.noMatchesFound));
                 }
-
                 return ListView.builder(
                   itemCount: docs.length,
                   itemBuilder: (context, index) => builder(docs[index]),

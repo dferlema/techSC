@@ -39,6 +39,13 @@ class FilteredServices
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => build(arg));
   }
+
+  /// Delete a service and refresh the list
+  Future<void> deleteService(String serviceId) async {
+    final serviceService = ref.read(serviceServiceProvider);
+    await serviceService.deleteService(serviceId);
+    await refresh();
+  }
 }
 
 /// Provider for filtered services

@@ -6,6 +6,7 @@ import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/features/reservations/models/service_model.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class ServiceDetailPage extends ConsumerStatefulWidget {
   final ServiceModel service;
@@ -90,9 +91,9 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Calificar este servicio",
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.rateService,
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.grey,
               fontWeight: FontWeight.w600,
@@ -157,7 +158,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.share),
-                tooltip: 'Compartir por WhatsApp',
+                tooltip: AppLocalizations.of(context)!.shareWhatsApp,
                 onPressed: () {
                   WhatsAppShareHelper.shareService(
                     widget.service.toFirestore()..['id'] = widget.serviceId,
@@ -314,9 +315,9 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                   const SizedBox(height: 24),
                   _buildRatingStars(),
                   const SizedBox(height: 36),
-                  const Text(
-                    "Descripción",
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.descriptionTitle,
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF111111),
@@ -374,30 +375,30 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       child: _isAdded
-                          ? const Row(
+                          ? Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              key: ValueKey('added'),
+                              key: const ValueKey('added'),
                               children: [
                                 Icon(Icons.check_circle, color: Colors.white),
                                 SizedBox(width: 8),
                                 Text(
-                                  "¡Agregado!",
-                                  style: TextStyle(
+                                  AppLocalizations.of(context)!.addedHighlight,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              key: ValueKey('normal'),
+                              key: const ValueKey('normal'),
                               children: [
                                 Icon(Icons.shopping_bag_outlined),
                                 SizedBox(width: 8),
                                 Text(
-                                  "Al Carrito",
-                                  style: TextStyle(
+                                  AppLocalizations.of(context)!.addToCart,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -425,13 +426,13 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                     ),
                     side: BorderSide(color: theme.colorScheme.primary),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.calendar_today_outlined),
-                      SizedBox(width: 8),
+                      const Icon(Icons.calendar_today_outlined),
+                      const SizedBox(width: 8),
                       Text(
-                        "Reservar",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        AppLocalizations.of(context)!.reserveButton,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),

@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:techsc/features/catalog/models/category_model.dart';
 import 'package:techsc/features/catalog/services/category_service.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 /// Pagina de formulario para crear o editar servicios.
 /// Incluye gestión de componentes dinámicos y validación de campos.
-class ServiceFormPage extends StatefulWidget {
+class ServiceFormPage extends ConsumerStatefulWidget {
   final String? serviceId;
   final Map<String, dynamic>? initialData;
 
   const ServiceFormPage({super.key, this.serviceId, this.initialData});
 
   @override
-  State<ServiceFormPage> createState() => _ServiceFormPageState();
+  ConsumerState<ServiceFormPage> createState() => _ServiceFormPageState();
 }
 
-class _ServiceFormPageState extends State<ServiceFormPage> {
+class _ServiceFormPageState extends ConsumerState<ServiceFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Controladores para los campos de texto
@@ -37,7 +38,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
   // Guardamos el nombre para denormalización
   String? _selectedCategoryName;
 
-  late String _selectedTaxStatus;
+  String? _selectedTaxStatus;
   bool _isSaving = false;
 
   @override
@@ -72,7 +73,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       _imageUrls = [widget.initialData!['imageUrl']];
     }
 
-    // Inicializar lista de componentes (copia para evitar modificar referencia original)
+    // Inicializar lista de componentes
     _components = List<String>.from(
       widget.initialData?['components'] ?? ['Diagnóstico básico'],
     );
@@ -88,13 +89,13 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     super.dispose();
   }
 
-  void _addNewComponent() {
+  void _addNewComponent(AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (context) {
         final controller = TextEditingController();
         return AlertDialog(
-          title: const Text('Nuevo componente'),
+          title: Text(l10n.serviceFormTitleNew),
           content: TextField(
             controller: controller,
             decoration: const InputDecoration(
@@ -104,7 +105,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -115,7 +116,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                 }
                 Navigator.pop(context);
               },
-              child: const Text('Agregar'),
+              child: Text(
+                l10n.addImage,
+              ), // Using addImage as label for Consistency if no specific key
             ),
           ],
         );
@@ -129,12 +132,12 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     });
   }
 
-  Future<void> _saveService() async {
+  Future<void> _saveService(AppLocalizations l10n) async {
     if (!_formKey.currentState!.validate()) return;
     if (_imageUrls.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Agrega al menos una imagen')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.atLeastOneImage)));
       return;
     }
 
@@ -152,11 +155,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
         'duration': _durationController.text.trim(),
         'imageUrls': _imageUrls,
         'imageUrl': _imageUrls.first,
-        'categoryId':
-            _selectedCategoryId, // ID de la categoría (Vínculo fuerte)
-        'category':
-            _selectedCategoryName, // Nombre de la categoría (Denormalizado)
-        'type': _selectedCategoryName, // Mantener 'type' por compatibilidad
+        'categoryId': _selectedCategoryId,
+        'category': _selectedCategoryName,
+        'type': _selectedCategoryName,
         'taxStatus': _selectedTaxStatus,
         'components': _components,
         if (widget.serviceId == null) 'createdAt': FieldValue.serverTimestamp(),
@@ -179,17 +180,17 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error: ${e.toString()}')));
+      ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
     }
   }
 
-  Widget _buildImageGallery() {
+  Widget _buildImageGallery(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Imágenes del Servicio *',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Text(
+          l10n.serviceImages,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
         Row(
@@ -197,10 +198,10 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
             Expanded(
               child: TextFormField(
                 controller: _newImageUrlController,
-                decoration: const InputDecoration(
-                  hintText: 'https://ejemplo.com/imagen.jpg',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.link),
+                decoration: InputDecoration(
+                  hintText: l10n.imageLinkHint,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.link),
                 ),
                 keyboardType: TextInputType.url,
               ),
@@ -284,9 +285,12 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                             color: Colors.blue.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Principal',
-                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          child: Text(
+                            l10n.mainImageLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
                           ),
                         ),
                       ),
@@ -306,11 +310,11 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+              children: [
+                const Icon(Icons.image_outlined, size: 40, color: Colors.grey),
                 Text(
-                  'No hay imágenes agregadas',
-                  style: TextStyle(color: Colors.grey),
+                  l10n.noImagesAdded,
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ],
             ),
@@ -319,7 +323,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
     );
   }
 
-  Widget _buildComponentsList() {
+  Widget _buildComponentsList(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -327,13 +331,15 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Componentes incluidos',
+              'Componentes incluidos', // This could also be localized if a key is added
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             ElevatedButton.icon(
-              onPressed: _addNewComponent,
+              onPressed: () => _addNewComponent(l10n),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Agregar'),
+              label: Text(
+                l10n.addImage,
+              ), // Reuse for consistency or add specific key
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(100, 32),
@@ -361,10 +367,14 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.serviceId == null ? 'Nuevo Servicio' : 'Editar Servicio',
+          widget.serviceId == null
+              ? l10n.serviceFormTitleNew
+              : l10n.serviceFormTitleEdit,
         ),
         actions: [
           IconButton(
@@ -374,7 +384,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                     strokeWidth: 2,
                   )
                 : const Icon(Icons.check, color: Colors.white),
-            onPressed: _isSaving ? null : _saveService,
+            onPressed: _isSaving ? null : () => _saveService(l10n),
           ),
         ],
       ),
@@ -386,17 +396,17 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    _buildImageGallery(),
+                    _buildImageGallery(l10n),
                     const SizedBox(height: 24),
                     TextFormField(
                       controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Título del servicio *',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: '${l10n.productName} *',
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Obligatorio';
+                          return l10n.errorPrefix;
                         }
                         return null;
                       },
@@ -404,28 +414,28 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Descripción *',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: '${l10n.productDescription} *',
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 4,
                       validator: (value) =>
                           value == null || value.trim().isEmpty
-                          ? 'Obligatorio'
+                          ? l10n.errorPrefix
                           : null,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _priceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Precio base *',
+                      decoration: InputDecoration(
+                        labelText: '${l10n.productPrice} *',
                         prefixText: '\$ ',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         final num = double.tryParse(value ?? '');
-                        if (num == null || num <= 0) return 'Precio > 0';
+                        if (num == null || num <= 0) return l10n.invalidPrice;
                         return null;
                       },
                     ),
@@ -444,8 +454,6 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                       ),
                       builder: (context, snapshot) {
                         final categories = snapshot.data ?? [];
-
-                        // Manejar selección inicial o si la categoría ya no existe
                         bool categoryExists = categories.any(
                           (c) => c.id == _selectedCategoryId,
                         );
@@ -456,9 +464,9 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
 
                         return DropdownButtonFormField<String>(
                           initialValue: _selectedCategoryId,
-                          decoration: const InputDecoration(
-                            labelText: 'Categoría de servicio *',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: '${l10n.productCategory} *',
+                            border: const OutlineInputBorder(),
                           ),
                           items: categories.map((c) {
                             return DropdownMenuItem(
@@ -474,17 +482,16 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                                   .name;
                             });
                           },
-                          validator: (v) => v == null ? 'Selecciona' : null,
+                          validator: (v) => v == null ? l10n.errorPrefix : null,
                         );
                       },
                     ),
-
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedTaxStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado de Impuestos',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.taxStatus,
+                        border: const OutlineInputBorder(),
                       ),
                       items: ['Incluye impuesto', 'Más impuesto', 'Ninguno']
                           .map(
@@ -494,7 +501,7 @@ class _ServiceFormPageState extends State<ServiceFormPage> {
                       onChanged: (v) => setState(() => _selectedTaxStatus = v!),
                     ),
                     const SizedBox(height: 20),
-                    _buildComponentsList(),
+                    _buildComponentsList(l10n),
                   ],
                 ),
               ),

@@ -1,73 +1,55 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:techsc/features/admin/services/marketing_service.dart';
+import 'package:techsc/features/admin/providers/admin_providers.dart';
 import 'package:techsc/features/auth/models/user_model.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/theme/app_colors.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 import 'dart:convert';
 
-/// Página de Campaña de Marketing
-/// Permite a los administradores y personal seleccionar un producto y enviarlo
-/// como publicidad a los clientes registrados a través de WhatsApp.
-class MarketingCampaignPage extends StatefulWidget {
+class MarketingCampaignPage extends ConsumerStatefulWidget {
   const MarketingCampaignPage({super.key});
 
   @override
-  State<MarketingCampaignPage> createState() => _MarketingCampaignPageState();
+  ConsumerState<MarketingCampaignPage> createState() =>
+      _MarketingCampaignPageState();
 }
 
-class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
-  // Servicio para manejar datos de marketing (clientes y productos)
-  final MarketingService _marketingService = MarketingService();
-
-  // Producto seleccionado para la campaña
+class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
   Map<String, dynamic>? _selectedProduct;
-
-  // Consulta de búsqueda para la lista de clientes
   String _searchQuery = '';
-
-  // Consulta de búsqueda para el selector de productos
   String _productSearchQuery = '';
-
-  // Estado de carga durante la exportación de CSV
   bool _isExporting = false;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      // Se agregó AppBar para permitir navegación hacia atrás (retroceder)
       appBar: AppBar(
-        title: const Text('Campaña de Marketing WhatsApp'),
+        title: Text(l10n.whatsappMarketingTitle),
         elevation: 0,
         backgroundColor: AppColors.primaryBlue,
       ),
       body: Column(
         children: [
-          // Sección de selección de producto con búsqueda inteligente
-          _buildProductPicker(),
-          // Muestra el resumen de la campaña y la lista de clientes si un producto está seleccionado
+          _buildProductPicker(l10n),
           if (_selectedProduct != null) ...[
-            // Resumen del producto seleccionado y opción de exportar CSV
-            _buildCampaignSummary(),
-            // Lista de clientes para enviar la promoción
-            Expanded(child: _buildClientList()),
+            _buildCampaignSummary(l10n),
+            Expanded(child: _buildClientList(l10n)),
           ] else
-            // Mensaje para seleccionar un producto si no hay ninguno
-            const Expanded(
-              child: Center(
-                child: Text('Selecciona un producto para comenzar la campaña'),
-              ),
-            ),
+            Expanded(child: Center(child: Text(l10n.marketingPrompt))),
         ],
       ),
     );
   }
 
-  /// Selector de productos con búsqueda en tiempo real
-  Widget _buildProductPicker() {
+  Widget _buildProductPicker(AppLocalizations l10n) {
+    final productsAsync = ref.watch(availableProductsProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -79,40 +61,35 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '1. Selecciona el Producto (Búsqueda Inteligente)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          Text(
+            l10n.step1SelectProduct,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
           TextField(
-            decoration: const InputDecoration(
-              hintText: 'Buscar por nombre de producto...',
-              prefixIcon: Icon(Icons.search),
+            decoration: InputDecoration(
+              hintText: l10n.searchProductHint,
+              prefixIcon: const Icon(Icons.search),
               isDense: true,
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
             ),
             onChanged: (value) => setState(() => _productSearchQuery = value),
           ),
           const SizedBox(height: 12),
           SizedBox(
             height: 100,
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _marketingService.getAvailableProducts(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final products = snapshot.data!.docs.where((doc) {
+            child: productsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Error: $err')),
+              data: (docs) {
+                final products = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
                   final name = (data['name'] ?? '').toString().toLowerCase();
                   return name.contains(_productSearchQuery.toLowerCase());
                 }).toList();
 
                 if (products.isEmpty) {
-                  return const Center(
-                    child: Text('No se encontraron productos'),
-                  );
+                  return Center(child: Text(l10n.noProductsFound));
                 }
 
                 return ListView.builder(
@@ -186,8 +163,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     );
   }
 
-  /// Resumen de la campaña seleccionada y botón de exportación CSV
-  Widget _buildCampaignSummary() {
+  Widget _buildCampaignSummary(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: AppColors.warning.withOpacity(0.1),
@@ -200,18 +176,18 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Promocionando: ${_selectedProduct!['name']}',
+                  l10n.promotingText(_selectedProduct!['name'] ?? ''),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const Text(
-                  'Envía mensajes individuales o descarga el CSV para envíos masivos.',
-                  style: TextStyle(fontSize: 12),
+                Text(
+                  l10n.marketingDescription,
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
           ),
           IconButton(
-            onPressed: _isExporting ? null : _exportCampaignCSV,
+            onPressed: _isExporting ? null : () => _exportCampaignCSV(l10n),
             icon: _isExporting
                 ? const SizedBox(
                     width: 24,
@@ -219,25 +195,23 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Icon(Icons.file_download, color: AppColors.primaryBlue),
-            tooltip: 'Exportar CSV para WaSender',
+            tooltip: l10n.exportCSVTooltip,
           ),
         ],
       ),
     );
   }
 
-  /// Exporta los datos de la campaña a un archivo CSV formateado para WaSender
-  Future<void> _exportCampaignCSV() async {
+  Future<void> _exportCampaignCSV(AppLocalizations l10n) async {
     if (_selectedProduct == null) return;
 
     setState(() => _isExporting = true);
 
     try {
-      final clients = await _marketingService.getClients().first;
+      final clients = ref.read(marketingClientsProvider).value ?? [];
       final productName = _selectedProduct!['name'] ?? 'Producto';
 
       final StringBuffer buffer = StringBuffer();
-      // Headers requested by user
       buffer.writeln(
         '"Número con formato 593991090805","Nombre","Mensaje","producto"',
       );
@@ -245,14 +219,12 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       for (var client in clients) {
         if (client.phone.isEmpty) continue;
 
-        // Generate personalized message for each client
         final personalizedMessage =
             WhatsAppShareHelper.generateMarketingMessage(
               _selectedProduct!,
               clientName: client.name,
             );
 
-        // Formato internacional (593...) sin + para máxima compatibilidad
         String cleanPhone = client.phone.replaceAll(RegExp(r'\D'), '');
         if (cleanPhone.length == 10 && cleanPhone.startsWith('0')) {
           cleanPhone = '593${cleanPhone.substring(1)}';
@@ -275,41 +247,38 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
         text: 'CSV para envío masivo de publicidad.',
       );
     } catch (e) {
-      debugPrint('Error exporting campaign CSV: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error al exportar: $e')));
+        ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
       }
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }
   }
 
-  /// Lista de clientes con barra de búsqueda
-  Widget _buildClientList() {
+  Widget _buildClientList(AppLocalizations l10n) {
+    final clientsAsync = ref.watch(marketingClientsProvider);
+
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: TextField(
-            decoration: const InputDecoration(
-              hintText: 'Buscar clientes...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              hintText: l10n.searchClientHint,
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
             ),
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
         ),
         Expanded(
-          child: StreamBuilder<List<UserModel>>(
-            stream: _marketingService.getClients(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              var clients = snapshot.data ?? [];
+          child: clientsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
+            data: (allClients) {
+              var clients = allClients;
               if (_searchQuery.isNotEmpty) {
                 clients = clients
                     .where(
@@ -323,7 +292,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
               }
 
               if (clients.isEmpty) {
-                return const Center(child: Text('No se encontraron clientes'));
+                return Center(child: Text(l10n.noClientsFound));
               }
 
               return ListView.builder(
@@ -338,7 +307,11 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
-                        child: Text(client.name[0].toUpperCase()),
+                        child: Text(
+                          client.name.isNotEmpty
+                              ? client.name[0].toUpperCase()
+                              : '?',
+                        ),
                       ),
                       title: Text(client.name),
                       subtitle: Text(client.phone),
@@ -347,7 +320,7 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
                           Icons.send_rounded,
                           color: AppColors.whatsapp,
                         ),
-                        onPressed: () => _sendPromotion(client),
+                        onPressed: () => _sendPromotion(client, l10n),
                       ),
                     ),
                   );
@@ -360,15 +333,13 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
     );
   }
 
-  Future<void> _sendPromotion(UserModel client) async {
+  Future<void> _sendPromotion(UserModel client, AppLocalizations l10n) async {
     if (_selectedProduct == null) return;
 
     if (client.phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Este cliente no tiene número de teléfono'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noPhoneNumber)));
       return;
     }
 
@@ -378,12 +349,5 @@ class _MarketingCampaignPageState extends State<MarketingCampaignPage> {
       context: context,
       clientName: client.name,
     );
-
-    // Optional: Log it
-    // _marketingService.logPromotionSent(
-    //   productId: _selectedProduct!['id'],
-    //   clientUid: client.uid,
-    //   sentBy: 'admin',
-    // );
   }
 }

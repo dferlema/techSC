@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
-import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/features/catalog/models/supplier_model.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
 import 'package:techsc/core/services/notification_service.dart';
 import 'package:techsc/features/catalog/services/supplier_service.dart';
 import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
+import 'package:techsc/features/catalog/models/category_model.dart';
+import 'package:techsc/features/catalog/models/supplier_model.dart';
+import 'package:techsc/features/catalog/services/category_service.dart';
+import 'package:techsc/features/admin/providers/admin_providers.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 /// Pagina de formulario para crear o editar productos.
 /// Permite ingresar nombre, especificaciones, precio, categoría y URL de imagen.
-class ProductFormPage extends StatefulWidget {
+class ProductFormPage extends ConsumerStatefulWidget {
   final String? productId;
   final Map<String, dynamic>? initialData;
 
   const ProductFormPage({super.key, this.productId, this.initialData});
 
   @override
-  State<ProductFormPage> createState() => _ProductFormPageState();
+  ConsumerState<ProductFormPage> createState() => _ProductFormPageState();
 }
 
-class _ProductFormPageState extends State<ProductFormPage> {
+class _ProductFormPageState extends ConsumerState<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Controladores para los campos de texto
@@ -36,8 +37,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
   // Guardamos el nombre para denormalización (compatibilidad y facilidad de lectura)
   String? _selectedCategoryName;
 
-  late String _selectedLabel;
-  late String _selectedTaxStatus;
+  String? _selectedLabel;
+  String? _selectedTaxStatus;
   late double _rating;
   bool _isFeatured = false;
 
@@ -49,9 +50,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
   String? _selectedSupplierId;
   String? _selectedSupplierName;
   late TextEditingController _supplierProductLinkController;
-
-  // Role checking
-  String _userRole = RoleService.CLIENT;
 
   bool _isSaving = false;
 
@@ -97,21 +95,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _supplierProductLinkController = TextEditingController(
       text: widget.initialData?['supplierProductLink'] ?? '',
     );
-
-    // Cargar rol del usuario
-    _loadUserRole();
-  }
-
-  Future<void> _loadUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final role = await RoleService().getUserRole(user.uid);
-      if (mounted) {
-        setState(() {
-          _userRole = role;
-        });
-      }
-    }
   }
 
   @override
@@ -125,12 +108,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
     super.dispose();
   }
 
-  Future<void> _saveProduct() async {
+  Future<void> _saveProduct(AppLocalizations l10n) async {
     if (!_formKey.currentState!.validate()) return;
     if (_imageUrls.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Agrega al menos una imagen')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.atLeastOneImage)));
       return;
     }
 
@@ -147,17 +130,14 @@ class _ProductFormPageState extends State<ProductFormPage> {
         'specs': specs,
         'price': price,
         'description': description,
-        'categoryId':
-            _selectedCategoryId, // ID de la categoría (Vínculo fuerte)
-        'category':
-            _selectedCategoryName, // Nombre de la categoría (Denormalizado)
+        'categoryId': _selectedCategoryId,
+        'category': _selectedCategoryName,
         'label': _selectedLabel,
         'taxStatus': _selectedTaxStatus,
         'rating': _rating,
         'isFeatured': _isFeatured,
         'images': _imageUrls,
         'image': _imageUrls.first,
-        // Supplier data (only if user is Admin or Seller)
         if (_selectedSupplierId != null) 'supplierId': _selectedSupplierId,
         if (_selectedSupplierName != null)
           'supplierName': _selectedSupplierName,
@@ -166,8 +146,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
         if (widget.productId == null) 'createdAt': FieldValue.serverTimestamp(),
       };
 
-      String finalProductId;
       final db = FirebaseFirestore.instance;
+      String finalProductId;
 
       if (widget.productId == null) {
         final docRef = await db.collection('products').add(productData);
@@ -180,10 +160,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
         finalProductId = widget.productId!;
       }
 
-      // 🔔 Notificar si el producto tiene etiqueta de "Oferta"
       if (_selectedLabel == 'Oferta') {
-        // Solo notificamos si es un producto nuevo o si ya existía pero se acaba de poner en oferta
-        // (Para simplificar, notificamos siempre que se guarde como oferta)
         await NotificationService().notifyNewOffer(name, price, finalProductId);
       }
 
@@ -194,17 +171,17 @@ class _ProductFormPageState extends State<ProductFormPage> {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error: ${e.toString()}')));
+      ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
     }
   }
 
-  Widget _buildImageGallery() {
+  Widget _buildImageGallery(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Imágenes del Producto *',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Text(
+          l10n.productImages,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
         Row(
@@ -212,10 +189,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
             Expanded(
               child: TextFormField(
                 controller: _newImageUrlController,
-                decoration: const InputDecoration(
-                  hintText: 'https://ejemplo.com/imagen.jpg',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.link),
+                decoration: InputDecoration(
+                  hintText: l10n.imageLinkHint,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.link),
                 ),
                 keyboardType: TextInputType.url,
               ),
@@ -299,9 +276,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
                             color: Colors.blue.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Principal',
-                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          child: Text(
+                            l10n.mainImageLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
                           ),
                         ),
                       ),
@@ -322,11 +302,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+                children: [
+                  const Icon(
+                    Icons.image_outlined,
+                    size: 40,
+                    color: Colors.grey,
+                  ),
                   Text(
-                    'No hay imágenes agregadas',
-                    style: TextStyle(color: Colors.grey),
+                    l10n.noImagesAdded,
+                    style: const TextStyle(color: Colors.grey),
                   ),
                 ],
               ),
@@ -338,10 +322,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final userRoleAsync = ref.watch(currentUserRoleProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.productId == null ? 'Nuevo Producto' : 'Editar Producto',
+          widget.productId == null
+              ? l10n.productFormTitleNew
+              : l10n.productFormTitleEdit,
         ),
         actions: [
           IconButton(
@@ -351,7 +340,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     strokeWidth: 2,
                   )
                 : const Icon(Icons.check, color: Colors.white),
-            onPressed: _isSaving ? null : _saveProduct,
+            onPressed: _isSaving ? null : () => _saveProduct(l10n),
           ),
         ],
       ),
@@ -363,47 +352,47 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    _buildImageGallery(),
+                    _buildImageGallery(l10n),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre *',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.productName,
+                        border: const OutlineInputBorder(),
                       ),
                       validator: (v) =>
-                          v!.trim().isEmpty ? 'Obligatorio' : null,
+                          v!.trim().isEmpty ? l10n.errorPrefix : null,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _specsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Especificaciones',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.productSpecs,
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 3,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Descripción',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.productDescription,
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 4,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
                       controller: _priceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Precio *',
+                      decoration: InputDecoration(
+                        labelText: l10n.productPrice,
                         prefixText: '\$ ',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (v) =>
                           double.tryParse(v!) == null || double.parse(v) <= 0
-                          ? 'Válido > 0'
+                          ? l10n.invalidPrice
                           : null,
                     ),
                     const SizedBox(height: 20),
@@ -413,8 +402,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       ),
                       builder: (context, snapshot) {
                         final categories = snapshot.data ?? [];
-
-                        // Manejar selección inicial o si la categoría ya no existe
                         bool categoryExists = categories.any(
                           (c) => c.id == _selectedCategoryId,
                         );
@@ -425,9 +412,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
                         return DropdownButtonFormField<String>(
                           initialValue: _selectedCategoryId,
-                          decoration: const InputDecoration(
-                            labelText: 'Categoría *',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: l10n.productCategory,
+                            border: const OutlineInputBorder(),
                           ),
                           items: categories
                               .map(
@@ -445,17 +432,16 @@ class _ProductFormPageState extends State<ProductFormPage> {
                                   .name;
                             });
                           },
-                          validator: (v) => v == null ? 'Selecciona' : null,
+                          validator: (v) => v == null ? l10n.errorPrefix : null,
                         );
                       },
                     ),
-
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedLabel,
-                      decoration: const InputDecoration(
-                        labelText: 'Etiqueta (Opcional)',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.productLabel,
+                        border: const OutlineInputBorder(),
                       ),
                       items: ['Ninguna', 'Oferta', 'Agotado']
                           .map(
@@ -467,9 +453,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     const SizedBox(height: 20),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedTaxStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado de Impuestos',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: l10n.taxStatus,
+                        border: const OutlineInputBorder(),
                       ),
                       items: ['Incluye impuesto', 'Más impuesto', 'Ninguno']
                           .map(
@@ -482,9 +468,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Calificación',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        Text(
+                          l10n.ratingLabel,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         Slider(
                           value: _rating,
@@ -501,142 +487,152 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         ),
                         const SizedBox(height: 20),
                         SwitchListTile(
-                          title: const Text(
-                            'Producto Destacado',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          title: Text(
+                            l10n.featuredProduct,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: const Text(
-                            'Aparecerá en la sección de destacados del inicio',
-                          ),
+                          subtitle: Text(l10n.featuredProductSubtitle),
                           value: _isFeatured,
                           activeThumbColor: Colors.amber,
-                          onChanged: (bool value) {
-                            setState(() {
-                              _isFeatured = value;
-                            });
-                          },
+                          onChanged: (bool value) =>
+                              setState(() => _isFeatured = value),
                         ),
                         const SizedBox(height: 20),
-                        // Supplier fields (Admin/Seller only)
-                        if (_userRole == RoleService.ADMIN ||
-                            _userRole == RoleService.SELLER) ...[
-                          const Divider(height: 40),
-                          const Text(
-                            'Información del Proveedor',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          StreamBuilder<List<SupplierModel>>(
-                            stream: SupplierService().getSuppliers(),
-                            builder: (context, snapshot) {
-                              final suppliers = snapshot.data ?? [];
-
-                              return DropdownButtonFormField<String>(
-                                initialValue: _selectedSupplierId,
-                                decoration: const InputDecoration(
-                                  labelText: 'Proveedor (Opcional)',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.business),
+                        userRoleAsync.when(
+                          loading: () => const SizedBox(),
+                          error: (_, __) => const SizedBox(),
+                          data: (role) {
+                            if (role != RoleService.ADMIN &&
+                                role != RoleService.SELLER) {
+                              return const SizedBox();
+                            }
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Divider(height: 40),
+                                Text(
+                                  l10n.supplierInfo,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                items: [
-                                  const DropdownMenuItem(
-                                    value: null,
-                                    child: Text('Sin proveedor'),
-                                  ),
-                                  ...suppliers.map(
-                                    (s) => DropdownMenuItem(
-                                      value: s.id,
-                                      child: Text(s.name),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    _selectedSupplierId = v;
-                                    if (v != null) {
-                                      _selectedSupplierName = suppliers
-                                          .firstWhere((s) => s.id == v)
-                                          .name;
-                                    } else {
-                                      _selectedSupplierName = null;
-                                    }
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _supplierProductLinkController,
-                                  decoration: const InputDecoration(
-                                    labelText:
-                                        'Link del Producto del Proveedor',
-                                    hintText: 'https://proveedor.com/producto',
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.link),
-                                  ),
-                                  keyboardType: TextInputType.url,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    final url = _supplierProductLinkController
-                                        .text
-                                        .trim();
-                                    if (url.isNotEmpty) {
-                                      showDialog(
-                                        context: context,
-                                        builder: (context) =>
-                                            SupplierLinkWebViewDialog(
-                                              url: url,
-                                              supplierName:
-                                                  _selectedSupplierName,
-                                            ),
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Ingresa un link primero',
+                                const SizedBox(height: 16),
+                                StreamBuilder<List<SupplierModel>>(
+                                  stream: SupplierService().getSuppliers(),
+                                  builder: (context, snapshot) {
+                                    final suppliers = snapshot.data ?? [];
+                                    return DropdownButtonFormField<String>(
+                                      initialValue: _selectedSupplierId,
+                                      decoration: InputDecoration(
+                                        labelText: l10n.supplierInfo,
+                                        border: const OutlineInputBorder(),
+                                        prefixIcon: const Icon(Icons.business),
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem(
+                                          value: null,
+                                          child: Text('—'),
+                                        ),
+                                        ...suppliers.map(
+                                          (s) => DropdownMenuItem(
+                                            value: s.id,
+                                            child: Text(s.name),
                                           ),
                                         ),
-                                      );
-                                    }
+                                      ],
+                                      onChanged: (v) {
+                                        setState(() {
+                                          _selectedSupplierId = v;
+                                          _selectedSupplierName = v != null
+                                              ? suppliers
+                                                    .firstWhere(
+                                                      (s) => s.id == v,
+                                                    )
+                                                    .name
+                                              : null;
+                                        });
+                                      },
+                                    );
                                   },
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.visibility),
-                                      Text(
-                                        'Previa',
-                                        style: TextStyle(fontSize: 10),
-                                      ),
-                                    ],
-                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(height: 20),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller:
+                                            _supplierProductLinkController,
+                                        decoration: InputDecoration(
+                                          labelText: l10n.supplierLink,
+                                          border: const OutlineInputBorder(),
+                                          prefixIcon: const Icon(Icons.link),
+                                        ),
+                                        keyboardType: TextInputType.url,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      height: 56,
+                                      child: ElevatedButton(
+                                        onPressed: () {
+                                          final url =
+                                              _supplierProductLinkController
+                                                  .text
+                                                  .trim();
+                                          if (url.isNotEmpty) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) =>
+                                                  SupplierLinkWebViewDialog(
+                                                    url: url,
+                                                    supplierName:
+                                                        _selectedSupplierName,
+                                                  ),
+                                            );
+                                          } else {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  l10n.enterLinkFirst,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.visibility),
+                                            Text(
+                                              l10n.preview,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ],

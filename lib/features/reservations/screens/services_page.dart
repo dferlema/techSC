@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/services/role_service.dart';
@@ -58,15 +57,14 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     super.dispose();
   }
 
-  Future<void> _deleteService(String serviceId) async {
-    await FirebaseFirestore.instance
-        .collection('services')
-        .doc(serviceId)
-        .delete();
+  Future<void> _deleteService(String? categoryId, String serviceId) async {
+    await ref
+        .read(filteredServicesProvider(categoryId).notifier)
+        .deleteService(serviceId);
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Servicio eliminado')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.serviceDeleted)),
+    );
   }
 
   void _addToCart(ServiceModel service) {
@@ -75,10 +73,10 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
         .addToCart(service.toFirestore()..['id'] = service.id, type: 'service');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('✅ ${service.name} agregado al carrito'),
+        content: Text(AppLocalizations.of(context)!.addedToCart(service.name)),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
-          label: 'VER',
+          label: AppLocalizations.of(context)!.viewCart,
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const CartPage()),
@@ -492,14 +490,14 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                                 child: InkWell(
                                   onTap: () => _addToCart(service),
                                   borderRadius: BorderRadius.circular(15),
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
                                       vertical: 8,
                                     ),
                                     child: Text(
-                                      'Comprar',
-                                      style: TextStyle(
+                                      AppLocalizations.of(context)!.buyButton,
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
@@ -519,9 +517,11 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                                   ),
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Usa el Panel Admin para editar',
+                                          AppLocalizations.of(
+                                            context,
+                                          )!.editUsingAdminPanel,
                                         ),
                                       ),
                                     );
@@ -532,7 +532,10 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                                     Icons.delete,
                                     color: Colors.red,
                                   ),
-                                  onPressed: () => _deleteService(serviceId),
+                                  onPressed: () => _deleteService(
+                                    service.categoryId,
+                                    serviceId,
+                                  ),
                                 ),
                               ],
                             ),

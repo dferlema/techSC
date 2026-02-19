@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:techsc/features/reservations/models/reservation_model.dart';
 import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
+import 'package:techsc/features/reservations/providers/reservation_providers.dart';
+import 'package:techsc/l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MyReservationsPage extends StatelessWidget {
+class MyReservationsPage extends ConsumerWidget {
   const MyReservationsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reservationsAsync = ref.watch(myReservationsProvider);
     final theme = Theme.of(context);
-
-    if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Debes iniciar sesión para ver tus reservas')),
-      );
-    }
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -31,46 +27,34 @@ class MyReservationsPage extends StatelessWidget {
             }
           },
         ),
-        title: const Text(
-          'Mis Reservas',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          l10n.yourReservations,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('reservations')
-            .where('userId', isEqualTo: user.uid)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+      body: reservationsAsync.when(
+        data: (reservations) {
+          if (reservations.isEmpty) {
+            return _buildEmptyState(context, theme);
           }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState(theme);
-          }
-
           return ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: reservations.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final reservation = ReservationModel.fromFirestore(doc);
+              final reservation = reservations[index];
               return _buildReservationCard(context, reservation, theme);
             },
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(child: Text('Error: $error')),
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  Widget _buildEmptyState(BuildContext context, ThemeData theme) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -78,7 +62,7 @@ class MyReservationsPage extends StatelessWidget {
           Icon(Icons.event_note_outlined, size: 100, color: Colors.grey[300]),
           const SizedBox(height: 24),
           Text(
-            'No tienes reservas aún',
+            l10n.noReservations,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -87,7 +71,7 @@ class MyReservationsPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Tus solicitudes de servicio aparecerán aquí',
+            l10n.reservationEmptyDesc,
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey[500]),
           ),
@@ -138,7 +122,7 @@ class MyReservationsPage extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  _buildStatusBadge(status),
+                  _buildStatusBadge(context, status),
                 ],
               ),
               const SizedBox(height: 8),
@@ -189,32 +173,37 @@ class MyReservationsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(BuildContext context, String status) {
+    final l10n = AppLocalizations.of(context)!;
     Color color;
     String label;
 
     switch (status) {
       case 'pendiente':
         color = Colors.orange;
-        label = 'Pendiente';
+        label = l10n.statusPending;
         break;
       case 'confirmado':
         color = Colors.blue;
-        label = 'Confirmado';
+        label = l10n.statusConfirmed;
         break;
       case 'en_proceso':
         color = Colors.purple;
-        label = 'En Proceso';
+        label = l10n.statusInProcess;
         break;
       case 'aprobado':
       case 'completado':
         color = Colors.green;
-        label = status == 'aprobado' ? 'Aprobado' : 'Completado';
+        label = status == 'aprobado'
+            ? l10n.statusApproved
+            : l10n.statusCompleted;
         break;
       case 'rechazado':
       case 'cancelado':
         color = Colors.red;
-        label = status == 'rechazado' ? 'Rechazado' : 'Cancelado';
+        label = status == 'rechazado'
+            ? l10n.statusRejected
+            : l10n.statusCancelled;
         break;
       default:
         color = Colors.grey;

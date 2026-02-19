@@ -52,4 +52,8 @@ class ServiceService {
           .toList();
     });
   }
+
+  Future<void> deleteService(String serviceId) async {
+    await _db.collection(_collection).doc(serviceId).delete();
+  }
 }

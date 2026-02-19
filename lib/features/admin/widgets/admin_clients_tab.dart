@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -7,20 +8,19 @@ import 'package:printing/printing.dart';
 import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/features/admin/screens/client_form_page.dart';
 import 'package:techsc/features/admin/widgets/role_assignment_dialog.dart';
+import 'package:techsc/features/admin/providers/admin_providers.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
-class AdminClientsTab extends StatefulWidget {
+class AdminClientsTab extends ConsumerStatefulWidget {
   const AdminClientsTab({super.key});
 
   @override
-  State<AdminClientsTab> createState() => _AdminClientsTabState();
+  ConsumerState<AdminClientsTab> createState() => _AdminClientsTabState();
 }
 
-class _AdminClientsTabState extends State<AdminClientsTab> {
+class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
   late TextEditingController _searchController;
-  String _searchQuery = '';
   bool _isSearchExpanded = false;
-  DateTime? _startDate;
-  DateTime? _endDate;
   int _currentPage = 0;
   static const int _itemsPerPage = 10;
 
@@ -36,8 +36,11 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
     super.dispose();
   }
 
-  /// Elimina un documento de Firestore dado su ID y nombre de colección.
-  Future<void> _deleteDocument(String collection, String docId) async {
+  Future<void> _deleteDocument(
+    String collection,
+    String docId,
+    AppLocalizations l10n,
+  ) async {
     try {
       await FirebaseFirestore.instance
           .collection(collection)
@@ -46,34 +49,29 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('✅ Elemento eliminado')));
+      ).showSnackBar(SnackBar(content: Text(l10n.deleteSuccess)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error: $e')));
+      ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
     }
   }
 
-  /// Retorna el color según el rol
   Color _getRoleColor(String role) {
     switch (role) {
       case RoleService.ADMIN:
         return Colors.purple;
       case RoleService.SELLER:
         return Colors.blue;
-      case RoleService.CLIENT:
       default:
         return Colors.green;
     }
   }
 
-  /// Exporta la lista completa de usuarios a un archivo CSV.
-  Future<void> _exportToCSV() async {
+  Future<void> _exportToCSV(AppLocalizations l10n) async {
     try {
-      final docs = await FirebaseFirestore.instance.collection('users').get();
-      final clients = docs.docs.map((doc) => doc.data()).toList();
-
+      final clients = await ref.read(adminClientsProvider.future);
       final StringBuffer buffer = StringBuffer();
       buffer.writeln('Cédula,Nombre,Correo,Teléfono,Tipo,Fecha Registro');
 
@@ -85,7 +83,7 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
           '"${client['email'] ?? ''}",'
           '"${client['phone'] ?? ''}",'
           '"${client['type'] ?? 'particular'}",'
-          '"${createdAt != null ? '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}' : ''}"',
+          '"${createdAt?.toIso8601String().split('T')[0] ?? ''}"',
         );
       }
 
@@ -94,23 +92,20 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
       await file.writeAsString(buffer.toString());
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ CSV guardado en documentos')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.csvSaved)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error al exportar: $e')));
+      ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
     }
   }
 
-  /// Genera y comparte un reporte PDF de los clientes.
-  Future<void> _exportToPDF() async {
+  Future<void> _exportToPDF(AppLocalizations l10n) async {
     try {
-      final docs = await FirebaseFirestore.instance.collection('users').get();
-      final clients = docs.docs.map((doc) => doc.data()).toList();
-
+      final clients = await ref.read(adminClientsProvider.future);
       final pdf = pw.Document();
       pdf.addPage(
         pw.Page(
@@ -147,7 +142,6 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
                 pw.Table.fromTextArray(
                   data: tableData,
                   border: pw.TableBorder.all(width: 0.5),
-                  tableWidth: pw.TableWidth.max,
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 ),
               ],
@@ -164,12 +158,11 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('❌ Error al generar PDF: $e')));
+      ).showSnackBar(SnackBar(content: Text(l10n.pdfError)));
     }
   }
 
-  // 👤 Widget de cliente para lista
-  Widget _buildClientCardForList(Map<String, dynamic> client) {
+  Widget _buildClientCard(Map<String, dynamic> client, AppLocalizations l10n) {
     final createdAt = (client['createdAt'] as Timestamp?)?.toDate();
     final role = client['role'] ?? RoleService.CLIENT;
     final roleIcon = RoleService.getRoleIcon(role);
@@ -188,8 +181,8 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('📌 Cédula: ${client['id'] ?? '—'}'),
-            Text('📱 Tel: ${client['phone'] ?? '—'}'),
+            Text('${l10n.idLabel}: ${client['id'] ?? '—'}'),
+            Text('${l10n.phoneLabel}: ${client['phone'] ?? '—'}'),
             Text('📧 ${client['email'] ?? '—'}'),
             if (createdAt != null)
               Text('📅 ${createdAt.day}/${createdAt.month}/${createdAt.year}'),
@@ -215,27 +208,26 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.admin_panel_settings, size: 18),
-              color: Colors.orange,
-              tooltip: 'Cambiar rol',
+              icon: const Icon(
+                Icons.admin_panel_settings,
+                size: 18,
+                color: Colors.orange,
+              ),
               onPressed: () async {
-                final result = await showRoleAssignmentDialog(
+                final res = await showRoleAssignmentDialog(
                   context,
                   userId: client['docId'],
                   currentRole: role,
                   userName: client['name'] ?? '—',
                   userEmail: client['email'] ?? '—',
                 );
-                if (result == true && mounted) {
-                  setState(() {});
-                }
+                if (res == true && mounted) setState(() {});
               },
             ),
             IconButton(
               icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
-              tooltip: 'Editar',
               onPressed: () async {
-                final result = await Navigator.push(
+                final res = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => ClientFormPage(
@@ -244,17 +236,15 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
                     ),
                   ),
                 );
-                if (result == true && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Cliente actualizado')),
-                  );
-                }
+                if (res == true && mounted)
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
               },
             ),
             IconButton(
               icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-              tooltip: 'Eliminar',
-              onPressed: () => _deleteDocument('users', client['docId']),
+              onPressed: () => _deleteDocument('users', client['docId'], l10n),
             ),
           ],
         ),
@@ -264,17 +254,20 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final clientsAsync = ref.watch(adminClientsProvider);
+    final dateRange = ref.watch(adminClientsDateRangeProvider);
+
     return Column(
       children: [
-        // 🔍 Búsqueda avanzada
         Card(
           margin: const EdgeInsets.only(bottom: 16),
           child: Column(
             children: [
               ListTile(
-                title: const Text(
-                  '🔍 Búsqueda Avanzada',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                title: Text(
+                  l10n.advancedSearch,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 trailing: IconButton(
                   icon: Icon(
@@ -291,103 +284,102 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
                     children: [
                       TextField(
                         controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText:
-                              'Buscar por cédula, nombre, correo o teléfono...',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          hintText: l10n.searchHint,
+                          prefixIcon: const Icon(Icons.search),
+                          border: const OutlineInputBorder(),
                         ),
-                        onChanged: (value) =>
-                            setState(() => _searchQuery = value),
+                        onChanged: (val) =>
+                            ref.read(adminClientsQueryProvider.notifier).state =
+                                val,
                       ),
                       const SizedBox(height: 16),
-                      // 📅 Filtro por fechas
                       Row(
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () async {
-                                final date = await showDatePicker(
+                                final res = await showDateRangePicker(
                                   context: context,
-                                  initialDate:
-                                      _startDate ??
-                                      DateTime.now().subtract(
-                                        const Duration(days: 30),
-                                      ),
                                   firstDate: DateTime(2020),
                                   lastDate: DateTime.now(),
+                                  initialDateRange: dateRange,
                                 );
-                                if (date != null) {
-                                  setState(() => _startDate = date);
-                                }
+                                if (res != null)
+                                  ref
+                                          .read(
+                                            adminClientsDateRangeProvider
+                                                .notifier,
+                                          )
+                                          .state =
+                                      res;
                               },
                               icon: const Icon(Icons.calendar_today, size: 16),
                               label: Text(
-                                _startDate != null
-                                    ? 'Desde: ${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
-                                    : 'Fecha inicio',
+                                dateRange != null
+                                    ? '${l10n.from}: ${dateRange.start.day}/${dateRange.start.month}'
+                                    : l10n.startDate,
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                final date = await showDatePicker(
-                                  context: context,
-                                  initialDate: _endDate ?? DateTime.now(),
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime.now(),
-                                );
-                                if (date != null) {
-                                  setState(() => _endDate = date);
-                                }
-                              },
-                              icon: const Icon(Icons.calendar_today, size: 16),
-                              label: Text(
-                                _endDate != null
-                                    ? 'Hasta: ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
-                                    : 'Fecha fin',
-                                style: const TextStyle(fontSize: 12),
+                          if (dateRange != null)
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {},
+                                icon: const Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  '${l10n.to}: ${dateRange.end.day}/${dateRange.end.month}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Botones de acción
                       Row(
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                setState(() {
-                                  _searchQuery = '';
-                                  _searchController.clear();
-                                  _startDate = null;
-                                  _endDate = null;
-                                  _currentPage = 0;
-                                });
+                                _searchController.clear();
+                                ref
+                                        .read(
+                                          adminClientsQueryProvider.notifier,
+                                        )
+                                        .state =
+                                    '';
+                                ref
+                                        .read(
+                                          adminClientsDateRangeProvider
+                                              .notifier,
+                                        )
+                                        .state =
+                                    null;
+                                setState(() => _currentPage = 0);
                               },
                               icon: const Icon(Icons.refresh, size: 16),
-                              label: const Text('Limpiar'),
+                              label: Text(l10n.clearFilters),
                             ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
-                            onPressed: _exportToCSV,
+                            onPressed: () => _exportToCSV(l10n),
                             icon: const Icon(Icons.file_download, size: 16),
-                            label: const Text('CSV'),
+                            label: Text(l10n.exportCSV),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
                             ),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton.icon(
-                            onPressed: _exportToPDF,
+                            onPressed: () => _exportToPDF(l10n),
                             icon: const Icon(Icons.picture_as_pdf, size: 16),
-                            label: const Text('PDF'),
+                            label: Text(l10n.exportPDF),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                             ),
@@ -400,144 +392,79 @@ class _AdminClientsTabState extends State<AdminClientsTab> {
             ],
           ),
         ),
-
-        // ➕ Agregar cliente
         ElevatedButton.icon(
           onPressed: () async {
-            final result = await Navigator.push(
+            final res = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const ClientFormPage()),
             );
-            if (result == true && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('✅ Cliente guardado')),
-              );
-            }
+            if (res == true && mounted)
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
           },
           icon: const Icon(Icons.person_add),
-          label: const Text('Agregar Cliente'),
+          label: Text(l10n.addClient),
           style: ElevatedButton.styleFrom(foregroundColor: Colors.white),
         ),
         const SizedBox(height: 24),
-
-        // 📊 Lista o tabla de clientes
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          child: clientsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) =>
+                Center(child: Text('${l10n.errorPrefix}: $err')),
+            data: (filteredLines) {
+              if (filteredLines.isEmpty)
+                return Center(child: Text(l10n.noMatchesFound));
 
-              final allClients = snapshot.data!.docs
-                  .map(
-                    (doc) => {
-                      'docId': doc.id,
-                      ...doc.data() as Map<String, dynamic>,
-                    },
-                  )
-                  .toList();
-
-              // 🔍 Filtrar por texto
-              List<Map<String, dynamic>> filtered = allClients;
-              if (_searchQuery.isNotEmpty) {
-                final query = _searchQuery.toLowerCase();
-                filtered = filtered.where((client) {
-                  return (client['id'] as String?)?.toLowerCase().contains(
-                            query,
-                          ) ==
-                          true ||
-                      (client['name'] as String?)?.toLowerCase().contains(
-                            query,
-                          ) ==
-                          true ||
-                      (client['email'] as String?)?.toLowerCase().contains(
-                            query,
-                          ) ==
-                          true ||
-                      (client['phone'] as String?)?.toLowerCase().contains(
-                            query,
-                          ) ==
-                          true;
-                }).toList();
-              }
-
-              // 📅 Filtrar por fechas
-              if (_startDate != null || _endDate != null) {
-                filtered = filtered.where((client) {
-                  final createdAt = (client['createdAt'] as Timestamp?)
-                      ?.toDate();
-                  if (createdAt == null) return true;
-                  if (_startDate != null && createdAt.isBefore(_startDate!)) {
-                    return false;
-                  }
-                  if (_endDate != null &&
-                      createdAt.isAfter(
-                        _endDate!.add(const Duration(days: 1)),
-                      )) {
-                    return false;
-                  }
-                  return true;
-                }).toList();
-              }
-
-              // Paginación
               final start = _currentPage * _itemsPerPage;
-              final end = start + _itemsPerPage;
-              final paginated = filtered.sublist(
-                start,
-                end > filtered.length ? filtered.length : end,
+              final end = (start + _itemsPerPage).clamp(
+                0,
+                filteredLines.length,
               );
+              final paginated = filteredLines.sublist(start, end);
 
               return Column(
                 children: [
-                  // Resumen
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
                     child: Text(
-                      'Mostrando ${paginated.length} de ${filtered.length} clientes',
+                      l10n.showingCount(paginated.length, filteredLines.length),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  // Lista
                   Expanded(
                     child: ListView.builder(
                       itemCount: paginated.length,
-                      itemBuilder: (context, index) {
-                        final client = paginated[index];
-                        return _buildClientCardForList(client);
-                      },
+                      itemBuilder: (context, index) =>
+                          _buildClientCard(paginated[index], l10n),
                     ),
                   ),
-                  // Paginación
-                  if (filtered.length > _itemsPerPage)
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            onPressed: _currentPage > 0
-                                ? () => setState(() => _currentPage--)
-                                : null,
-                          ),
-                          Text(
-                            '${_currentPage + 1} / ${(filtered.length / _itemsPerPage).ceil()}',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            onPressed:
-                                (_currentPage + 1) * _itemsPerPage <
-                                    filtered.length
-                                ? () => setState(() => _currentPage++)
-                                : null,
-                          ),
-                        ],
-                      ),
+                  if (filteredLines.length > _itemsPerPage)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: _currentPage > 0
+                              ? () => setState(() => _currentPage--)
+                              : null,
+                        ),
+                        Text(
+                          '${_currentPage + 1} / ${(filteredLines.length / _itemsPerPage).ceil()}',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed:
+                              (_currentPage + 1) * _itemsPerPage <
+                                  filteredLines.length
+                              ? () => setState(() => _currentPage++)
+                              : null,
+                        ),
+                      ],
                     ),
                 ],
               );
