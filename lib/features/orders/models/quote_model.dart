@@ -147,6 +147,8 @@ class QuoteModel {
     };
   }
 
+  Map<String, dynamic> toFirestore() => toMap();
+
   factory QuoteModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return QuoteModel.fromMap(data, doc.id);

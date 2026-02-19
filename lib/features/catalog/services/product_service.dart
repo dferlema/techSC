@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/services/cache_service.dart';
+import 'package:techsc/features/catalog/models/product_model.dart';
 
 class ProductService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -8,14 +9,16 @@ class ProductService {
 
   ProductService({CacheService? cache}) : _cache = cache;
 
-  Stream<List<Map<String, dynamic>>> getProducts(String categoryId) async* {
+  Stream<List<ProductModel>> getProducts(String categoryId) async* {
     final cacheKey = 'products_$categoryId';
 
     // 1. Emit cached data
     if (_cache != null) {
       final cached = _cache.getCachedCatalog(cacheKey);
       if (cached != null) {
-        yield cached;
+        yield cached
+            .map((p) => ProductModel.fromFirestoreMap(p, p['id'] ?? ''))
+            .toList();
       }
     }
 
@@ -25,17 +28,29 @@ class ProductService {
         .where('categoryId', isEqualTo: categoryId)
         .snapshots()
         .map((snapshot) {
-          final products = snapshot.docs.map((doc) {
+          final List<Map<String, dynamic>> productsMap = snapshot.docs.map((
+            doc,
+          ) {
             final data = doc.data();
             return {...data, 'id': doc.id};
           }).toList();
 
           // Update cache
           if (_cache != null) {
-            _cache.cacheCatalog(cacheKey, products);
+            final sanitized = productsMap.map((p) {
+              return p.map((key, value) {
+                if (value is Timestamp) {
+                  return MapEntry(key, value.millisecondsSinceEpoch);
+                }
+                return MapEntry(key, value);
+              });
+            }).toList();
+            _cache.cacheCatalog(cacheKey, sanitized);
           }
 
-          return products;
+          return productsMap
+              .map((p) => ProductModel.fromFirestoreMap(p, p['id']))
+              .toList();
         });
   }
 }

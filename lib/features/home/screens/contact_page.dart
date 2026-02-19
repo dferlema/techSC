@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:techsc/core/widgets/notification_icon.dart';
 import 'package:techsc/core/widgets/app_drawer.dart';
 import 'package:techsc/core/utils/branding_helper.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
@@ -58,21 +59,21 @@ class ContactPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(colorScheme),
+                  _buildHeader(context, colorScheme),
                   const SizedBox(height: 32),
                   _buildWhatsAppHero(context, colorScheme),
                   const SizedBox(height: 40),
                   Text(
-                    'Otros canales de atención',
+                    AppLocalizations.of(context)!.otherChannels,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildContactOptions(colorScheme),
+                  _buildContactOptions(context, colorScheme),
                   const SizedBox(height: 48),
-                  _buildFooter(theme),
+                  _buildFooter(context, theme),
                 ],
               ),
             ),
@@ -116,12 +117,12 @@ class ContactPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ColorScheme colorScheme) {
+  Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '¡Hola! 👋',
+          AppLocalizations.of(context)!.contactGreeting,
           style: TextStyle(
             fontSize: 40,
             fontWeight: FontWeight.w900,
@@ -131,7 +132,7 @@ class ContactPage extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '¿Cómo podemos ayudarte hoy?',
+          AppLocalizations.of(context)!.contactQuestion,
           style: TextStyle(
             fontSize: 20,
             color: colorScheme.onSurface.withOpacity(0.6),
@@ -197,9 +198,9 @@ class ContactPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Asistencia Inmediata',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.immediateAssistance,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -208,7 +209,7 @@ class ContactPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Resolvemos tus dudas técnicas por WhatsApp en tiempo real.',
+                  AppLocalizations.of(context)!.whatsappDescription,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
@@ -231,9 +232,12 @@ class ContactPage extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Iniciar Chat Ahora',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  child: Text(
+                    AppLocalizations.of(context)!.startChatButton,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -244,13 +248,13 @@ class ContactPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContactOptions(ColorScheme colorScheme) {
+  Widget _buildContactOptions(BuildContext context, ColorScheme colorScheme) {
     return Column(
       children: [
         _buildModernOption(
           icon: Icons.phone_forwarded_rounded,
           color: Colors.blue,
-          title: 'Línea Directa',
+          title: AppLocalizations.of(context)!.directLine,
           subtitle: BrandingHelper.companyPhone,
           onTap: _makePhoneCall,
           colorScheme: colorScheme,
@@ -259,7 +263,7 @@ class ContactPage extends StatelessWidget {
         _buildModernOption(
           icon: Icons.alternate_email_rounded,
           color: Colors.orange,
-          title: 'Correo Electrónico',
+          title: AppLocalizations.of(context)!.emailContact,
           subtitle: BrandingHelper.companyEmail,
           onTap: _sendEmail,
           colorScheme: colorScheme,
@@ -268,7 +272,7 @@ class ContactPage extends StatelessWidget {
         _buildModernOption(
           icon: Icons.location_on_rounded,
           color: Colors.redAccent,
-          title: 'Ubicación Central',
+          title: AppLocalizations.of(context)!.centralLocation,
           subtitle: BrandingHelper.companyAddress,
           onTap: () {},
           colorScheme: colorScheme,
@@ -351,7 +355,7 @@ class ContactPage extends StatelessWidget {
     );
   }
 
-  Widget _buildFooter(ThemeData theme) {
+  Widget _buildFooter(BuildContext context, ThemeData theme) {
     return Center(
       child: Column(
         children: [
@@ -362,7 +366,7 @@ class ContactPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Estamos disponibles 24/7 para ti',
+              AppLocalizations.of(context)!.available247,
               style: TextStyle(
                 color: theme.colorScheme.primary.withOpacity(0.6),
                 fontSize: 12,

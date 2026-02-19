@@ -1,30 +1,33 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:techsc/core/widgets/app_drawer.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/core/widgets/notification_icon.dart';
-import 'package:techsc/features/orders/screens/my_orders_page.dart';
-import 'package:techsc/features/catalog/screens/product_detail_page.dart';
-import 'package:techsc/core/models/config_model.dart';
-import 'package:techsc/core/services/config_service.dart';
+import 'package:techsc/core/providers/providers.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:techsc/core/widgets/app_drawer.dart';
+import 'package:techsc/core/widgets/notification_icon.dart';
+import 'package:techsc/features/home/providers/home_providers.dart';
+import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/features/catalog/models/product_model.dart';
+import 'package:techsc/features/catalog/screens/product_detail_page.dart';
+import 'package:techsc/features/orders/screens/my_orders_page.dart';
 import 'package:techsc/features/orders/screens/quote_list_page.dart';
 import 'package:techsc/features/admin/screens/settings_page.dart';
 import 'package:techsc/features/admin/screens/admin_panel_page.dart';
 import 'package:techsc/features/admin/screens/reports_page.dart';
 import 'package:techsc/features/reservations/screens/technician_dashboard.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   final String routeName;
   const HomePage({super.key, this.routeName = '/home'});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _launchWhatsApp(String phone) async {
     final Uri url = Uri.parse('https://wa.me/$phone');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -69,12 +72,13 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final configAsync = ref.watch(configStreamProvider);
 
-    return StreamBuilder<ConfigModel>(
-      stream: ConfigService().getConfigStream(),
-      builder: (context, snapshot) {
-        final config = snapshot.data ?? ConfigModel();
-
+    return configAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (config) {
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
@@ -115,14 +119,14 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 32),
 
                 // 3. Nuestros Servicios (Horizontal List)
-                _buildSectionTitle('Nuestros Servicios'),
+                _buildSectionTitle(AppLocalizations.of(context)!.servicesTitle),
                 _buildServicesList(context),
 
                 const SizedBox(height: 32),
 
                 // 4. Nuestros Productos (Horizontal List)
                 _buildSectionTitle(
-                  'Productos Destacados',
+                  AppLocalizations.of(context)!.productsTitle,
                   onSeeMore: () => Navigator.pushNamed(context, '/products'),
                 ),
                 _buildProductsList(context),
@@ -187,14 +191,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildStaffDashboard(BuildContext context) {
-    final user = AuthService().currentUser;
+    final user = ref.watch(authServiceProvider).currentUser;
     if (user == null) return const SizedBox.shrink();
 
-    return FutureBuilder<String>(
-      future: RoleService().getUserRole(user.uid),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        final role = snapshot.data!;
+    final roleAsync = ref.watch(userRoleProvider(user.uid));
+
+    return roleAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (role) {
         if (role == RoleService.CLIENT) return const SizedBox.shrink();
 
         final cards = _getDashboardCards(role, context);
@@ -371,12 +376,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCarouselSection() {
+    final bannersAsync = ref.watch(bannersProvider);
+
     return SizedBox(
       height: 200,
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('banners').snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+      child: bannersAsync.when(
+        loading: () => Container(
+          color: Colors.grey[300],
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+        error: (err, stack) => Container(
+          color: Colors.grey[300],
+          child: const Center(child: Icon(Icons.error)),
+        ),
+        data: (banners) {
+          if (banners.isEmpty) {
             return Container(
               color: Colors.grey[300],
               child: const Center(
@@ -384,22 +398,26 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           }
-          return BannerCarousel(banners: snapshot.data!.docs);
+          return BannerCarousel(banners: banners);
         },
       ),
     );
   }
 
   Widget _buildHelpSection(BuildContext context) {
-    final user = AuthService().currentUser;
+    final user = ref.watch(authServiceProvider).currentUser;
 
-    return FutureBuilder<String>(
-      future: user != null
-          ? RoleService().getUserRole(user.uid)
-          : Future.value(RoleService.CLIENT),
-      builder: (context, snapshot) {
-        final role = snapshot.data ?? RoleService.CLIENT;
+    final roleAsync = user != null
+        ? ref.watch(userRoleProvider(user.uid))
+        : const AsyncValue.data(RoleService.CLIENT);
 
+    return roleAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (role) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GridView.count(
@@ -478,36 +496,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildProductsList(BuildContext context) {
+    final featuredProductsAsync = ref.watch(featuredProductsProvider);
+
     return SizedBox(
-      height: 260, // Aumentado
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('products')
-            .where('isFeatured', isEqualTo: true)
-            .limit(5)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.data!.docs.isEmpty) {
+      height: 260,
+      child: featuredProductsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
+        data: (products) {
+          if (products.isEmpty) {
             return _buildEmptyProductsState(context);
           }
 
-          final products = snapshot.data!.docs;
           return ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 15,
-            ), // Padding vertical
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             itemCount: products.length,
             itemBuilder: (context, index) {
-              final doc = products[index];
-              final product = doc.data() as Map<String, dynamic>;
-              // Pass both data and ID
-              return _buildProductCard(context, product, doc.id);
+              final product = products[index];
+              return _buildProductCard(context, product);
             },
           );
         },
@@ -549,17 +557,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProductCard(
-    BuildContext context,
-    Map<String, dynamic> product,
-    String id,
-  ) {
+  Widget _buildProductCard(BuildContext context, ProductModel product) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProductDetailPage(product: product, productId: id),
+            builder: (_) =>
+                ProductDetailPage(product: product, productId: product.id),
           ),
         );
       },
@@ -585,12 +590,18 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
-                child: product['image'] != null && product['image'].isNotEmpty
-                    ? Image.network(
-                        product['image'], // Fixed key from imageUrl to image
+                child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: product.imageUrl!,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        errorBuilder: (_, __, ___) => Container(
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
                           color: Colors.grey[200],
                           child: const Icon(Icons.broken_image),
                         ),
@@ -607,7 +618,7 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product['name'] ?? 'Producto',
+                    product.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -619,18 +630,18 @@ class _HomePageState extends State<HomePage> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '\$${(product['price'] ?? 0).toString()}',
+                        '\$${product.price}',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (product['taxStatus'] != null &&
-                          product['taxStatus'] != 'Ninguno')
+                      /* if (product.taxStatus != null &&
+                          product.taxStatus != 'Ninguno')
                         Padding(
                           padding: const EdgeInsets.only(left: 4, bottom: 2),
                           child: Text(
-                            product['taxStatus'] == 'Incluye impuesto'
+                            product.taxStatus == 'Incluye impuesto'
                                 ? '(Incl.)'
                                 : '(+ Imp)',
                             style: TextStyle(
@@ -639,7 +650,7 @@ class _HomePageState extends State<HomePage> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
+                        ), */
                     ],
                   ),
                 ],
@@ -718,11 +729,17 @@ class _BannerCarouselState extends State<BannerCarousel> {
           itemBuilder: (context, index) {
             final banner = widget.banners[index % widget.banners.length];
             final data = banner.data() as Map<String, dynamic>;
-            return Image.network(
-              data['imageUrl'] ?? '',
+            return CachedNetworkImage(
+              imageUrl: data['imageUrl'] ?? '',
               fit: BoxFit.cover,
               width: double.infinity,
-              errorBuilder: (context, error, stackTrace) => Container(
+              placeholder: (context, url) => Container(
+                color: Colors.grey[300],
+                child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              errorWidget: (context, url, error) => Container(
                 color: Colors.grey[300],
                 child: const Icon(Icons.error),
               ),

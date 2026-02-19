@@ -7,6 +7,7 @@ import 'package:techsc/features/auth/services/auth_service.dart';
 import 'package:techsc/core/utils/branding_helper.dart';
 import 'package:techsc/core/utils/validators.dart';
 import 'package:techsc/core/theme/app_colors.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -106,9 +107,11 @@ class _RegisterPageState extends State<RegisterPage> {
         );
 
         if (user != null && mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('¡Registro exitoso!')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.emailSentSuccess),
+            ),
+          );
 
           // 👉 Navegar a Home
           Navigator.pushReplacementNamed(context, '/main');
@@ -122,9 +125,7 @@ class _RegisterPageState extends State<RegisterPage> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⚠️ Error al registrar. Inténtalo de nuevo.'),
-            ),
+            SnackBar(content: Text(AppLocalizations.of(context)!.errorLoading)),
           );
         }
       } finally {
@@ -175,16 +176,16 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      const Text(
-                        'Crear Cuenta',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context)!.registerTitle,
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Únete a ${BrandingHelper.appName} y accede a servicios exclusivos',
+                        AppLocalizations.of(context)!.registerDescription,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,
@@ -367,7 +368,9 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                             onPressed: _toggleConfirmPasswordVisibility,
                           ),
-                          labelText: 'Confirmar Contraseña',
+                          labelText: AppLocalizations.of(
+                            context,
+                          )!.confirmPasswordLabel,
                           hintText: '••••••••',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -375,7 +378,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Confirmación es obligatoria';
+                            return AppLocalizations.of(
+                              context,
+                            )!.confirmPasswordLabel;
                           }
                           return null;
                         },
@@ -396,23 +401,33 @@ class _RegisterPageState extends State<RegisterPage> {
                           Expanded(
                             child: RichText(
                               text: TextSpan(
-                                text: 'Acepto los ',
+                                text: AppLocalizations.of(
+                                  context,
+                                )!.acceptTermsPrefix,
                                 style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 14,
                                 ),
                                 children: [
                                   TextSpan(
-                                    text: 'términos y condiciones',
+                                    text: AppLocalizations.of(
+                                      context,
+                                    )!.termsAndConditions,
                                     style: TextStyle(
                                       color: AppColors.primaryBlue,
                                       decoration: TextDecoration.underline,
                                     ),
                                     recognizer: _termsRecognizer,
                                   ),
-                                  const TextSpan(text: ' y la '),
                                   TextSpan(
-                                    text: 'política de privacidad',
+                                    text: AppLocalizations.of(
+                                      context,
+                                    )!.acceptTermsAnd,
+                                  ),
+                                  TextSpan(
+                                    text: AppLocalizations.of(
+                                      context,
+                                    )!.privacyPolicy,
                                     style: TextStyle(
                                       color: AppColors.primaryBlue,
                                       decoration: TextDecoration.underline,
@@ -441,9 +456,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         child: _isLoading
                             ? CircularProgressIndicator(color: AppColors.white)
-                            : const Text(
-                                'Registrarse',
-                                style: TextStyle(fontSize: 18),
+                            : Text(
+                                AppLocalizations.of(context)!.registerButton,
+                                style: const TextStyle(fontSize: 18),
                               ),
                       ),
                       const SizedBox(height: 20),
@@ -452,13 +467,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('¿Ya tienes una cuenta? '),
+                          Text(
+                            AppLocalizations.of(context)!.alreadyHaveAccount,
+                          ),
                           TextButton(
                             onPressed: () {
                               Navigator.pushReplacementNamed(context, '/login');
                             },
                             child: Text(
-                              'Inicia sesión',
+                              AppLocalizations.of(context)!.loginLink,
                               style: TextStyle(
                                 color: AppColors.primaryBlue,
                                 decoration: TextDecoration.underline,

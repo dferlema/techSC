@@ -36,17 +36,17 @@ class OrderModel {
           ? Timestamp.fromDate(completedAt!)
           : null,
       'technicianId': technicianId,
-      // Add total and items at top level for easier access and consistency
       'total': originalQuote.total,
       'items': originalQuote.items.map((x) => x.toMap()).toList(),
       'discountPercentage': originalQuote.discountPercentage,
     };
   }
 
-  factory OrderModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  Map<String, dynamic> toFirestore() => toMap();
+
+  factory OrderModel.fromFirestoreMap(Map<String, dynamic> data, String id) {
     return OrderModel(
-      id: doc.id,
+      id: id,
       quoteId: data['quoteId'] ?? '',
       originalQuote: QuoteModel.fromMap(
         data['originalQuote'] as Map<String, dynamic>,
@@ -54,11 +54,26 @@ class OrderModel {
       ),
       status: data['status'] ?? 'pending',
       paymentStatus: data['paymentStatus'] ?? 'unpaid',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
+          : (data['createdAt'] is String
+                ? DateTime.parse(data['createdAt'])
+                : DateTime.now()),
       completedAt: data['completedAt'] != null
-          ? (data['completedAt'] as Timestamp).toDate()
+          ? (data['completedAt'] is Timestamp
+                ? (data['completedAt'] as Timestamp).toDate()
+                : (data['completedAt'] is String
+                      ? DateTime.tryParse(data['completedAt'])
+                      : null))
           : null,
       technicianId: data['technicianId'] ?? '',
+    );
+  }
+
+  factory OrderModel.fromFirestore(DocumentSnapshot doc) {
+    return OrderModel.fromFirestoreMap(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
     );
   }
 }

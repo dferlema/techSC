@@ -23,10 +23,12 @@ class NotificationModel {
     this.receiverId,
   });
 
-  factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  factory NotificationModel.fromFirestoreMap(
+    Map<String, dynamic> data,
+    String id,
+  ) {
     return NotificationModel(
-      id: doc.id,
+      id: id,
       title: data['title'] ?? '',
       body: data['body'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -35,6 +37,13 @@ class NotificationModel {
       relatedId: data['relatedId'] ?? '',
       receiverRole: data['receiverRole'],
       receiverId: data['receiverId'],
+    );
+  }
+
+  factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
+    return NotificationModel.fromFirestoreMap(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
     );
   }
 
@@ -50,4 +59,6 @@ class NotificationModel {
       'receiverId': receiverId,
     };
   }
+
+  Map<String, dynamic> toFirestore() => toMap();
 }

@@ -1,145 +1,113 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:techsc/features/orders/models/quote_model.dart';
-import 'package:techsc/features/orders/services/quote_service.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/services/role_service.dart';
+import 'package:techsc/features/orders/models/quote_model.dart';
+import 'package:techsc/features/orders/providers/quote_providers.dart';
 import 'package:techsc/features/orders/screens/create_quote_page.dart';
 import 'package:techsc/features/orders/screens/quote_detail_page.dart';
 
-class QuoteListPage extends StatefulWidget {
+class QuoteListPage extends ConsumerWidget {
   const QuoteListPage({super.key});
-
   @override
-  State<QuoteListPage> createState() => _QuoteListPageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authServiceProvider).currentUser;
 
-class _QuoteListPageState extends State<QuoteListPage> {
-  final QuoteService _quoteService = QuoteService();
-  final AuthService _authService = AuthService();
-  final RoleService _roleService = RoleService();
-
-  String? _userRole;
-  String? _userId;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserRole();
-  }
-
-  Future<void> _loadUserRole() async {
-    final user = _authService.currentUser;
-    if (user != null) {
-      final role = await _roleService.getUserRole(user.uid);
-      if (mounted) {
-        setState(() {
-          _userId = user.uid;
-          _userRole = role;
-          _isLoading = false;
-        });
-      }
-    } else {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-    if (_userId == null) {
+    if (user == null) {
       return const Scaffold(body: Center(child: Text('Inicia sesión')));
     }
 
-    final isClient = _userRole == RoleService.CLIENT;
-    final isStaff = !isClient;
+    final roleAsync = ref.watch(userRoleProvider(user.uid));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cotizaciones'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              Navigator.pushReplacementNamed(context, '/main');
-            }
-          },
-        ),
-        actions: [
-          // Filter button could go here
-        ],
-      ),
-      body: StreamBuilder<List<QuoteModel>>(
-        stream: _quoteService.getQuotes(
-          customerUid: isClient ? _userId : null,
-          creatorId:
-              null, // Staff sees all? Or restrict? Let's show all for now.
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return roleAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (role) {
+        final isClient = role == RoleService.CLIENT;
+        final isStaff = !isClient;
 
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+        final quotesAsync = ref.watch(
+          quotesProvider(
+            QuotesFilters(customerUid: isClient ? user.uid : null),
+          ),
+        );
 
-          final quotes = snapshot.data ?? [];
-
-          if (quotes.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.description_outlined,
-                    size: 60,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    isClient
-                        ? 'No tienes cotizaciones.'
-                        : 'No hay cotizaciones registradas.',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: quotes.length,
-            itemBuilder: (context, index) {
-              final quote = quotes[index];
-              return _buildQuoteCard(quote, isClient);
-            },
-          );
-        },
-      ),
-      floatingActionButton: isStaff
-          ? FloatingActionButton.extended(
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Cotizaciones'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateQuotePage(),
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  Navigator.pushReplacementNamed(context, '/main');
+                }
+              },
+            ),
+          ),
+          body: quotesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Error: $err')),
+            data: (quotes) {
+              if (quotes.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.description_outlined,
+                        size: 60,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        isClient
+                            ? 'No tienes cotizaciones.'
+                            : 'No hay cotizaciones registradas.',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
                 );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Nueva Cotización'),
-            )
-          : null,
+              }
+
+              return ListView.builder(
+                itemCount: quotes.length,
+                itemBuilder: (context, index) {
+                  final quote = quotes[index];
+                  return _buildQuoteCard(context, ref, quote, isClient);
+                },
+              );
+            },
+          ),
+          floatingActionButton: isStaff
+              ? FloatingActionButton.extended(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CreateQuotePage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nueva Cotización'),
+                )
+              : null,
+        );
+      },
     );
   }
 
-  Widget _buildQuoteCard(QuoteModel quote, bool isClient) {
+  Widget _buildQuoteCard(
+    BuildContext context,
+    WidgetRef ref,
+    QuoteModel quote,
+    bool isClient,
+  ) {
     Color statusColor;
     String statusText;
     switch (quote.status) {

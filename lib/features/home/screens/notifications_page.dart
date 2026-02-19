@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/models/notification_model.dart';
-import 'package:techsc/features/reservations/models/reservation_model.dart';
-import 'package:techsc/features/orders/models/quote_model.dart';
-import 'package:techsc/core/services/notification_service.dart';
+import 'package:techsc/core/providers/notification_providers.dart';
+import 'package:techsc/core/services/deep_link_service.dart';
 import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
+import 'package:techsc/features/orders/models/quote_model.dart';
 import 'package:techsc/features/orders/screens/order_detail_page.dart';
 import 'package:techsc/features/orders/screens/quote_detail_page.dart';
-import 'package:techsc/core/services/deep_link_service.dart';
+import 'package:techsc/features/reservations/models/reservation_model.dart';
+import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
 
-class NotificationsPage extends StatelessWidget {
+class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
 
   Future<void> _handleNotificationTap(
@@ -94,19 +95,17 @@ class NotificationsPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final notificationService = NotificationService();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notificationsAsync = ref.watch(notificationsProvider);
+    final notificationService = ref.read(notificationServiceProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notificaciones')),
-      body: StreamBuilder<List<NotificationModel>>(
-        stream: notificationService.getUserNotifications(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+      body: notificationsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error: $err')),
+        data: (notifications) {
+          if (notifications.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -125,8 +124,6 @@ class NotificationsPage extends StatelessWidget {
               ),
             );
           }
-
-          final notifications = snapshot.data!;
 
           return ListView.separated(
             itemCount: notifications.length,

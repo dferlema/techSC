@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
+import 'package:techsc/features/catalog/models/product_model.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/features/cart/screens/cart_page.dart';
 import 'package:techsc/features/catalog/screens/product_detail_page.dart';
+import 'package:techsc/features/catalog/providers/product_providers.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
   final String routeName;
@@ -16,15 +19,24 @@ class ProductsPage extends ConsumerStatefulWidget {
 
 class _ProductsPageState extends ConsumerState<ProductsPage> {
   bool _isSearching = false;
-  String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  String? _selectedCategoryId;
   late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    // Initialize controller after first frame to ensure PageView is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final categories = ref.read(productCategoriesProvider).value ?? [];
+      final selectedId = ref.read(productSelectedCategoryIdProvider);
+      if (selectedId != null && categories.isNotEmpty) {
+        final index = categories.indexWhere((c) => c.id == selectedId);
+        if (index != -1 && _pageController.hasClients) {
+          _pageController.jumpToPage(index);
+        }
+      }
+    });
   }
 
   @override
@@ -34,11 +46,13 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
     super.dispose();
   }
 
-  void _addToCart(Map<String, dynamic> product) {
-    ref.read(cartServiceProvider).addToCart(product);
+  void _addToCart(ProductModel product) {
+    ref
+        .read(cartServiceProvider)
+        .addToCart(product.toFirestore()..['id'] = product.id);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('✅ ${product['name']} agregado al carrito'),
+        content: Text('✅ ${product.name} agregado al carrito'),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'VER',
@@ -53,16 +67,17 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final categoriesAsync = ref
-        .watch(categoryServiceProvider)
-        .getCategories(CategoryType.product);
+    final categoriesAsync = ref.watch(productCategoriesProvider);
+    final selectedCategoryId = ref.watch(productSelectedCategoryIdProvider);
 
-    return StreamBuilder<List<CategoryModel>>(
-      stream: categoriesAsync,
-      builder: (context, snapshot) {
-        final categories = snapshot.data ?? [];
-        if (_selectedCategoryId == null && categories.isNotEmpty) {
-          _selectedCategoryId = categories.first.id;
+    return categoriesAsync.when(
+      data: (categories) {
+        if (selectedCategoryId == null && categories.isNotEmpty) {
+          // Use microtask to avoid updating during build
+          Future.microtask(
+            () => ref.read(productSelectedCategoryIdProvider.notifier).state =
+                categories.first.id,
+          );
         }
 
         return Scaffold(
@@ -72,11 +87,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () {
                 if (_isSearching) {
-                  setState(() {
-                    _isSearching = false;
-                    _searchQuery = '';
-                    _searchController.clear();
-                  });
+                  setState(() => _isSearching = false);
+                  ref.read(productSearchQueryProvider.notifier).state = '';
+                  _searchController.clear();
                 } else if (Navigator.canPop(context)) {
                   Navigator.pop(context);
                 } else {
@@ -88,26 +101,26 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 ? TextField(
                     controller: _searchController,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar productos...',
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.searchHint,
                       border: InputBorder.none,
-                      hintStyle: TextStyle(color: Colors.white70),
+                      hintStyle: const TextStyle(color: Colors.white70),
                     ),
                     style: const TextStyle(color: Colors.white),
-                    onChanged: (value) => setState(() => _searchQuery = value),
+                    onChanged: (value) =>
+                        ref.read(productSearchQueryProvider.notifier).state =
+                            value,
                   )
-                : const Text('Nuestros Productos'),
+                : Text(AppLocalizations.of(context)!.productsTitle),
             actions: [
               IconButton(
                 icon: Icon(_isSearching ? Icons.close : Icons.search),
                 onPressed: () {
-                  setState(() {
-                    _isSearching = !_isSearching;
-                    if (!_isSearching) {
-                      _searchQuery = '';
-                      _searchController.clear();
-                    }
-                  });
+                  setState(() => _isSearching = !_isSearching);
+                  if (!_isSearching) {
+                    ref.read(productSearchQueryProvider.notifier).state = '';
+                    _searchController.clear();
+                  }
                 },
               ),
               const CartBadge(),
@@ -126,7 +139,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                         itemCount: categories.length,
                         itemBuilder: (context, index) {
                           final cat = categories[index];
-                          final isSelected = _selectedCategoryId == cat.id;
+                          final isSelected = selectedCategoryId == cat.id;
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
@@ -144,7 +157,13 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                               selected: isSelected,
                               onSelected: (selected) {
                                 if (selected) {
-                                  setState(() => _selectedCategoryId = cat.id);
+                                  ref
+                                          .read(
+                                            productSelectedCategoryIdProvider
+                                                .notifier,
+                                          )
+                                          .state =
+                                      cat.id;
                                   _pageController.animateToPage(
                                     index,
                                     duration: const Duration(milliseconds: 300),
@@ -172,14 +191,13 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                   ),
           ),
           body: categories.isEmpty
-              ? _buildEmptyState(
-                  snapshot.connectionState == ConnectionState.waiting,
-                )
+              ? _buildEmptyState(false)
               : PageView.builder(
                   controller: _pageController,
                   itemCount: categories.length,
                   onPageChanged: (index) {
-                    setState(() => _selectedCategoryId = categories[index].id);
+                    ref.read(productSelectedCategoryIdProvider.notifier).state =
+                        categories[index].id;
                   },
                   itemBuilder: (context, index) {
                     return _buildProductList(categories[index].id);
@@ -187,19 +205,31 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 ),
         );
       },
+      loading: () => Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.productsTitle),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, stack) => Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.productsTitle),
+        ),
+        body: Center(child: Text('Error: $err')),
+      ),
     );
   }
 
   Widget _buildEmptyState(bool isLoading) {
     if (isLoading) return const Center(child: CircularProgressIndicator());
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.category_outlined, size: 64, color: Colors.grey),
           SizedBox(height: 16),
           Text(
-            'No hay categorías configuradas.\nAgregue categorías desde el panel de admin.',
+            AppLocalizations.of(context)!.noCategoriesConfigured,
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey),
           ),
@@ -209,27 +239,12 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   Widget _buildProductList(String categoryId) {
-    final productsStream = ref
-        .watch(productServiceProvider)
-        .getProducts(categoryId);
+    final productsAsync = ref.watch(filteredProductsProvider(categoryId));
+    final searchQuery = ref.watch(productSearchQueryProvider);
 
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: productsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final products = snapshot.data ?? [];
-        final filteredProducts = products.where((product) {
-          final name = product['name']?.toString().toLowerCase() ?? '';
-          final desc = product['description']?.toString().toLowerCase() ?? '';
-          final query = _searchQuery.toLowerCase();
-          return name.contains(query) || desc.contains(query);
-        }).toList();
-
-        if (filteredProducts.isEmpty) {
+    return productsAsync.when(
+      data: (products) {
+        if (products.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -241,9 +256,9 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  _searchQuery.isEmpty
-                      ? 'Pronto tendremos más productos'
-                      : 'No encontramos resultados',
+                  searchQuery.isEmpty
+                      ? AppLocalizations.of(context)!.noMoreProducts
+                      : AppLocalizations.of(context)!.noSearchResults,
                   style: TextStyle(
                     color: Colors.grey[500],
                     fontSize: 16,
@@ -257,20 +272,22 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          itemCount: filteredProducts.length,
+          itemCount: products.length,
           itemBuilder: (context, index) {
-            final product = filteredProducts[index];
+            final product = products[index];
             return _buildProductCard(product);
           },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product) {
+  Widget _buildProductCard(ProductModel product) {
     final theme = Theme.of(context);
-    final price = product['price'] ?? 0;
-    final String label = (product['label'] ?? '').toString();
+    final price = product.price;
+    final String label = product.label ?? '';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -290,7 +307,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           context,
           MaterialPageRoute(
             builder: (context) =>
-                ProductDetailPage(product: product, productId: product['id']),
+                ProductDetailPage(product: product, productId: product.id),
           ),
         ),
         borderRadius: BorderRadius.circular(20),
@@ -316,12 +333,17 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                         bottomLeft: Radius.circular(20),
                       ),
                       child:
-                          product['imageUrl'] != null ||
-                              product['image'] != null
-                          ? Image.network(
-                              product['imageUrl'] ?? product['image'],
+                          product.imageUrl != null &&
+                              product.imageUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: product.imageUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) =>
                                   _buildPlaceholder(size: 40),
                             )
                           : _buildPlaceholder(size: 40),
@@ -362,7 +384,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        product['name'] ?? 'Sin nombre',
+                        product.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 18,
@@ -374,7 +396,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        product['description'] ?? '',
+                        product.description,
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 13,

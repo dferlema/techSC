@@ -23,23 +23,31 @@ class UserModel {
     this.createdAt,
   });
 
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
     return UserModel(
-      uid: doc.id,
+      uid: uid,
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',
       address: data['address'] ?? '',
       role: data['role'] ?? RoleService.CLIENT,
       id: data['id'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
+          : (data['createdAt'] is String
+                ? DateTime.tryParse(data['createdAt'])
+                : (data['createdAt'] is int
+                      ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'])
+                      : null)),
     );
+  }
+
+  factory UserModel.fromFirestore(DocumentSnapshot doc) {
+    return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'uid': uid,
       'name': name,
       'email': email,
       'phone': phone,
@@ -49,4 +57,6 @@ class UserModel {
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
     };
   }
+
+  Map<String, dynamic> toFirestore() => toMap();
 }

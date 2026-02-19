@@ -8,6 +8,10 @@ import 'package:techsc/features/reservations/screens/service_detail_page.dart';
 import 'package:techsc/features/catalog/models/category_model.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/features/cart/screens/cart_page.dart';
+import 'package:techsc/features/reservations/models/service_model.dart';
+import 'package:techsc/features/reservations/providers/service_providers.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class ServicesPage extends ConsumerStatefulWidget {
   final String routeName;
@@ -19,15 +23,32 @@ class ServicesPage extends ConsumerStatefulWidget {
 
 class _ServicesPageState extends ConsumerState<ServicesPage> {
   bool _isSearching = false;
-  String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  String? _selectedCategoryId; // null para 'Todos'
   late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    // Sync PageController with initial selected category
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final categories = ref.read(serviceCategoriesProvider).value ?? [];
+      final fullCategories = [
+        CategoryModel(
+          id: '',
+          name: AppLocalizations.of(context)!.allCategories,
+          type: CategoryType.service,
+        ),
+        ...categories,
+      ];
+      final selectedId = ref.read(serviceSelectedCategoryIdProvider);
+      if (selectedId != null) {
+        final index = fullCategories.indexWhere((c) => c.id == selectedId);
+        if (index != -1 && _pageController.hasClients) {
+          _pageController.jumpToPage(index);
+        }
+      }
+    });
   }
 
   @override
@@ -48,11 +69,13 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
     ).showSnackBar(const SnackBar(content: Text('Servicio eliminado')));
   }
 
-  void _addToCart(Map<String, dynamic> service) {
-    ref.read(cartServiceProvider).addToCart(service, type: 'service');
+  void _addToCart(ServiceModel service) {
+    ref
+        .read(cartServiceProvider)
+        .addToCart(service.toFirestore()..['id'] = service.id, type: 'service');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('✅ ${service['title']} agregado al carrito'),
+        content: Text('✅ ${service.name} agregado al carrito'),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'VER',
@@ -66,39 +89,10 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
   }
 
   Widget _buildServiceList(String? categoryId, bool canManage) {
-    final servicesStream = ref
-        .watch(serviceServiceProvider)
-        .getServices(categoryId);
+    final servicesAsync = ref.watch(filteredServicesProvider(categoryId));
 
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: servicesStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData &&
-            snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final allServices = snapshot.data ?? [];
-
-        // 1. Filtrar por categoryId (si no es null/Todos)
-        var filtered = categoryId == null || categoryId.isEmpty
-            ? allServices
-            : allServices.where((s) => s['categoryId'] == categoryId).toList();
-
-        // 2. Filtrar por búsqueda inteligente
-        if (_searchQuery.isNotEmpty) {
-          final query = _searchQuery.toLowerCase();
-          filtered = filtered.where((s) {
-            final title = (s['title'] ?? '').toString().toLowerCase();
-            final desc = (s['description'] ?? '').toString().toLowerCase();
-            final components =
-                (s['components'] as List?)?.join(' ').toLowerCase() ?? '';
-            return title.contains(query) ||
-                desc.contains(query) ||
-                components.contains(query);
-          }).toList();
-        }
-
+    return servicesAsync.when(
+      data: (filtered) {
         if (filtered.isEmpty) {
           return Center(
             child: Column(
@@ -110,9 +104,9 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                   color: Colors.grey[400],
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'No hay servicios en esta categoría',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                Text(
+                  AppLocalizations.of(context)!.emptyServices,
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               ],
             ),
@@ -125,12 +119,14 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
             final service = filtered[index];
             return _buildServiceCard(
               service: service,
-              serviceId: service['id'],
+              serviceId: service.id,
               canManage: canManage,
             );
           },
         );
       },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 
@@ -141,19 +137,26 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
         ? ref.watch(userRoleProvider(user.uid))
         : const AsyncValue.data(RoleService.CLIENT);
 
-    final categoriesAsync = ref
-        .watch(categoryServiceProvider)
-        .getCategories(CategoryType.service);
+    final categoriesAsync = ref.watch(serviceCategoriesProvider);
+    final selectedCategoryId = ref.watch(serviceSelectedCategoryIdProvider);
 
-    return StreamBuilder<List<CategoryModel>>(
-      stream: categoriesAsync,
-      builder: (context, snapshot) {
-        final categories = snapshot.data ?? [];
-        // Preparar lista con "Todos" al inicio
+    return categoriesAsync.when(
+      data: (categories) {
         final fullCategories = [
-          CategoryModel(id: '', name: 'Todos', type: CategoryType.service),
+          CategoryModel(
+            id: '',
+            name: AppLocalizations.of(context)!.allCategories,
+            type: CategoryType.service,
+          ),
           ...categories,
         ];
+
+        if (selectedCategoryId == null) {
+          Future.microtask(
+            () =>
+                ref.read(serviceSelectedCategoryIdProvider.notifier).state = '',
+          );
+        }
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -162,11 +165,9 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () {
                 if (_isSearching) {
-                  setState(() {
-                    _isSearching = false;
-                    _searchQuery = '';
-                    _searchController.clear();
-                  });
+                  setState(() => _isSearching = false);
+                  ref.read(serviceSearchQueryProvider.notifier).state = '';
+                  _searchController.clear();
                 } else if (Navigator.canPop(context)) {
                   Navigator.pop(context);
                 } else {
@@ -178,27 +179,32 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                 ? TextField(
                     controller: _searchController,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar servicios...',
-                      hintStyle: TextStyle(color: Colors.white70),
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.searchHint,
+                      hintStyle: const TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                     ),
                     style: const TextStyle(color: Colors.white, fontSize: 18),
-                    onChanged: (value) => setState(() => _searchQuery = value),
+                    onChanged: (value) =>
+                        ref.read(serviceSearchQueryProvider.notifier).state =
+                            value,
                   )
-                : const Column(
+                : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Nuestros Servicios',
-                        style: TextStyle(
+                        AppLocalizations.of(context)!.servicesTitle,
+                        style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'Soporte técnico experto',
-                        style: TextStyle(fontSize: 12, color: Colors.white70),
+                        AppLocalizations.of(context)!.expertSupport,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
                       ),
                     ],
                   ),
@@ -206,13 +212,11 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               IconButton(
                 icon: Icon(_isSearching ? Icons.close : Icons.search),
                 onPressed: () {
-                  setState(() {
-                    _isSearching = !_isSearching;
-                    if (!_isSearching) {
-                      _searchQuery = '';
-                      _searchController.clear();
-                    }
-                  });
+                  setState(() => _isSearching = !_isSearching);
+                  if (!_isSearching) {
+                    ref.read(serviceSearchQueryProvider.notifier).state = '';
+                    _searchController.clear();
+                  }
                 },
               ),
               const CartBadge(color: Colors.white),
@@ -229,9 +233,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                   itemCount: fullCategories.length,
                   itemBuilder: (context, index) {
                     final cat = fullCategories[index];
-                    final isSelected =
-                        _selectedCategoryId == cat.id ||
-                        (_selectedCategoryId == null && cat.id == '');
+                    final isSelected = selectedCategoryId == cat.id;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
@@ -249,7 +251,12 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                         selected: isSelected,
                         onSelected: (selected) {
                           if (selected) {
-                            setState(() => _selectedCategoryId = cat.id);
+                            ref
+                                .read(
+                                  serviceSelectedCategoryIdProvider.notifier,
+                                )
+                                .state = cat
+                                .id;
                             _pageController.animateToPage(
                               index,
                               duration: const Duration(milliseconds: 300),
@@ -283,9 +290,8 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                 controller: _pageController,
                 itemCount: fullCategories.length,
                 onPageChanged: (index) {
-                  setState(
-                    () => _selectedCategoryId = fullCategories[index].id,
-                  );
+                  ref.read(serviceSelectedCategoryIdProvider.notifier).state =
+                      fullCategories[index].id;
                 },
                 itemBuilder: (context, index) {
                   return _buildServiceList(fullCategories[index].id, canManage);
@@ -293,21 +299,32 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) =>
-                const Center(child: Text('Error al cargar servicios')),
+            error: (err, __) => Center(child: Text('Error: $err')),
           ),
         );
       },
+      loading: () => Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.servicesTitle),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, __) => Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.servicesTitle),
+        ),
+        body: Center(child: Text('Error: $err')),
+      ),
     );
   }
 
   Widget _buildServiceCard({
-    required Map<String, dynamic> service,
+    required ServiceModel service,
     String? serviceId,
     required bool canManage,
   }) {
     final theme = Theme.of(context);
-    final price = service['price'] ?? 0;
+    final price = service.price;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -356,11 +373,18 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                         topLeft: Radius.circular(20),
                         bottomLeft: Radius.circular(20),
                       ),
-                      child: service['imageUrl'] != null
-                          ? Image.network(
-                              service['imageUrl'],
+                      child:
+                          service.imageUrl != null &&
+                              service.imageUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: service.imageUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              errorWidget: (context, url, error) =>
                                   _buildPlaceholder(size: 40),
                             )
                           : _buildPlaceholder(size: 40),
@@ -383,8 +407,8 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                         children: [
                           const Icon(Icons.star, size: 12, color: Colors.amber),
                           const SizedBox(width: 2),
-                          Text(
-                            '${service['rating'] ?? 4.8}',
+                          const Text(
+                            '4.8', // Rating not yet in model
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
@@ -404,7 +428,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        service['title'] ?? 'Sin nombre',
+                        service.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 18,
@@ -416,7 +440,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        service['description'] ?? '',
+                        service.description,
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 13,
@@ -434,7 +458,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '\$${price is num ? price.toStringAsFixed(2) : '0.00'}',
+                                '\$${price.toStringAsFixed(2)}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 22,

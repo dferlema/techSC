@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/features/catalog/screens/product_detail_page.dart';
+import 'package:techsc/features/catalog/models/product_model.dart';
 import 'package:techsc/features/reservations/screens/service_detail_page.dart';
+import 'package:techsc/features/reservations/models/service_model.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -60,10 +62,11 @@ class DeepLinkService {
           .get();
       if (doc.exists && doc.data() != null) {
         final productData = doc.data()!;
+        final product = ProductModel.fromFirestoreMap(productData, id);
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (context) =>
-                ProductDetailPage(product: productData, productId: id),
+                ProductDetailPage(product: product, productId: id),
           ),
         );
       }
@@ -80,10 +83,11 @@ class DeepLinkService {
           .get();
       if (doc.exists && doc.data() != null) {
         final serviceData = doc.data()!;
+        final service = ServiceModel.fromFirestoreMap(serviceData, id);
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (context) =>
-                ServiceDetailPage(service: serviceData, serviceId: id),
+                ServiceDetailPage(service: service, serviceId: id),
           ),
         );
       }

@@ -22,9 +22,7 @@ class SupplierModel {
   });
 
   /// Crea una instancia desde un documento de Firestore
-  factory SupplierModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
+  factory SupplierModel.fromFirestoreMap(Map<String, dynamic> data, String id) {
     // Backward compatibility: handle old contactInfo field
     String contactName = data['contactName'] ?? '';
     String contactPhone = data['contactPhone'] ?? '';
@@ -48,12 +46,19 @@ class SupplierModel {
     }
 
     return SupplierModel(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? '',
       contactName: contactName,
       contactPhone: contactPhone,
       website: data['website'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  factory SupplierModel.fromFirestore(DocumentSnapshot doc) {
+    return SupplierModel.fromFirestoreMap(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
     );
   }
 
@@ -67,6 +72,8 @@ class SupplierModel {
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
+
+  Map<String, dynamic> toFirestore() => toMap();
 
   /// Crea una copia del modelo con campos actualizados
   SupplierModel copyWith({

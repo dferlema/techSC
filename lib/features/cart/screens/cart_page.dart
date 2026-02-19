@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:techsc/core/providers/providers.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CartPage extends ConsumerStatefulWidget {
   const CartPage({super.key});
@@ -66,17 +67,24 @@ class _CartPageState extends ConsumerState<CartPage> {
                                   borderRadius: BorderRadius.circular(8),
                                   color: Colors.grey[200],
                                 ),
-                                child: item.image != null
+                                child:
+                                    item.image != null && item.image!.isNotEmpty
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: Image.network(
-                                          item.image!,
+                                        child: CachedNetworkImage(
+                                          imageUrl: item.image!,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  const Icon(
-                                                    Icons.image_not_supported,
-                                                  ),
+                                          placeholder: (context, url) =>
+                                              const Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              ),
+                                          errorWidget: (context, url, error) =>
+                                              const Icon(
+                                                Icons.image_not_supported,
+                                              ),
                                         ),
                                       )
                                     : const Icon(

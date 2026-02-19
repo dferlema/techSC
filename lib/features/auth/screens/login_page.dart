@@ -4,6 +4,7 @@ import 'package:techsc/features/auth/services/auth_service.dart';
 import 'package:techsc/core/services/preferences_service.dart';
 import 'package:techsc/core/utils/branding_helper.dart';
 import 'package:techsc/core/theme/app_colors.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -351,7 +352,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Bienvenido de nuevo',
+                    AppLocalizations.of(context)!.welcomeBack,
                     style: TextStyle(
                       fontSize: 16,
                       color: AppColors.white.withOpacity(0.8),
@@ -391,7 +392,9 @@ class _LoginPageState extends State<LoginPage> {
                               controller: _emailController,
                               style: TextStyle(color: AppColors.white),
                               decoration: InputDecoration(
-                                labelText: 'Correo Electrónico',
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.emailLabel,
                                 labelStyle: TextStyle(
                                   color: AppColors.white.withOpacity(0.8),
                                 ),
@@ -420,7 +423,9 @@ class _LoginPageState extends State<LoginPage> {
                               obscureText: _obscurePassword,
                               style: TextStyle(color: AppColors.white),
                               decoration: InputDecoration(
-                                labelText: 'Contraseña',
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.passwordLabel,
                                 labelStyle: TextStyle(
                                   color: AppColors.white.withOpacity(0.8),
                                 ),
@@ -483,7 +488,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                     ),
                                     Text(
-                                      'Recordarme',
+                                      AppLocalizations.of(context)!.rememberMe,
                                       style: TextStyle(
                                         color: AppColors.white.withOpacity(0.9),
                                         fontSize: 13,
@@ -499,7 +504,9 @@ class _LoginPageState extends State<LoginPage> {
                                     );
                                   },
                                   child: Text(
-                                    '¿Olvidaste contraseña?',
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.forgotPassword,
                                     style: TextStyle(
                                       color: AppColors.white,
                                       fontWeight: FontWeight.bold,
@@ -544,7 +551,9 @@ class _LoginPageState extends State<LoginPage> {
                                         color: AppColors.white,
                                       )
                                     : Text(
-                                        'INGRESAR',
+                                        AppLocalizations.of(
+                                          context,
+                                        )!.loginButton,
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -596,14 +605,14 @@ class _LoginPageState extends State<LoginPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        '¿Aún no tienes cuenta? ',
-                        style: TextStyle(color: Colors.white70),
+                      Text(
+                        AppLocalizations.of(context)!.noAccount,
+                        style: const TextStyle(color: Colors.white70),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.pushNamed(context, '/register'),
                         child: Text(
-                          'Crea una aquí',
+                          AppLocalizations.of(context)!.createAccountHere,
                           style: TextStyle(
                             color: AppColors.white,
                             fontWeight: FontWeight.bold,

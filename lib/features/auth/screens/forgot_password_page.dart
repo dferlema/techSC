@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:techsc/l10n/app_localizations.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -75,9 +76,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Scaffold(
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Recuperar Contraseña',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          AppLocalizations.of(context)!.forgotPasswordTitle,
+          style: const TextStyle(color: Colors.white),
         ),
       ),
       body: SingleChildScrollView(
@@ -114,9 +115,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     const SizedBox(height: 24),
 
                     // Título y descripción
-                    const Text(
-                      'Recuperar Contraseña',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context)!.forgotPasswordTitle,
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -124,8 +125,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     const SizedBox(height: 8),
                     Text(
                       _emailSent
-                          ? '¡Correo enviado exitosamente!'
-                          : 'Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña',
+                          ? AppLocalizations.of(context)!.emailSentSuccess
+                          : AppLocalizations.of(
+                              context,
+                            )!.forgotPasswordDescription,
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16, color: Colors.grey),
                     ),
@@ -161,9 +164,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
                               )
-                            : const Text(
-                                'Enviar Correo de Recuperación',
-                                style: TextStyle(fontSize: 18),
+                            : Text(
+                                AppLocalizations.of(context)!.sendResetEmail,
+                                style: const TextStyle(fontSize: 18),
                               ),
                       ),
                     ] else ...[
@@ -174,10 +177,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         size: 64,
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Revisa tu bandeja de entrada y sigue las instrucciones del correo para restablecer tu contraseña.',
+                      Text(
+                        AppLocalizations.of(context)!.checkInboxMessage,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: 16),
                       ),
                     ],
 
@@ -189,7 +192,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         Navigator.pop(context);
                       },
                       icon: const Icon(Icons.arrow_back),
-                      label: const Text('Volver al Inicio de Sesión'),
+                      label: Text(AppLocalizations.of(context)!.backToLogin),
                     ),
                   ],
                 ),

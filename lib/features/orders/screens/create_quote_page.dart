@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/features/orders/models/quote_model.dart';
 import 'package:techsc/core/utils/pdf_helper.dart';
 import 'package:printing/printing.dart';
-import 'package:techsc/features/orders/services/quote_service.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:techsc/features/orders/providers/quote_providers.dart';
+import 'package:techsc/core/providers/providers.dart';
+import 'package:techsc/features/catalog/providers/product_providers.dart';
+import 'package:techsc/features/catalog/models/product_model.dart';
+import 'package:techsc/features/reservations/providers/service_providers.dart';
+import 'package:techsc/features/reservations/models/service_model.dart';
 
-class CreateQuotePage extends StatefulWidget {
+class CreateQuotePage extends ConsumerStatefulWidget {
   final QuoteModel? existingQuote;
   const CreateQuotePage({super.key, this.existingQuote});
 
   @override
-  State<CreateQuotePage> createState() => _CreateQuotePageState();
+  ConsumerState<CreateQuotePage> createState() => _CreateQuotePageState();
 }
 
-class _CreateQuotePageState extends State<CreateQuotePage> {
-  final QuoteService _quoteService = QuoteService();
-  final AuthService _authService = AuthService();
-
+class _CreateQuotePageState extends ConsumerState<CreateQuotePage> {
   // Client Info Controllers
   final _clientNameController = TextEditingController();
   final _clientIdController = TextEditingController();
@@ -136,7 +137,7 @@ class _CreateQuotePageState extends State<CreateQuotePage> {
     setState(() => _isSaving = true);
 
     try {
-      final user = _authService.currentUser;
+      final user = ref.read(authServiceProvider).currentUser;
       if (user == null) throw Exception('Usuario no autenticado');
 
       final quoteItems = _selectedItems.map((item) {
@@ -172,12 +173,13 @@ class _CreateQuotePageState extends State<CreateQuotePage> {
       );
 
       String id;
+      final quoteService = ref.read(quoteServiceProvider);
       if (widget.existingQuote != null) {
         id = widget.existingQuote!.id;
         final modificationDesc = 'Modificado por ${user.email ?? user.uid}';
-        await _quoteService.updateQuote(quote, user.uid, modificationDesc);
+        await quoteService.updateQuote(quote, user.uid, modificationDesc);
       } else {
-        id = await _quoteService.createQuote(quote);
+        id = await quoteService.createQuote(quote);
       }
 
       return quote.copyWith(id: id);
@@ -607,7 +609,7 @@ class _CreateQuotePageState extends State<CreateQuotePage> {
           : _clientNameController.text,
       clientEmail: _clientEmailController.text,
       clientPhone: _clientPhoneController.text,
-      creatorId: 'CURRENT_USER', // Or actual ID
+      creatorId: ref.read(authServiceProvider).currentUser?.uid ?? 'unknown',
       items: _selectedItems
           .map(
             (item) => QuoteItem(
@@ -637,7 +639,7 @@ class _CreateQuotePageState extends State<CreateQuotePage> {
 }
 
 // --- CLIENT SELECTION SHEET WIDGET ---
-class _ClientSelectionSheet extends StatefulWidget {
+class _ClientSelectionSheet extends ConsumerStatefulWidget {
   final ScrollController scrollController;
   final Function(Map<String, dynamic>) onClientSelected;
 
@@ -647,10 +649,11 @@ class _ClientSelectionSheet extends StatefulWidget {
   });
 
   @override
-  State<_ClientSelectionSheet> createState() => _ClientSelectionSheetState();
+  ConsumerState<_ClientSelectionSheet> createState() =>
+      _ClientSelectionSheetState();
 }
 
-class _ClientSelectionSheetState extends State<_ClientSelectionSheet> {
+class _ClientSelectionSheetState extends ConsumerState<_ClientSelectionSheet> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -695,49 +698,49 @@ class _ClientSelectionSheetState extends State<_ClientSelectionSheet> {
         ),
         const SizedBox(height: 12),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          child: ref
+              .watch(allUsersProvider)
+              .when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, stack) => Center(child: Text('Error: $err')),
+                data: (users) {
+                  final filtered = users.where((user) {
+                    final name = user.name.toLowerCase();
+                    final id = user.id.toLowerCase();
+                    final query = _searchQuery.toLowerCase();
+                    return name.contains(query) || id.contains(query);
+                  }).toList();
 
-              final docs = snapshot.data!.docs;
-              final filtered = docs.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final name = (data['name'] ?? '').toString().toLowerCase();
-                final id = (data['id'] ?? '').toString().toLowerCase();
-                final query = _searchQuery.toLowerCase();
-                return name.contains(query) || id.contains(query);
-              }).toList();
+                  if (filtered.isEmpty) {
+                    return const Center(
+                      child: Text('No se encontraron clientes.'),
+                    );
+                  }
 
-              if (filtered.isEmpty) {
-                return const Center(child: Text('No se encontraron clientes.'));
-              }
-
-              return ListView.builder(
-                controller: widget.scrollController,
-                itemCount: filtered.length,
-                itemBuilder: (context, index) {
-                  final data = filtered[index].data() as Map<String, dynamic>;
-                  final firebaseUid =
-                      filtered[index].id; // This is the Firebase Auth UID
-                  return ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(data['name'] ?? 'Sin nombre'),
-                    subtitle: Text('Cédula: ${data['id'] ?? 'N/A'}'),
-                    onTap: () {
-                      // Pass both the data and the Firebase UID
-                      final clientData = Map<String, dynamic>.from(data);
-                      clientData['firebaseUid'] =
-                          firebaseUid; // Add Firebase UID
-                      widget.onClientSelected(clientData);
+                  return ListView.builder(
+                    controller: widget.scrollController,
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final user = filtered[index];
+                      return ListTile(
+                        leading: const CircleAvatar(child: Icon(Icons.person)),
+                        title: Text(user.name),
+                        subtitle: Text('Cédula: ${user.id}'),
+                        onTap: () {
+                          final clientData = {
+                            'name': user.name,
+                            'id': user.id,
+                            'phone': user.phone,
+                            'email': user.email,
+                            'firebaseUid': user.uid,
+                          };
+                          widget.onClientSelected(clientData);
+                        },
+                      );
                     },
                   );
                 },
-              );
-            },
-          ),
+              ),
         ),
       ],
     );
@@ -746,7 +749,7 @@ class _ClientSelectionSheetState extends State<_ClientSelectionSheet> {
 
 // --- ITEM SELECTION SHEET WIDGET ---
 
-class _ItemSelectionSheet extends StatefulWidget {
+class _ItemSelectionSheet extends ConsumerStatefulWidget {
   final ScrollController scrollController;
   final Function(Map<String, dynamic>) onItemSelected;
 
@@ -756,14 +759,14 @@ class _ItemSelectionSheet extends StatefulWidget {
   });
 
   @override
-  State<_ItemSelectionSheet> createState() => _ItemSelectionSheetState();
+  ConsumerState<_ItemSelectionSheet> createState() =>
+      _ItemSelectionSheetState();
 }
 
-class _ItemSelectionSheetState extends State<_ItemSelectionSheet>
+class _ItemSelectionSheetState extends ConsumerState<_ItemSelectionSheet>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
 
   @override
   void initState() {
@@ -810,7 +813,10 @@ class _ItemSelectionSheetState extends State<_ItemSelectionSheet>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onChanged: (val) => setState(() => _searchQuery = val),
+            onChanged: (val) {
+              ref.read(productSearchQueryProvider.notifier).state = val;
+              ref.read(serviceSearchQueryProvider.notifier).state = val;
+            },
           ),
         ),
         const SizedBox(height: 12),
@@ -835,46 +841,44 @@ class _ItemSelectionSheetState extends State<_ItemSelectionSheet>
   }
 
   Widget _buildList(String collection) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection(collection).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    final isProduct = collection == 'products';
+    final asyncItems = isProduct
+        ? ref.watch(filteredProductsProvider(''))
+        : ref.watch(filteredServicesProvider(null));
 
-        final docs = snapshot.data!.docs;
-        final filtered = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final name = (data['name'] ?? data['title'] ?? '')
-              .toString()
-              .toLowerCase();
-          return name.contains(_searchQuery.toLowerCase());
-        }).toList();
-
-        if (filtered.isEmpty) {
+    return asyncItems.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
+      data: (items) {
+        if (items.isEmpty) {
           return const Center(child: Text('No se encontraron items.'));
         }
 
         return ListView.builder(
           controller: widget.scrollController,
-          itemCount: filtered.length,
+          itemCount: items.length,
           itemBuilder: (context, index) {
-            final data = filtered[index].data() as Map<String, dynamic>;
-            final id = filtered[index].id;
-            final isProduct = collection == 'products';
-            final name = data['name'] ?? data['title'] ?? 'Sin nombre';
-            final price = (data['price'] as num?)?.toDouble() ?? 0.0;
-            final description = data['specs'] ?? data['description'] ?? '';
+            final item = items[index];
+            String id;
+            String name;
+            double price;
+            String description;
+            String? imageUrl;
 
-            final String? imageUrl =
-                data['imageUrl'] ??
-                data['image'] ??
-                ((data['imageUrls'] as List?)?.isNotEmpty == true
-                    ? (data['imageUrls'] as List).first
-                    : null) ??
-                ((data['images'] as List?)?.isNotEmpty == true
-                    ? (data['images'] as List).first
-                    : null);
+            if (item is ProductModel) {
+              id = item.id;
+              name = item.name;
+              price = item.price;
+              description = item.description;
+              imageUrl = item.imageUrl;
+            } else {
+              final service = item as ServiceModel;
+              id = service.id;
+              name = service.name;
+              price = service.price;
+              description = service.description;
+              imageUrl = service.imageUrl;
+            }
 
             return ListTile(
               leading: Container(
@@ -883,14 +887,14 @@ class _ItemSelectionSheetState extends State<_ItemSelectionSheet>
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
-                  image: imageUrl != null
+                  image: imageUrl != null && imageUrl.isNotEmpty
                       ? DecorationImage(
                           image: NetworkImage(imageUrl),
                           fit: BoxFit.cover,
                         )
                       : null,
                 ),
-                child: imageUrl == null
+                child: (imageUrl == null || imageUrl.isEmpty)
                     ? Icon(isProduct ? Icons.computer : Icons.build)
                     : null,
               ),

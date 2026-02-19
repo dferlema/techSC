@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
+import 'package:techsc/features/reservations/models/service_model.dart';
 
 class ServiceDetailPage extends ConsumerStatefulWidget {
-  final Map<String, dynamic> service;
+  final ServiceModel service;
   final String serviceId;
 
   const ServiceDetailPage({
@@ -27,9 +29,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
   @override
   void initState() {
     super.initState();
-    _currentRating = (widget.service['rating'] is int)
-        ? (widget.service['rating'] as int).toDouble()
-        : (widget.service['rating'] as double? ?? 4.5);
+    _currentRating = 4.5; // Default rating
   }
 
   Future<void> _submitRating(double rating) async {
@@ -57,7 +57,9 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
   void _addToCart() async {
     if (_isAdded) return;
 
-    ref.read(cartServiceProvider).addToCart(widget.service, type: 'service');
+    final serviceToAdd = widget.service.toFirestore()
+      ..['id'] = widget.serviceId;
+    ref.read(cartServiceProvider).addToCart(serviceToAdd, type: 'service');
 
     setState(() {
       _isAdded = true;
@@ -157,10 +159,10 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                 icon: const Icon(Icons.share),
                 tooltip: 'Compartir por WhatsApp',
                 onPressed: () {
-                  WhatsAppShareHelper.shareService({
-                    ...widget.service,
-                    'id': widget.serviceId,
-                  }, context);
+                  WhatsAppShareHelper.shareService(
+                    widget.service.toFirestore()..['id'] = widget.serviceId,
+                    context,
+                  );
                 },
               ),
               const CartBadge(color: Colors.black),
@@ -177,11 +179,9 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                 child: Builder(
                   builder: (context) {
                     final List<String> images =
-                        (widget.service['imageUrls'] != null)
-                        ? List<String>.from(widget.service['imageUrls'])
-                        : (widget.service['imageUrl'] != null
-                              ? [widget.service['imageUrl']]
-                              : []);
+                        (widget.service.imageUrl != null)
+                        ? [widget.service.imageUrl!]
+                        : [];
 
                     if (images.isEmpty) {
                       return const Center(
@@ -198,10 +198,13 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                         padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
                         child: Hero(
                           tag: 'service-image-${widget.serviceId}',
-                          child: Image.network(
-                            images[0],
+                          child: CachedNetworkImage(
+                            imageUrl: images[0],
                             fit: BoxFit.contain,
-                            errorBuilder: (c, e, s) => const Icon(
+                            placeholder: (context, url) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            errorWidget: (context, url, error) => const Icon(
                               Icons.build_circle,
                               size: 80,
                               color: Colors.grey,
@@ -223,14 +226,20 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                                 20,
                                 40,
                               ),
-                              child: Image.network(
-                                images[index],
+                              child: CachedNetworkImage(
+                                imageUrl: images[index],
                                 fit: BoxFit.contain,
-                                errorBuilder: (c, e, s) => const Icon(
-                                  Icons.build_circle,
-                                  size: 80,
-                                  color: Colors.grey,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(
+                                      Icons.build_circle,
+                                      size: 80,
+                                      color: Colors.grey,
+                                    ),
                               ),
                             );
                           },
@@ -272,7 +281,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.service['title'] ?? 'Servicio',
+                    widget.service.name,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: const Color(0xFF111111),
@@ -288,7 +297,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '\$${widget.service['price'] ?? 0}',
+                            '\$${widget.service.price}',
                             style: TextStyle(
                               fontWeight: FontWeight.w900,
                               color: theme.colorScheme.primary,
@@ -296,53 +305,10 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                               letterSpacing: -0.5,
                             ),
                           ),
-                          if (widget.service['taxStatus'] != null &&
-                              widget.service['taxStatus'] != 'Ninguno')
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 8,
-                                bottom: 6,
-                              ),
-                              child: Text(
-                                widget.service['taxStatus'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                          // taxStatus not in model yet
                         ],
                       ),
-                      if (widget.service['duration'] != null &&
-                          widget.service['duration'].toString().isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 16,
-                                color: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                widget.service['duration'],
-                                style: TextStyle(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      // duration not in model yet
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -359,7 +325,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    widget.service['description'] ?? 'Sin descripción.',
+                    widget.service.description,
                     style: const TextStyle(
                       fontSize: 17,
                       height: 1.6,
@@ -368,43 +334,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  if (widget.service['components'] != null &&
-                      (widget.service['components'] as List).isNotEmpty) ...[
-                    const Text(
-                      "Lo que incluye",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF111111),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...(widget.service['components'] as List).map(
-                      (component) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 20,
-                              color: Colors.green[600],
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                component.toString(),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Color(0xFF374151),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 100),
-                  ],
+                  // components not in model yet
                 ],
               ),
             ),

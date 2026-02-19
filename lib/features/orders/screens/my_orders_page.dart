@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:techsc/core/providers/providers.dart';
+import 'package:techsc/features/orders/providers/order_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:techsc/features/orders/widgets/client_order_card.dart';
 
-class MyOrdersPage extends StatelessWidget {
+class MyOrdersPage extends ConsumerWidget {
   const MyOrdersPage({super.key});
 
   Future<void> _launchPaymentLink(
@@ -23,8 +23,8 @@ class MyOrdersPage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authServiceProvider).currentUser;
 
     if (user == null) {
       return Scaffold(
@@ -34,6 +34,8 @@ class MyOrdersPage extends StatelessWidget {
         ),
       );
     }
+
+    final ordersAsync = ref.watch(userOrdersProvider(user.uid));
 
     return Scaffold(
       appBar: AppBar(
@@ -52,24 +54,12 @@ class MyOrdersPage extends StatelessWidget {
         elevation: 0,
       ),
       body: Container(
-        color: Colors.grey[50], // Background color for better contrast
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('orders')
-              .where('userId', isEqualTo: user.uid)
-              // .where('useremail', isEqualTo: user.email) // REMOVED: Caused issues with casing
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        color: Colors.grey[50],
+        child: ordersAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error: $err')),
+          data: (orders) {
+            if (orders.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -80,9 +70,9 @@ class MyOrdersPage extends StatelessWidget {
                       color: Colors.grey[400],
                     ),
                     const SizedBox(height: 16),
-                    Text(
+                    const Text(
                       'No has realizado ningún pedido aún.',
-                      style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 18, color: Color(0xFF757575)),
                     ),
                   ],
                 ),
@@ -91,14 +81,13 @@ class MyOrdersPage extends StatelessWidget {
 
             return ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: snapshot.data!.docs.length,
+              itemCount: orders.length,
               separatorBuilder: (context, index) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
-                final doc = snapshot.data!.docs[index];
-                final data = doc.data() as Map<String, dynamic>;
+                final order = orders[index];
                 return ClientOrderCard(
-                  docId: doc.id,
-                  data: data,
+                  docId: order.id,
+                  data: order.toMap(),
                   onPay: (link) => _launchPaymentLink(context, link),
                 );
               },

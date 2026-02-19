@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:techsc/features/orders/models/quote_model.dart';
-import 'package:techsc/features/orders/services/quote_service.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:techsc/features/orders/providers/quote_providers.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/core/utils/pdf_helper.dart';
 import 'package:printing/printing.dart';
 
-class QuoteDetailPage extends StatefulWidget {
+class QuoteDetailPage extends ConsumerStatefulWidget {
   final QuoteModel quote;
   final bool isClientView;
 
@@ -19,56 +20,37 @@ class QuoteDetailPage extends StatefulWidget {
   });
 
   @override
-  State<QuoteDetailPage> createState() => _QuoteDetailPageState();
+  ConsumerState<QuoteDetailPage> createState() => _QuoteDetailPageState();
 }
 
-class _QuoteDetailPageState extends State<QuoteDetailPage> {
+class _QuoteDetailPageState extends ConsumerState<QuoteDetailPage> {
   late QuoteModel _quote;
-  final QuoteService _quoteService = QuoteService();
-  final AuthService _authService = AuthService();
-  final RoleService _roleService = RoleService();
   bool _isLoading = false;
-  String _userRole = RoleService.CLIENT;
-
-  bool get _isAdmin => _userRole == RoleService.ADMIN;
-  bool get _isSeller => _userRole == RoleService.SELLER;
 
   @override
   void initState() {
     super.initState();
     _quote = widget.quote;
-    _loadUserRole();
   }
 
-  Future<void> _loadUserRole() async {
-    final user = _authService.currentUser;
-    if (user != null) {
-      final role = await _roleService.getUserRole(user.uid);
-      if (mounted) {
-        setState(() {
-          _userRole = role;
-        });
-      }
-    }
-  }
-
-  String _getActionDescription(String action) {
+  String _getActionDescription(String action, String role) {
     String actor = 'cliente';
-    if (_isAdmin) actor = 'administrador';
-    if (_isSeller) actor = 'vendedor';
+    if (role == RoleService.ADMIN) actor = 'administrador';
+    if (role == RoleService.SELLER) actor = 'vendedor';
     return action == 'approved'
         ? 'Aprobado por $actor'
         : 'Rechazado por $actor';
   }
 
-  Future<void> _approveQuote() async {
+  Future<void> _approveQuote(String role) async {
     setState(() => _isLoading = true);
     try {
-      final user = _authService.currentUser;
+      final user = ref.read(authServiceProvider).currentUser;
       if (user == null) return;
 
-      final historyDesc = _getActionDescription('approved');
-      final orderId = await _quoteService.approveQuote(
+      final historyDesc = _getActionDescription('approved', role);
+      final quoteService = ref.read(quoteServiceProvider);
+      final orderId = await quoteService.approveQuote(
         _quote.id,
         user.uid,
         historyDescription: historyDesc,
@@ -108,14 +90,15 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
     }
   }
 
-  Future<void> _rejectQuote() async {
+  Future<void> _rejectQuote(String role) async {
     setState(() => _isLoading = true);
     try {
-      final user = _authService.currentUser;
+      final user = ref.read(authServiceProvider).currentUser;
       if (user == null) return;
 
-      final historyDesc = _getActionDescription('rejected');
-      await _quoteService.rejectQuote(
+      final historyDesc = _getActionDescription('rejected', role);
+      final quoteService = ref.read(quoteServiceProvider);
+      await quoteService.rejectQuote(
         _quote.id,
         user.uid,
         historyDescription: historyDesc,
@@ -174,40 +157,54 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    bool canApprove =
-        (widget.isClientView || _isAdmin || _isSeller) &&
-        _quote.status == 'sent';
+    final user = ref.watch(authServiceProvider).currentUser;
+    final roleAsync = user != null
+        ? ref.watch(userRoleProvider(user.uid))
+        : const AsyncValue.data(RoleService.CLIENT);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Cotización #${_quote.id.substring(0, 8)}'), // Short ID
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: _generatePdfAndShare,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatusCard(),
-            const SizedBox(height: 16),
-            _buildClientInfo(),
-            const SizedBox(height: 16),
-            _buildItemsList(),
-            const SizedBox(height: 16),
-            _buildTotals(),
-            if (!widget.isClientView) ...[
-              const SizedBox(height: 16),
-              _buildHistory(),
+    return roleAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (role) {
+        final isAdmin = role == RoleService.ADMIN;
+        final isSeller = role == RoleService.SELLER;
+        bool canApprove =
+            (widget.isClientView || isAdmin || isSeller) &&
+            _quote.status == 'sent';
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Cotización #${_quote.id.substring(0, 8)}'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: _generatePdfAndShare,
+              ),
             ],
-          ],
-        ),
-      ),
-      bottomNavigationBar: canApprove ? _buildActionButtons() : null,
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStatusCard(),
+                const SizedBox(height: 16),
+                _buildClientInfo(),
+                const SizedBox(height: 16),
+                _buildItemsList(),
+                const SizedBox(height: 16),
+                _buildTotals(),
+                if (!widget.isClientView) ...[
+                  const SizedBox(height: 16),
+                  _buildHistory(),
+                ],
+              ],
+            ),
+          ),
+          bottomNavigationBar: canApprove ? _buildActionButtons(role) : null,
+        );
+      },
     );
   }
 
@@ -428,7 +425,7 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(String role) {
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
@@ -441,7 +438,7 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: _rejectQuote,
+              onPressed: () => _rejectQuote(role),
               icon: const Icon(Icons.close, color: Colors.red),
               label: const Text(
                 'RECHAZAR',
@@ -455,7 +452,7 @@ class _QuoteDetailPageState extends State<QuoteDetailPage> {
           const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: _approveQuote,
+              onPressed: () => _approveQuote(role),
               icon: const Icon(Icons.check),
               label: const Text('APROBAR'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),

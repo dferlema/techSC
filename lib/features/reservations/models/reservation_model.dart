@@ -59,10 +59,12 @@ class ReservationModel {
     this.paymentVoucher,
   });
 
-  factory ReservationModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory ReservationModel.fromFirestoreMap(
+    Map<String, dynamic> data,
+    String id,
+  ) {
     return ReservationModel(
-      id: doc.id,
+      id: id,
       userId: data['userId'] ?? '',
       clientName: data['clientName'] ?? '',
       clientEmail: data['clientEmail'] ?? '',
@@ -87,6 +89,13 @@ class ReservationModel {
       paymentMethod: data['paymentMethod'],
       paymentInstitution: data['paymentInstitution'],
       paymentVoucher: data['paymentVoucher'],
+    );
+  }
+
+  factory ReservationModel.fromFirestore(DocumentSnapshot doc) {
+    return ReservationModel.fromFirestoreMap(
+      doc.data() as Map<String, dynamic>,
+      doc.id,
     );
   }
 
@@ -118,6 +127,8 @@ class ReservationModel {
       'paymentVoucher': paymentVoucher,
     };
   }
+
+  Map<String, dynamic> toFirestore() => toMap();
 
   ReservationModel copyWith({
     String? status,

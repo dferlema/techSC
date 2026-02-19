@@ -20,6 +20,8 @@ class ConfigModel {
     };
   }
 
+  Map<String, dynamic> toFirestore() => toMap();
+
   factory ConfigModel.fromMap(Map<String, dynamic> map) {
     return ConfigModel(
       companyName: map['companyName'] ?? 'TechService Pro',
