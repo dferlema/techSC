@@ -5,6 +5,8 @@ import 'package:techsc/features/reservations/screens/reservation_detail_page.dar
 import 'package:techsc/features/reservations/providers/reservation_providers.dart';
 import 'package:techsc/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class MyReservationsPage extends ConsumerWidget {
   const MyReservationsPage({super.key});
@@ -47,8 +49,11 @@ class MyReservationsPage extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
+        loading: () => const AppLoadingIndicator(),
+        error: (error, _) => AppErrorWidget(
+          error: error,
+          onRetry: () => ref.invalidate(myReservationsProvider),
+        ),
       ),
     );
   }
@@ -213,9 +218,9 @@ class MyReservationsPage extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withAlpha(128)),
       ),
       child: Text(
         label,

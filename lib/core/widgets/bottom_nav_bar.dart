@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:techsc/core/theme/app_colors.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -34,8 +35,8 @@ class BottomNavBar extends StatelessWidget {
     return BottomNavigationBar(
       currentIndex: currentIndex,
       onTap: onTabTapped,
-      selectedItemColor: const Color.fromARGB(255, 228, 163, 25), // Azul activo
-      unselectedItemColor: Colors.grey[600], // Gris inactivo
+      selectedItemColor: AppColors.goldAccent,
+      unselectedItemColor: AppColors.textSecondary,
       showSelectedLabels: true,
       showUnselectedLabels: true,
       type: BottomNavigationBarType.fixed, // Evita "shifting" en 3 items

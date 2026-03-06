@@ -198,7 +198,7 @@ class _ReservationCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withAlpha(26),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: statusColor),
                     ),

@@ -23,9 +23,11 @@ class WhatsAppShareHelper {
         ? (productData['rating'] as int).toDouble()
         : productData['rating'] as double?;
 
-    // Image handling: check 'image' (string) or 'images' (list)
+    // Image handling: check 'imageUrl', 'image' (string) or 'images' (list)
     String? imageUrl;
-    if (productData['image'] != null && productData['image'] is String) {
+    if (productData['imageUrl'] != null && productData['imageUrl'] is String) {
+      imageUrl = productData['imageUrl'];
+    } else if (productData['image'] != null && productData['image'] is String) {
       imageUrl = productData['image'];
     } else if (productData['images'] != null &&
         productData['images'] is List &&
@@ -121,29 +123,7 @@ class WhatsAppShareHelper {
     final String originalPrice = (price * 1.25).toStringAsFixed(2);
     final String promoPrice = price.toStringAsFixed(2);
 
-    // Determine dynamic product type for the message
-
-    String productType = 'producto';
-
-    final String lowerName = productName.toLowerCase();
-    final String category = (productData['category'] ?? '')
-        .toString()
-        .toLowerCase();
-
-    if (lowerName.contains('laptop') ||
-        lowerName.contains('portátil') ||
-        lowerName.contains('notebook') ||
-        category.contains('laptop')) {
-      productType = 'laptop';
-    } else if (lowerName.contains('impresora') ||
-        lowerName.contains('printer') ||
-        category.contains('impresora')) {
-      productType = 'impresora';
-    } else if (category.contains('servicio') ||
-        lowerName.contains('mantenimiento') ||
-        lowerName.contains('reparación')) {
-      productType = 'servicio';
-    }
+    // The previous productType calculation was removed because it was unused in the marketing message.
 
     // Format a high-impact marketing message based on user request
     String message = '👋 Hola *$name*, tenemos algo especial para ti\n';

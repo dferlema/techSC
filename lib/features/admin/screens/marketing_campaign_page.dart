@@ -9,6 +9,8 @@ import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/l10n/app_localizations.dart';
 import 'dart:convert';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class MarketingCampaignPage extends ConsumerStatefulWidget {
   const MarketingCampaignPage({super.key});
@@ -55,7 +57,7 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
       decoration: BoxDecoration(
         color: AppColors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+          BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 10),
         ],
       ),
       child: Column(
@@ -79,8 +81,8 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
           SizedBox(
             height: 100,
             child: productsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error: $err')),
+              loading: () => const AppLoadingIndicator(),
+              error: (err, _) => AppErrorWidget(error: err),
               data: (docs) {
                 final products = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
@@ -119,7 +121,7 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
                           ),
                           borderRadius: BorderRadius.circular(8),
                           color: isSelected
-                              ? AppColors.primaryBlue.withOpacity(0.1)
+                              ? AppColors.primaryBlue.withAlpha(26)
                               : AppColors.white,
                         ),
                         child: Column(
@@ -166,7 +168,7 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
   Widget _buildCampaignSummary(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: AppColors.warning.withOpacity(0.1),
+      color: AppColors.warning.withAlpha(26),
       child: Row(
         children: [
           Icon(Icons.campaign, color: AppColors.warning),
@@ -275,8 +277,8 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
         ),
         Expanded(
           child: clientsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error: $err')),
+            loading: () => const AppLoadingIndicator(),
+            error: (err, _) => AppErrorWidget(error: err),
             data: (allClients) {
               var clients = allClients;
               if (_searchQuery.isNotEmpty) {
@@ -306,7 +308,7 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
                     ),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primaryBlue.withOpacity(0.2),
+                        backgroundColor: AppColors.primaryBlue.withAlpha(51),
                         child: Text(
                           client.name.isNotEmpty
                               ? client.name[0].toUpperCase()

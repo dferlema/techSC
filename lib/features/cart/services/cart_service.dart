@@ -24,11 +24,20 @@ class CartService extends ChangeNotifier {
     final String itemId = item['id'] ?? '';
     if (itemId.isEmpty) return;
 
+    final int? maxStock = item['stock'] as int?;
     final index = _items.indexWhere((i) => i.id == itemId);
 
     if (index >= 0) {
+      if (maxStock != null && _items[index].quantity >= maxStock) {
+        throw Exception(
+          'Has alcanzado el límite de stock de este producto ($maxStock).',
+        );
+      }
       _items[index].quantity++;
     } else {
+      if (maxStock != null && maxStock <= 0) {
+        throw Exception('Producto fuera de stock.');
+      }
       _items.add(
         CartItem(
           id: itemId,
@@ -38,6 +47,7 @@ class CartService extends ChangeNotifier {
               : (item['price'] as double? ?? 0.0),
           image: item['image'] ?? item['imageUrl'],
           type: type,
+          maxStock: maxStock,
         ),
       );
     }
@@ -53,7 +63,13 @@ class CartService extends ChangeNotifier {
   void increaseQuantity(String productId) {
     final index = _items.indexWhere((item) => item.id == productId);
     if (index >= 0) {
-      _items[index].quantity++;
+      final item = _items[index];
+      if (item.maxStock != null && item.quantity >= item.maxStock!) {
+        throw Exception(
+          'No hay más stock disponible de este producto (Máximo: ${item.maxStock}).',
+        );
+      }
+      item.quantity++;
       notifyListeners();
     }
   }
@@ -89,7 +105,12 @@ class CartService extends ChangeNotifier {
   /// Converts the current cart items into a Firestore order.
   /// Generates a [QuoteModel]-compatible snapshot within the order for history tracking.
   /// Sends notifications to the user and relevant staff (Admins/Sellers).
-  Future<void> createOrder() async {
+  Future<String> createOrder({
+    String paymentStatus = 'unpaid',
+    String? paymentId,
+    String paymentMethod = 'efectivo',
+    double discountPercentage = 0.0,
+  }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw Exception('Debes iniciar sesión para realizar un pedido.');
@@ -110,8 +131,17 @@ class CartService extends ChangeNotifier {
     final clientPhone = userData?['phone'] ?? '';
     final clientEmail = user.email ?? '';
 
-    // Calcular total final
-    final orderTotal = total;
+    // Si es efectivo o transferencia, aplicamos el 5% de descuento por defecto si no viene mapeado
+    double currentDiscount = discountPercentage;
+    if ((paymentMethod == 'efectivo' || paymentMethod == 'transferencia') &&
+        currentDiscount == 0.0) {
+      currentDiscount = 5.0;
+    }
+
+    // Calcular total final con descuento
+    final double subtotal = total;
+    final double discountAmount = subtotal * (currentDiscount / 100);
+    final double orderTotal = subtotal - discountAmount;
 
     // Convertir items del carrito al formato de QuoteItem
     final quoteItems = _items
@@ -148,6 +178,9 @@ class CartService extends ChangeNotifier {
       'status': 'converted', // Ya convertido a orden
       'applyTax': false,
       'taxRate': 0.0,
+      'subtotal': subtotal,
+      'discountPercentage': currentDiscount,
+      'discountAmount': discountAmount,
       'total': orderTotal,
     };
 
@@ -167,7 +200,10 @@ class CartService extends ChangeNotifier {
           .toList(), // Mantener por compatibilidad
       'total': orderTotal,
       'status': 'pendiente', // pendiente, confirmado, entregado, cancelado
-      'paymentStatus': 'unpaid',
+      'paymentStatus': paymentStatus,
+      'paymentMethod': paymentMethod,
+      'paymentId': paymentId,
+      'discountPercentage': currentDiscount,
       'createdAt': Timestamp.now(),
     };
 
@@ -186,5 +222,7 @@ class CartService extends ChangeNotifier {
 
     // Limpiar carrito
     clearCart();
+
+    return customOrderId;
   }
 }

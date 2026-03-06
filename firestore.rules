@@ -13,17 +13,32 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Role checks (Use with caution for clients as they might lack a user doc)
+    // Role checks
     function hasRole(role) {
       return isAuthenticated() && getUserData().role == role;
     }
 
-    function isStaff() {
-      return isAuthenticated() && getUserData().role in ['administrador', 'vendedor', 'tecnico'];
+    // Supports both Spanish and English role names for robustness
+    function isAdmin() {
+      return isAuthenticated() && (getUserData().role in ['administrador', 'admin', 'Admin']);
     }
 
-    function isAdmin() {
-      return hasRole('administrador');
+    function isSeller() {
+      return isAuthenticated() && (getUserData().role in ['vendedor', 'seller', 'Seller']);
+    }
+
+    function isTechnician() {
+      return isAuthenticated() && (getUserData().role in ['tecnico', 'technician', 'Technician']);
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (
+        getUserData().role in [
+          'administrador', 'admin', 'Admin',
+          'vendedor', 'seller', 'Seller',
+          'tecnico', 'technician', 'Technician'
+        ]
+      );
     }
 
     // --- Collection Rules ---
@@ -82,7 +97,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isStaff() || 
         ((resource.data.get('customerUid', '') == request.auth.uid) && 
-         request.resource.data.status in ['approved', 'rejected'])
+         request.resource.data.status in ['approved', 'rejected', 'aprobada', 'rechazada'])
       );
       allow delete: if isAdmin();
     }
@@ -97,7 +112,7 @@ service cloud.firestore {
         request.resource.data.get('userId', '') == request.auth.uid ||
         isStaff()
       );
-      allow update: if isStaff();
+      allow update: if isStaff() && (resource.data.status != 'entregado' || isAdmin());
       allow delete: if isAdmin();
     }
 
@@ -111,11 +126,11 @@ service cloud.firestore {
         request.resource.data.get('userId', '') == request.auth.uid ||
         isStaff()
       );
-      allow update: if isAuthenticated() && (
-        isStaff() || 
+      allow update: if (isStaff() || 
         (resource.data.get('userId', '') == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
-      );
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))) &&
+        (resource.data.status != 'completada' || isAdmin());
+        
       allow delete: if isAdmin();
     }
 
@@ -139,7 +154,18 @@ service cloud.firestore {
     // Suppliers (Proveedores)
     match /suppliers/{supplierId} {
       allow read: if isStaff();
-      allow write: if isAdmin();
+      allow write: if isStaff(); // Admins and Sellers can manage suppliers
+    }
+
+    // Marketing Logs
+    match /marketing_logs/{logId} {
+      allow read, create: if isStaff();
+      allow update, delete: if isAdmin();
+    }
+
+    // Inventory Movements
+    match /inventory_movements/{movementId} {
+      allow read, write: if isStaff();
     }
   }
 }

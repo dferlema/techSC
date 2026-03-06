@@ -282,7 +282,7 @@ class _ServiceFormPageState extends ConsumerState<ServiceFormPage> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.8),
+                            color: Colors.blue.withAlpha(204),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(

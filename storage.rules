@@ -13,15 +13,21 @@ service firebase.storage {
     }
 
     // Helper: Check roles
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && getUserData().role == 'administrador';
+      return isAuthenticated() && (getUserData().role in ['administrador', 'admin', 'Admin']);
     }
 
     function isStaff() {
       return isAuthenticated() && (
-        getUserData().role == 'administrador' || 
-        getUserData().role == 'vendedor' || 
-        getUserData().role == 'tecnico'
+        getUserData().role in [
+          'administrador', 'admin', 'Admin',
+          'vendedor', 'seller', 'Seller',
+          'tecnico', 'technician', 'Technician'
+        ]
       );
     }
 
@@ -33,6 +39,12 @@ service firebase.storage {
 
     // --- Product Images ---
     match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // --- Service Images ---
+    match /services/{allPaths=**} {
       allow read: if true;
       allow write: if isStaff();
     }

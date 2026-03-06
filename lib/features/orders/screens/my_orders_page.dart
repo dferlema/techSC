@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:techsc/core/providers/providers.dart';
+import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/features/orders/providers/order_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:techsc/features/orders/widgets/client_order_card.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class MyOrdersPage extends ConsumerWidget {
   const MyOrdersPage({super.key});
@@ -56,8 +59,8 @@ class MyOrdersPage extends ConsumerWidget {
       body: Container(
         color: Colors.grey[50],
         child: ordersAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Error: $err')),
+          loading: () => const AppLoadingIndicator(),
+          error: (err, _) => AppErrorWidget(error: err),
           data: (orders) {
             if (orders.isEmpty) {
               return Center(
@@ -70,9 +73,12 @@ class MyOrdersPage extends ConsumerWidget {
                       color: Colors.grey[400],
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'No has realizado ningún pedido aún.',
-                      style: TextStyle(fontSize: 18, color: Color(0xFF757575)),
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),

@@ -84,7 +84,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
           children: [
             // Información del usuario
             Card(
-              color: AppColors.primaryBlue.withOpacity(0.05),
+              color: AppColors.primaryBlue.withAlpha(13),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
@@ -210,7 +210,7 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
           ),
           borderRadius: BorderRadius.circular(8),
           color: isSelected
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+              ? Theme.of(context).colorScheme.primary.withAlpha(26)
               : Colors.transparent,
         ),
         child: Row(

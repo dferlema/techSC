@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:techsc/features/orders/providers/order_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:techsc/features/orders/widgets/client_order_card.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;
@@ -30,8 +32,8 @@ class OrderDetailPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Detalle del Pedido')),
       body: orderAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        loading: () => const AppLoadingIndicator(),
+        error: (err, _) => AppErrorWidget(error: err),
         data: (order) {
           if (order == null) {
             return const Center(child: Text('Pedido no encontrado'));

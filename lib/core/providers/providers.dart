@@ -10,6 +10,8 @@ import 'package:techsc/features/auth/services/user_service.dart';
 import 'package:techsc/features/auth/models/user_model.dart';
 import 'package:techsc/features/auth/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:techsc/core/services/payphone_service.dart';
+import 'package:techsc/features/home/providers/home_providers.dart';
 
 /// Provider for RoleService singleton
 final roleServiceProvider = Provider<RoleService>((ref) {
@@ -77,4 +79,21 @@ final authStateProvider = StreamProvider<User?>((ref) {
 /// Provider to watch all users
 final allUsersProvider = StreamProvider<List<UserModel>>((ref) {
   return ref.watch(userServiceProvider).watchAllUsers();
+});
+
+/// Provider for PayphoneService
+final payphoneServiceProvider = Provider<PayphoneService?>((ref) {
+  final configAsync = ref.watch(configStreamProvider);
+  return configAsync.when(
+    data: (config) {
+      if (config.payphoneToken.isEmpty) return null;
+      return PayphoneService(
+        authToken: config.payphoneToken,
+        storeId: config.payphoneStoreId,
+        isSandbox: config.payphoneIsSandbox,
+      );
+    },
+    loading: () => null,
+    error: (_, __) => null,
+  );
 });

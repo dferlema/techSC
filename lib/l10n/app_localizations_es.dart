@@ -88,6 +88,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get productsTab => 'Productos';
 
   @override
+  String get inventoryTab => 'Inventario';
+
+  @override
   String get servicesTab => 'Servicios';
 
   @override
@@ -911,4 +914,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bannerDeletedSuccess => 'Banner eliminado correctamente';
+
+  @override
+  String get payphoneTokenLabel => 'Token de Pago (Payphone)';
+
+  @override
+  String get payphoneStoreIdLabel => 'ID de Tienda (StoreID)';
+
+  @override
+  String get payphoneSandboxLabel => 'Modo Sandbox (Pruebas)';
+
+  @override
+  String get integrationsTab => 'Integraciones';
 }

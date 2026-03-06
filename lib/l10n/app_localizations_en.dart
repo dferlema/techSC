@@ -88,6 +88,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productsTab => 'Products';
 
   @override
+  String get inventoryTab => 'Inventory';
+
+  @override
   String get servicesTab => 'Services';
 
   @override
@@ -887,7 +890,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get biometricDisableDialogContent =>
-      'Are you sure you want to disable biometric login?\\n\\nYou will have to log in manually next time.';
+      'Are you sure you want to disable biometric login?\n\nYou will have to log in manually next time.';
 
   @override
   String get biometricDisableDialogAction => 'Disable';
@@ -903,4 +906,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bannerDeletedSuccess => 'Banner deleted successfully';
+
+  @override
+  String get payphoneTokenLabel => 'Payment Token (Payphone)';
+
+  @override
+  String get payphoneStoreIdLabel => 'Store ID (StoreID)';
+
+  @override
+  String get payphoneSandboxLabel => 'Sandbox Mode (Testing)';
+
+  @override
+  String get integrationsTab => 'Integrations';
 }

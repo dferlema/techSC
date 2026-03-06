@@ -135,7 +135,7 @@ class ContactPage extends StatelessWidget {
           AppLocalizations.of(context)!.contactQuestion,
           style: TextStyle(
             fontSize: 20,
-            color: colorScheme.onSurface.withOpacity(0.6),
+            color: colorScheme.onSurface.withAlpha(153),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -155,7 +155,7 @@ class ContactPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.primary.withOpacity(0.3),
+            color: colorScheme.primary.withAlpha(76),
             blurRadius: 25,
             offset: const Offset(0, 15),
           ),
@@ -169,7 +169,7 @@ class ContactPage extends StatelessWidget {
             child: Icon(
               Icons.bolt_rounded,
               size: 150,
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withAlpha(26),
             ),
           ),
           Padding(
@@ -179,7 +179,7 @@ class ContactPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withAlpha(38),
                     shape: BoxShape.circle,
                   ),
                   child: SvgPicture.network(
@@ -212,7 +212,7 @@ class ContactPage extends StatelessWidget {
                   AppLocalizations.of(context)!.whatsappDescription,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withAlpha(230),
                     fontSize: 15,
                     height: 1.4,
                   ),
@@ -299,10 +299,10 @@ class ContactPage extends StatelessWidget {
           decoration: BoxDecoration(
             color: colorScheme.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: colorScheme.outline.withOpacity(0.05)),
+            border: Border.all(color: colorScheme.outline.withAlpha(13)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withAlpha(8),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
@@ -313,7 +313,7 @@ class ContactPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withAlpha(26),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: color, size: 28),
@@ -335,7 +335,7 @@ class ContactPage extends StatelessWidget {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: colorScheme.onSurface.withOpacity(0.5),
+                        color: colorScheme.onSurface.withAlpha(128),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -345,7 +345,7 @@ class ContactPage extends StatelessWidget {
               ),
               Icon(
                 Icons.arrow_forward_ios_rounded,
-                color: colorScheme.onSurface.withOpacity(0.2),
+                color: colorScheme.onSurface.withAlpha(51),
                 size: 16,
               ),
             ],
@@ -362,13 +362,13 @@ class ContactPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.05),
+              color: theme.colorScheme.primary.withAlpha(13),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               AppLocalizations.of(context)!.available247,
               style: TextStyle(
-                color: theme.colorScheme.primary.withOpacity(0.6),
+                color: theme.colorScheme.primary.withAlpha(153),
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -378,7 +378,7 @@ class ContactPage extends StatelessWidget {
           Text(
             '',
             style: TextStyle(
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
+              color: theme.colorScheme.onSurface.withAlpha(76),
               fontSize: 13,
             ),
           ),

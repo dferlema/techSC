@@ -10,6 +10,8 @@ import 'package:techsc/features/admin/screens/client_form_page.dart';
 import 'package:techsc/features/admin/widgets/role_assignment_dialog.dart';
 import 'package:techsc/features/admin/providers/admin_providers.dart';
 import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class AdminClientsTab extends ConsumerStatefulWidget {
   const AdminClientsTab({super.key});
@@ -190,7 +192,7 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: _getRoleColor(role).withOpacity(0.2),
+                color: _getRoleColor(role).withAlpha(51),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -236,10 +238,11 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
                     ),
                   ),
                 );
-                if (res == true && mounted)
+                if (res == true && mounted) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
+                }
               },
             ),
             IconButton(
@@ -305,7 +308,7 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
                                   lastDate: DateTime.now(),
                                   initialDateRange: dateRange,
                                 );
-                                if (res != null)
+                                if (res != null) {
                                   ref
                                           .read(
                                             adminClientsDateRangeProvider
@@ -313,6 +316,7 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
                                           )
                                           .state =
                                       res;
+                                }
                               },
                               icon: const Icon(Icons.calendar_today, size: 16),
                               label: Text(
@@ -398,10 +402,11 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
               context,
               MaterialPageRoute(builder: (context) => const ClientFormPage()),
             );
-            if (res == true && mounted)
+            if (res == true && mounted) {
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
+            }
           },
           icon: const Icon(Icons.person_add),
           label: Text(l10n.addClient),
@@ -410,12 +415,15 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
         const SizedBox(height: 24),
         Expanded(
           child: clientsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) =>
-                Center(child: Text('${l10n.errorPrefix}: $err')),
+            loading: () => const AppLoadingIndicator(),
+            error: (err, _) => AppErrorWidget(
+              error: err,
+              onRetry: () => ref.invalidate(adminClientsProvider),
+            ),
             data: (filteredLines) {
-              if (filteredLines.isEmpty)
+              if (filteredLines.isEmpty) {
                 return Center(child: Text(l10n.noMatchesFound));
+              }
 
               final start = _currentPage * _itemsPerPage;
               final end = (start + _itemsPerPage).clamp(

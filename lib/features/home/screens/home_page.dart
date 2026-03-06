@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:techsc/core/providers/providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:techsc/core/services/role_service.dart';
+import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/core/widgets/app_drawer.dart';
 import 'package:techsc/core/widgets/notification_icon.dart';
 import 'package:techsc/features/home/providers/home_providers.dart';
@@ -18,6 +19,8 @@ import 'package:techsc/features/admin/screens/settings_page.dart';
 import 'package:techsc/features/admin/screens/admin_panel_page.dart';
 import 'package:techsc/features/admin/screens/reports_page.dart';
 import 'package:techsc/features/reservations/screens/technician_dashboard.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   final String routeName;
@@ -80,7 +83,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
       data: (config) {
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
+          backgroundColor: AppColors.surfaceLight,
           appBar: AppBar(
             elevation: 0,
             backgroundColor: colorScheme.primary,
@@ -137,7 +140,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _launchWhatsApp(config.companyPhone),
-            backgroundColor: const Color(0xFF25D366),
+            backgroundColor: AppColors.whatsapp,
             elevation: 4,
             child: Image.asset(
               'assets/images/whatsapp_icon.png',
@@ -158,10 +161,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1A1A1A),
+              color: AppColors.nearBlack,
               letterSpacing: -0.5,
             ),
           ),
@@ -198,7 +201,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return roleAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (role) {
         if (role == RoleService.CLIENT) return const SizedBox.shrink();
 
@@ -212,10 +215,10 @@ class _HomePageState extends ConsumerState<HomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Text(
                 'Panel de Control (${RoleService.getRoleName(role)})',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: AppColors.nearBlack,
                 ),
               ),
             ),
@@ -268,6 +271,21 @@ class _HomePageState extends ConsumerState<HomePage> {
           () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AdminPanelPage()),
+          ),
+        ),
+      );
+
+      // Inventory shortcut
+      cards.add(
+        _buildDashboardCard(
+          'Inventario',
+          Icons.warehouse_outlined,
+          Colors.brown,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AdminPanelPage(initialTabIndex: 2),
+            ),
           ),
         ),
       );
@@ -354,7 +372,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withAlpha(26),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 28),
@@ -416,7 +434,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         padding: EdgeInsets.all(20),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (role) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -501,8 +519,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     return SizedBox(
       height: 260,
       child: featuredProductsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        loading: () => const AppLoadingIndicator(),
+        error: (err, _) => AppErrorWidget(error: err),
         data: (products) {
           if (products.isEmpty) {
             return _buildEmptyProductsState(context);
@@ -530,7 +548,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withAlpha(51)),
       ),
       child: Center(
         child: Column(
@@ -576,7 +594,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withAlpha(15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),

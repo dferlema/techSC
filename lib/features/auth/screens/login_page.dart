@@ -147,6 +147,7 @@ class _LoginPageState extends State<LoginPage> {
         // 🔐 Verificar si debemos ofrecer configurar biometría
         await _promptBiometricSetup(email, password);
 
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/main');
       }
     } catch (e) {
@@ -174,6 +175,7 @@ class _LoginPageState extends State<LoginPage> {
       if (user != null && mounted) {
         // Registrar inicio de sesión
         await PreferencesService().updateLastActivity();
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/main');
       }
     } catch (e) {
@@ -257,7 +259,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     // Colores base
     final primaryColor = AppColors.primaryBlue;
-    final accentColor = AppColors.accentOrange;
+    final accentColor = AppColors.accentBlue;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -287,10 +289,10 @@ class _LoginPageState extends State<LoginPage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.4),
+                color: accentColor.withAlpha(102),
                 boxShadow: [
                   BoxShadow(
-                    color: accentColor.withOpacity(0.4),
+                    color: accentColor.withAlpha(102),
                     blurRadius: 100,
                     spreadRadius: 20,
                   ),
@@ -307,10 +309,10 @@ class _LoginPageState extends State<LoginPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.blueAccent.withOpacity(0.3),
+                color: Colors.blueAccent.withAlpha(76),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blueAccent.withOpacity(0.3),
+                    color: Colors.blueAccent.withAlpha(76),
                     blurRadius: 100,
                     spreadRadius: 10,
                   ),
@@ -355,7 +357,7 @@ class _LoginPageState extends State<LoginPage> {
                     AppLocalizations.of(context)!.welcomeBack,
                     style: TextStyle(
                       fontSize: 16,
-                      color: AppColors.white.withOpacity(0.8),
+                      color: AppColors.white.withAlpha(204),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -369,17 +371,15 @@ class _LoginPageState extends State<LoginPage> {
                       child: Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: AppColors.white.withOpacity(
-                            0.1,
-                          ), // Translucidez
+                          color: AppColors.white.withAlpha(26), // Translucidez
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppColors.white.withOpacity(0.2),
+                            color: AppColors.white.withAlpha(51),
                             width: 1.0,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.black.withOpacity(0.2),
+                              color: AppColors.black.withAlpha(51),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -396,14 +396,14 @@ class _LoginPageState extends State<LoginPage> {
                                   context,
                                 )!.emailLabel,
                                 labelStyle: TextStyle(
-                                  color: AppColors.white.withOpacity(0.8),
+                                  color: AppColors.white.withAlpha(204),
                                 ),
                                 prefixIcon: Icon(
                                   Icons.email_outlined,
-                                  color: AppColors.white.withOpacity(0.9),
+                                  color: AppColors.white.withAlpha(230),
                                 ),
                                 filled: true,
-                                fillColor: AppColors.white.withOpacity(0.1),
+                                fillColor: AppColors.white.withAlpha(26),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(30),
                                   borderSide: BorderSide.none,
@@ -427,23 +427,23 @@ class _LoginPageState extends State<LoginPage> {
                                   context,
                                 )!.passwordLabel,
                                 labelStyle: TextStyle(
-                                  color: AppColors.white.withOpacity(0.8),
+                                  color: AppColors.white.withAlpha(204),
                                 ),
                                 prefixIcon: Icon(
                                   Icons.lock_outline,
-                                  color: AppColors.white.withOpacity(0.9),
+                                  color: AppColors.white.withAlpha(230),
                                 ),
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
                                         ? Icons.visibility_off
                                         : Icons.visibility,
-                                    color: AppColors.white.withOpacity(0.7),
+                                    color: AppColors.white.withAlpha(178),
                                   ),
                                   onPressed: _togglePasswordVisibility,
                                 ),
                                 filled: true,
-                                fillColor: AppColors.white.withOpacity(0.1),
+                                fillColor: AppColors.white.withAlpha(26),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(30),
                                   borderSide: BorderSide.none,
@@ -490,7 +490,7 @@ class _LoginPageState extends State<LoginPage> {
                                     Text(
                                       AppLocalizations.of(context)!.rememberMe,
                                       style: TextStyle(
-                                        color: AppColors.white.withOpacity(0.9),
+                                        color: AppColors.white.withAlpha(230),
                                         fontSize: 13,
                                       ),
                                     ),
@@ -513,7 +513,7 @@ class _LoginPageState extends State<LoginPage> {
                                       fontSize: 13,
                                       decoration: TextDecoration.underline,
                                       decorationColor: AppColors.white
-                                          .withOpacity(0.5),
+                                          .withAlpha(128),
                                     ),
                                   ),
                                 ),
@@ -531,7 +531,7 @@ class _LoginPageState extends State<LoginPage> {
                                 color: accentColor, // Color sólido
                                 boxShadow: [
                                   BoxShadow(
-                                    color: accentColor.withOpacity(0.4),
+                                    color: accentColor.withAlpha(102),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
@@ -588,11 +588,11 @@ class _LoginPageState extends State<LoginPage> {
                           horizontal: 24,
                           vertical: 12,
                         ),
-                        backgroundColor: AppColors.white.withOpacity(0.1),
+                        backgroundColor: AppColors.white.withAlpha(26),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                           side: BorderSide(
-                            color: AppColors.white.withOpacity(0.3),
+                            color: AppColors.white.withAlpha(76),
                           ),
                         ),
                       ),

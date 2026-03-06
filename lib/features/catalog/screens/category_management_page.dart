@@ -74,7 +74,8 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                             categoryType,
                           );
                         }
-                        if (mounted) Navigator.pop(context);
+                        if (!mounted) return;
+                        Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -86,6 +87,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           ),
                         );
                       } catch (e) {
+                        if (!mounted) return;
                         setDialogState(() => isLoading = false);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -144,14 +146,12 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
       avatar: Icon(
         icon,
         size: 18,
-        color: isSelected ? Colors.white : Colors.indigo[900]?.withOpacity(0.5),
+        color: isSelected ? Colors.white : Colors.indigo[900]?.withAlpha(128),
       ),
       label: Text(
         label,
         style: TextStyle(
-          color: isSelected
-              ? Colors.white
-              : Colors.indigo[900]?.withOpacity(0.7),
+          color: isSelected ? Colors.white : Colors.indigo[900]?.withAlpha(178),
           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
         ),
       ),
@@ -274,8 +274,10 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
             onPressed: () async {
               try {
                 await _categoryService.deleteCategory(category.id);
-                if (mounted) Navigator.pop(context);
+                if (!mounted) return;
+                Navigator.pop(context);
               } catch (e) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text('Error: $e')));

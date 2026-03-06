@@ -5,12 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/services/role_service.dart';
+import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/features/catalog/services/supplier_service.dart';
 import 'package:techsc/features/catalog/models/product_model.dart';
 import 'package:techsc/features/catalog/models/supplier_model.dart';
 import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/utils/snackbar_helper.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final ProductModel product;
@@ -31,6 +34,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   bool _isRating = false;
   bool _isAdded = false; // State for the add-to-cart animation
   SupplierModel? _supplier; // Store supplier details
+  int _currentPage = 0; // State for current image in gallery
 
   @override
   void initState() {
@@ -50,24 +54,33 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     }
   }
 
-  void _addToCart() async {
-    if (_isAdded) return; // Prevent double clicks during animation
+  void _addToCart(int liveStock) async {
+    if (_isAdded || liveStock <= 0) {
+      return; // Prevent double clicks during animation
+    }
 
-    final productToAdd = widget.product.toFirestore()
-      ..['id'] = widget.productId;
-    ref.read(cartServiceProvider).addToCart(productToAdd);
+    try {
+      final productToAdd = widget.product.toFirestore()
+        ..['id'] = widget.productId
+        ..['stock'] = liveStock;
+      ref.read(cartServiceProvider).addToCart(productToAdd);
 
-    // Trigger animation state
-    setState(() {
-      _isAdded = true;
-    });
-
-    // Revert state after 1.5 seconds
-    await Future.delayed(const Duration(milliseconds: 1500));
-    if (mounted) {
+      // Trigger animation state
       setState(() {
-        _isAdded = false;
+        _isAdded = true;
       });
+
+      // Revert state after 1.5 seconds
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (mounted) {
+        setState(() {
+          _isAdded = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarHelper.showError(context, e);
+      }
     }
   }
 
@@ -101,7 +114,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -210,12 +223,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             children: [
               Icon(Icons.business, color: Colors.blue[700], size: 24),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Información del Proveedor',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
-                  color: Color(0xFF111111),
+                  color: AppColors.nearBlack,
                 ),
               ),
             ],
@@ -299,7 +312,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
         : const AsyncValue.data(RoleService.CLIENT);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceLight,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -333,9 +346,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 child: Builder(
                   builder: (context) {
                     final List<String> images =
-                        (widget.product.imageUrl != null)
-                        ? [widget.product.imageUrl!]
-                        : [];
+                        widget.product.images ??
+                        ((widget.product.imageUrl != null)
+                            ? [widget.product.imageUrl!]
+                            : []);
 
                     if (images.isEmpty) {
                       return const Center(
@@ -415,6 +429,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       children: [
                         PageView.builder(
                           itemCount: images.length,
+                          onPageChanged: (index) {
+                            setState(() {
+                              _currentPage = index;
+                            });
+                          },
                           itemBuilder: (context, index) {
                             return Padding(
                               padding: const EdgeInsets.fromLTRB(
@@ -455,9 +474,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: theme.colorScheme.primary.withOpacity(
-                                    0.5,
-                                  ),
+                                  color: _currentPage == index
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.primary.withAlpha(64),
                                 ),
                               );
                             }),
@@ -481,7 +500,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     widget.product.name,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF111111),
+                      color: AppColors.nearBlack,
                       height: 1.3,
                       fontSize: 24,
                     ),
@@ -505,22 +524,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   const SizedBox(height: 24),
                   _buildRatingStars(),
                   const SizedBox(height: 36),
-                  const Text(
+                  Text(
                     "Descripción",
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF111111),
+                      color: AppColors.nearBlack,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     widget.product.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       height: 1.6,
-                      color: Color(0xFF444444),
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -567,9 +586,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       final supplierSection = _buildSupplierLinkSection(role);
                       return supplierSection ?? const SizedBox.shrink();
                     },
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (_, __) => const SizedBox.shrink(),
+                    loading: () => const AppLoadingIndicator(),
+                    error: (_, _) => const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 100),
                 ],
@@ -578,75 +596,113 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           ),
         ],
       ),
-      bottomSheet: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: _addToCart,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isAdded
-                    ? Colors.green[600]
-                    : theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+      bottomSheet: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('products')
+            .doc(widget.productId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          final liveStock = snapshot.hasData && snapshot.data!.exists
+              ? (snapshot.data!.data() as Map<String, dynamic>)['stock']
+                        as int? ??
+                    widget.product.stock
+              : widget.product.stock;
+
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(13),
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
                 ),
-                animationDuration: const Duration(milliseconds: 300),
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, anim) {
-                  return ScaleTransition(scale: anim, child: child);
-                },
-                child: _isAdded
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        key: ValueKey('added'),
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            "¡Agregado!",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        key: ValueKey('normal'),
-                        children: [
-                          Icon(Icons.shopping_bag_outlined),
-                          SizedBox(width: 8),
-                          Text(
-                            "Agregar al Carrito",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+              ],
+            ),
+            child: SafeArea(
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: liveStock > 0 ? () => _addToCart(liveStock) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: liveStock <= 0
+                        ? Colors.grey
+                        : (_isAdded
+                              ? Colors.green[600]
+                              : theme.colorScheme.primary),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    animationDuration: const Duration(milliseconds: 300),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, anim) {
+                      return ScaleTransition(scale: anim, child: child);
+                    },
+                    child: liveStock <= 0
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            key: ValueKey('out_of_stock'),
+                            children: [
+                              Icon(
+                                Icons.remove_shopping_cart,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                "Agotado",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          )
+                        : (_isAdded
+                              ? const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  key: ValueKey('added'),
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "¡Agregado!",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  key: ValueKey('normal'),
+                                  children: [
+                                    Icon(Icons.shopping_bag_outlined),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "Agregar al Carrito",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                )),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

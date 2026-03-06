@@ -22,19 +22,33 @@ class _AppColorsConfigPageState extends State<AppColorsConfigPage> {
       'label': 'Azul Oscuro',
       'description': 'Variantes oscuras y estados activos',
     },
-    'accentOrange': {
-      'label': 'Acento (Naranja)',
-      'description': 'Botones de acción, destacados y llamadas a la acción',
+    'accentBlue': {
+      'label': 'Azul de Acento',
+      'description':
+          'Botones de acción secundarios, destacados y llamadas a la acción',
     },
     'backgroundGray': {
       'label': 'Fondo Gris',
       'description': 'Fondo general de las pantallas (Scaffold)',
+    },
+    'surfaceLight': {
+      'label': 'Superficie Clara',
+      'description':
+          'Fondos de tarjetas o secciones diferenciadas (ej: detalles de producto)',
     },
     'white': {
       'label': 'Blanco',
       'description': 'Fondos de tarjetas, diálogos y texto sobre color',
     },
     'black': {'label': 'Negro', 'description': 'Elementos de alto contraste'},
+    'nearBlack': {
+      'label': 'Negro Suave',
+      'description': 'Texto de alta jerarquía en pantallas de detalle',
+    },
+    'goldAccent': {
+      'label': 'Dorado (Navegación activa)',
+      'description': 'Color del ítem seleccionado en el BottomNavigationBar',
+    },
     'error': {
       'label': 'Error',
       'description': 'Mensajes de error, validaciones y alertas',
@@ -257,7 +271,7 @@ class _AppColorsConfigPageState extends State<AppColorsConfigPage> {
                         border: Border.all(color: Colors.grey.shade300),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withAlpha(26),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),

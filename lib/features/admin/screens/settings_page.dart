@@ -7,6 +7,8 @@ import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/features/admin/providers/admin_providers.dart';
 import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -25,9 +27,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
+  late TextEditingController _payphoneTokenController;
+  late TextEditingController _payphoneStoreIdController;
 
   bool _isLoading = false;
   bool _isBiometricEnabled = false;
+  bool _payphoneIsSandbox = true;
 
   @override
   void initState() {
@@ -36,6 +41,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
     _addressController = TextEditingController();
+    _payphoneTokenController = TextEditingController();
+    _payphoneStoreIdController = TextEditingController();
     _loadInitialData();
   }
 
@@ -45,11 +52,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _emailController.text = config.companyEmail;
     _phoneController.text = config.companyPhone;
     _addressController.text = config.companyAddress;
+    _payphoneTokenController.text = config.payphoneToken;
+    _payphoneStoreIdController.text = config.payphoneStoreId;
 
     final biometricEnabled = await _authService.isBiometricAuthEnabled();
     if (mounted) {
       setState(() {
         _isBiometricEnabled = biometricEnabled;
+        _payphoneIsSandbox = config.payphoneIsSandbox;
       });
     }
   }
@@ -109,6 +119,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _emailController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _payphoneTokenController.dispose();
+    _payphoneStoreIdController.dispose();
     super.dispose();
   }
 
@@ -122,6 +134,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         companyEmail: _emailController.text.trim(),
         companyPhone: _phoneController.text.trim(),
         companyAddress: _addressController.text.trim(),
+        payphoneToken: _payphoneTokenController.text.trim(),
+        payphoneStoreId: _payphoneStoreIdController.text.trim(),
+        payphoneIsSandbox: _payphoneIsSandbox,
       );
       await _configService.updateConfig(config);
       if (mounted) {
@@ -272,6 +287,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               _buildCompanyInfoTab(l10n),
               _buildBannersTab(l10n),
               _buildSecurityTab(l10n),
+              _buildIntegrationsTab(l10n),
             ],
           ),
           bottomNavigationBar: NavigationBar(
@@ -293,6 +309,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 icon: const Icon(Icons.security_outlined),
                 selectedIcon: const Icon(Icons.security),
                 label: l10n.securityTab,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.integration_instructions_outlined),
+                selectedIcon: const Icon(Icons.integration_instructions),
+                label: l10n.integrationsTab,
               ),
             ],
           ),
@@ -403,8 +424,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
         Expanded(
           child: bannersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error: $err')),
+            loading: () => const AppLoadingIndicator(),
+            error: (err, _) => AppErrorWidget(error: err),
             data: (snapshot) {
               if (snapshot.docs.isEmpty) {
                 return Center(child: Text(l10n.noBannersConfigured));
@@ -506,6 +527,79 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildIntegrationsTab(AppLocalizations l10n) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.payment, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Payphone',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  _buildTextField(
+                    controller: _payphoneTokenController,
+                    label: l10n.payphoneTokenLabel,
+                    icon: Icons.vpn_key,
+                    l10n: l10n,
+                    helperText: 'Token de autenticación de Payphone',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _payphoneStoreIdController,
+                    label: l10n.payphoneStoreIdLabel,
+                    icon: Icons.store,
+                    l10n: l10n,
+                    helperText: 'ID de tu tienda en Payphone Developer',
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: Text(l10n.payphoneSandboxLabel),
+                    subtitle: const Text('Usar entorno de pruebas'),
+                    value: _payphoneIsSandbox,
+                    onChanged: (val) =>
+                        setState(() => _payphoneIsSandbox = val),
+                    secondary: const Icon(Icons.bug_report_outlined),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _saveCompanyInfo(l10n),
+              icon: const Icon(Icons.save),
+              label: Text(l10n.saveSettingsButton),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

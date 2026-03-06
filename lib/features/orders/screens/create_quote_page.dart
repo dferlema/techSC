@@ -10,6 +10,8 @@ import 'package:techsc/features/catalog/providers/product_providers.dart';
 import 'package:techsc/features/catalog/models/product_model.dart';
 import 'package:techsc/features/reservations/providers/service_providers.dart';
 import 'package:techsc/features/reservations/models/service_model.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class CreateQuotePage extends ConsumerStatefulWidget {
   final QuoteModel? existingQuote;
@@ -184,6 +186,7 @@ class _CreateQuotePageState extends ConsumerState<CreateQuotePage> {
 
       return quote.copyWith(id: id);
     } catch (e) {
+      if (!mounted) return null;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error guardando: $e')));
@@ -204,12 +207,11 @@ class _CreateQuotePageState extends ConsumerState<CreateQuotePage> {
         filename: 'Cotizacion_${quote.clientName.replaceAll(' ', '_')}.pdf',
       );
 
-      if (mounted) {
-        Navigator.pop(context); // Close page after success?
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cotización guardada y compartida')),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pop(context); // Close page after success?
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cotización guardada y compartida')),
+      );
     }
   }
 
@@ -293,7 +295,8 @@ class _CreateQuotePageState extends ConsumerState<CreateQuotePage> {
                 ? null
                 : () async {
                     final quote = await _saveQuote(status: 'draft');
-                    if (quote != null && mounted) {
+                    if (quote != null) {
+                      if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Borrador guardado exitosamente'),
@@ -701,8 +704,8 @@ class _ClientSelectionSheetState extends ConsumerState<_ClientSelectionSheet> {
           child: ref
               .watch(allUsersProvider)
               .when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Error: $err')),
+                loading: () => const AppLoadingIndicator(),
+                error: (err, _) => AppErrorWidget(error: err),
                 data: (users) {
                   final filtered = users.where((user) {
                     final name = user.name.toLowerCase();
@@ -847,8 +850,8 @@ class _ItemSelectionSheetState extends ConsumerState<_ItemSelectionSheet>
         : ref.watch(filteredServicesProvider(null));
 
     return asyncItems.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: $err')),
+      loading: () => const AppLoadingIndicator(),
+      error: (err, _) => AppErrorWidget(error: err),
       data: (items) {
         if (items.isEmpty) {
           return const Center(child: Text('No se encontraron items.'));

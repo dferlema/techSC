@@ -16,40 +16,34 @@ final serviceCategoriesProvider = StreamProvider<List<CategoryModel>>((ref) {
 
 /// Notifier that manages the filtered services list
 class FilteredServices
-    extends FamilyAsyncNotifier<List<ServiceModel>, String?> {
+    extends FamilyStreamNotifier<List<ServiceModel>, String?> {
   @override
-  Future<List<ServiceModel>> build(String? arg) async {
+  Stream<List<ServiceModel>> build(String? arg) {
     final searchQuery = ref.watch(serviceSearchQueryProvider).toLowerCase();
     final serviceService = ref.watch(serviceServiceProvider);
 
-    // Fetch services once for this "Future"-based notifier
-    final services = await serviceService.getServices(arg).first;
+    return serviceService.getServices(arg).map((services) {
+      if (searchQuery.isEmpty) return services;
 
-    if (searchQuery.isEmpty) return services;
-
-    return services.where((service) {
-      final name = service.name.toLowerCase();
-      final desc = service.description.toLowerCase();
-      return name.contains(searchQuery) || desc.contains(searchQuery);
-    }).toList();
+      return services.where((service) {
+        final name = service.name.toLowerCase();
+        final desc = service.description.toLowerCase();
+        return name.contains(searchQuery) || desc.contains(searchQuery);
+      }).toList();
+    });
   }
 
-  /// Manually refresh the services list
-  Future<void> refresh() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => build(arg));
-  }
-
-  /// Delete a service and refresh the list
+  /// Delete a service
   Future<void> deleteService(String serviceId) async {
     final serviceService = ref.read(serviceServiceProvider);
     await serviceService.deleteService(serviceId);
-    await refresh();
   }
 }
 
 /// Provider for filtered services
 final filteredServicesProvider =
-    AsyncNotifierProvider.family<FilteredServices, List<ServiceModel>, String?>(
-      FilteredServices.new,
-    );
+    StreamNotifierProvider.family<
+      FilteredServices,
+      List<ServiceModel>,
+      String?
+    >(FilteredServices.new);

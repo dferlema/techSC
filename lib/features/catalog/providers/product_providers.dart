@@ -15,34 +15,27 @@ final productCategoriesProvider = StreamProvider<List<CategoryModel>>((ref) {
 });
 
 /// Notifier that manages the filtered product list
-class FilteredProducts extends FamilyAsyncNotifier<List<ProductModel>, String> {
+class FilteredProducts
+    extends FamilyStreamNotifier<List<ProductModel>, String> {
   @override
-  Future<List<ProductModel>> build(String arg) async {
+  Stream<List<ProductModel>> build(String arg) {
     final searchQuery = ref.watch(productSearchQueryProvider).toLowerCase();
     final productService = ref.watch(productServiceProvider);
 
-    // Fetch products once for this "Future"-based notifier
-    // Note: If real-time is preferred, convert to StreamNotifier
-    final products = await productService.getProducts(arg).first;
+    return productService.getProducts(arg).map((products) {
+      if (searchQuery.isEmpty) return products;
 
-    if (searchQuery.isEmpty) return products;
-
-    return products.where((product) {
-      final name = product.name.toLowerCase();
-      final desc = product.description.toLowerCase();
-      return name.contains(searchQuery) || desc.contains(searchQuery);
-    }).toList();
-  }
-
-  /// Manually refresh the product list
-  Future<void> refresh() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => build(arg));
+      return products.where((product) {
+        final name = product.name.toLowerCase();
+        final desc = product.description.toLowerCase();
+        return name.contains(searchQuery) || desc.contains(searchQuery);
+      }).toList();
+    });
   }
 }
 
 /// Provider that returns the filtered product list based on the selected category and search query
 final filteredProductsProvider =
-    AsyncNotifierProvider.family<FilteredProducts, List<ProductModel>, String>(
-  FilteredProducts.new,
-);
+    StreamNotifierProvider.family<FilteredProducts, List<ProductModel>, String>(
+      FilteredProducts.new,
+    );

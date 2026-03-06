@@ -11,11 +11,16 @@ import 'package:techsc/features/admin/widgets/admin_orders_tab.dart';
 import 'package:techsc/features/admin/widgets/admin_clients_tab.dart';
 import 'package:techsc/features/admin/widgets/admin_product_card.dart';
 import 'package:techsc/features/admin/widgets/admin_service_card.dart';
+import 'package:techsc/features/inventory/widgets/admin_inventory_tab.dart';
 import 'package:techsc/features/admin/providers/admin_providers.dart';
 import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class AdminPanelPage extends ConsumerStatefulWidget {
-  const AdminPanelPage({super.key});
+  final int initialTabIndex;
+
+  const AdminPanelPage({super.key, this.initialTabIndex = 0});
 
   @override
   ConsumerState<AdminPanelPage> createState() => _AdminPanelPageState();
@@ -29,7 +34,11 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(
+      length: 6,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
     _searchController = TextEditingController();
 
     _tabController.addListener(() {
@@ -43,8 +52,8 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
     _searchController.clear();
     final index = _tabController.index;
     if (index == 1) ref.read(adminProductsQueryProvider.notifier).state = '';
-    if (index == 2) ref.read(adminServicesQueryProvider.notifier).state = '';
-    if (index == 3) ref.read(adminOrdersQueryProvider.notifier).state = '';
+    if (index == 3) ref.read(adminServicesQueryProvider.notifier).state = '';
+    if (index == 4) ref.read(adminOrdersQueryProvider.notifier).state = '';
   }
 
   @override
@@ -125,7 +134,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
                   const SizedBox(width: 8),
                 ],
               ),
-              body: _buildBody(isAdmin, l10n),
+              body: _buildBody(isAdmin, canAccessPanel, l10n),
               bottomNavigationBar: NavigationBar(
                 selectedIndex: _tabController.index,
                 onDestinationSelected: (int index) {
@@ -141,6 +150,11 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
                     icon: const Icon(Icons.inventory_2_outlined),
                     selectedIcon: const Icon(Icons.inventory_2),
                     label: l10n.productsTab,
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.warehouse_outlined),
+                    selectedIcon: const Icon(Icons.warehouse),
+                    label: l10n.inventoryTab,
                   ),
                   NavigationDestination(
                     icon: const Icon(Icons.build_outlined),
@@ -191,7 +205,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
     );
   }
 
-  Widget _buildBody(bool isAdmin, AppLocalizations l10n) {
+  Widget _buildBody(bool isAdmin, bool canAccessPanel, AppLocalizations l10n) {
     return TabBarView(
       controller: _tabController,
       physics: const NeverScrollableScrollPhysics(),
@@ -199,19 +213,26 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
         isAdmin
             ? const AdminClientsTab()
             : _buildPermissionRestriction(l10n.onlyAdminClients),
-        _buildTabContent(
+        _AdminTabContent(
           provider: adminProductsProvider,
           queryNotifier: adminProductsQueryProvider,
           builder: (doc) => AdminProductCard(doc: doc),
           addButtonLabel: l10n.addProduct,
           collection: 'products',
+          searchController: _searchController,
         ),
-        _buildTabContent(
+        canAccessPanel
+            ? const AdminInventoryTab()
+            : _buildPermissionRestriction(
+                'Solo personal autorizado puede ver el inventario',
+              ),
+        _AdminTabContent(
           provider: adminServicesProvider,
           queryNotifier: adminServicesQueryProvider,
           builder: (doc) => AdminServiceCard(doc: doc),
           addButtonLabel: l10n.addService,
           collection: 'services',
+          searchController: _searchController,
         ),
         const AdminOrdersTab(),
         isAdmin
@@ -233,35 +254,53 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
       ),
     );
   }
+}
 
-  Widget _buildTabContent({
-    required StreamProvider<List<DocumentSnapshot>> provider,
-    required StateProvider<String> queryNotifier,
-    required Widget Function(DocumentSnapshot) builder,
-    required String addButtonLabel,
-    required String collection,
-  }) {
+class _AdminTabContent extends ConsumerStatefulWidget {
+  final StreamProvider<List<DocumentSnapshot>> provider;
+  final StateProvider<String> queryNotifier;
+  final Widget Function(DocumentSnapshot) builder;
+  final String addButtonLabel;
+  final String collection;
+  final TextEditingController searchController;
+
+  const _AdminTabContent({
+    required this.provider,
+    required this.queryNotifier,
+    required this.builder,
+    required this.addButtonLabel,
+    required this.collection,
+    required this.searchController,
+  });
+
+  @override
+  ConsumerState<_AdminTabContent> createState() => _AdminTabContentState();
+}
+
+class _AdminTabContentState extends ConsumerState<_AdminTabContent> {
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final itemsAsync = ref.watch(provider);
+    final itemsAsync = ref.watch(widget.provider);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           TextField(
-            controller: _searchController,
+            controller: widget.searchController,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: l10n.searchHint,
               border: const OutlineInputBorder(),
             ),
             onChanged: (value) =>
-                ref.read(queryNotifier.notifier).state = value,
+                ref.read(widget.queryNotifier.notifier).state = value,
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () async {
-              Widget page = collection == 'products'
+              Widget page = widget.collection == 'products'
                   ? const ProductFormPage()
                   : const ServiceFormPage();
               final result = await Navigator.push(
@@ -275,7 +314,7 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
               }
             },
             icon: const Icon(Icons.add),
-            label: Text(addButtonLabel),
+            label: Text(widget.addButtonLabel),
             style: ElevatedButton.styleFrom(
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -284,16 +323,18 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage>
           const SizedBox(height: 16),
           Expanded(
             child: itemsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) =>
-                  Center(child: Text('${l10n.errorPrefix}: $err')),
+              loading: () => const AppLoadingIndicator(),
+              error: (err, _) => AppErrorWidget(
+                error: err,
+                onRetry: () => ref.invalidate(widget.provider),
+              ),
               data: (docs) {
                 if (docs.isEmpty) {
                   return Center(child: Text(l10n.noMatchesFound));
                 }
                 return ListView.builder(
                   itemCount: docs.length,
-                  itemBuilder: (context, index) => builder(docs[index]),
+                  itemBuilder: (context, index) => widget.builder(docs[index]),
                 );
               },
             ),

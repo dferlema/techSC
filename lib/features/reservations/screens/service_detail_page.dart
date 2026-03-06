@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/providers/providers.dart';
+import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/core/utils/whatsapp_share_helper.dart';
 import 'package:techsc/core/widgets/cart_badge.dart';
 import 'package:techsc/features/reservations/models/service_model.dart';
@@ -82,7 +83,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -146,7 +147,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: AppColors.surfaceLight,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -260,8 +261,8 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: theme.colorScheme.primary.withOpacity(
-                                    0.5,
+                                  color: theme.colorScheme.primary.withAlpha(
+                                    128,
                                   ),
                                 ),
                               );
@@ -285,7 +286,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                     widget.service.name,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF111111),
+                      color: AppColors.nearBlack,
                       height: 1.3,
                       fontSize: 24,
                     ),
@@ -317,20 +318,20 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
                   const SizedBox(height: 36),
                   Text(
                     AppLocalizations.of(context)!.descriptionTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF111111),
+                      color: AppColors.nearBlack,
                       letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     widget.service.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       height: 1.6,
-                      color: Color(0xFF444444),
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -348,7 +349,7 @@ class _ServiceDetailPageState extends ConsumerState<ServiceDetailPage> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withAlpha(13),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),

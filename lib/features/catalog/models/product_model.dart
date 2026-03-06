@@ -11,6 +11,8 @@ class ProductModel {
   final DateTime? createdAt;
   final String? supplierId;
   final String? supplierLink;
+  final int stock;
+  final List<String>? images;
 
   ProductModel({
     required this.id,
@@ -23,6 +25,8 @@ class ProductModel {
     this.createdAt,
     this.supplierId,
     this.supplierLink,
+    this.stock = 0,
+    this.images,
   });
 
   factory ProductModel.fromFirestore(DocumentSnapshot doc) {
@@ -43,6 +47,8 @@ class ProductModel {
       categoryId: data['categoryId'] ?? '',
       supplierId: data['supplierId'],
       supplierLink: data['supplierLink'],
+      stock: (data['stock'] as num?)?.toInt() ?? 0,
+      images: data['images'] != null ? List<String>.from(data['images']) : null,
       createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : (data['createdAt'] is String
@@ -63,6 +69,8 @@ class ProductModel {
       'categoryId': categoryId,
       'supplierId': supplierId,
       'supplierLink': supplierLink,
+      'stock': stock,
+      'images': images,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -80,6 +88,8 @@ class ProductModel {
     DateTime? createdAt,
     String? supplierId,
     String? supplierLink,
+    int? stock,
+    List<String>? images,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -92,6 +102,8 @@ class ProductModel {
       createdAt: createdAt ?? this.createdAt,
       supplierId: supplierId ?? this.supplierId,
       supplierLink: supplierLink ?? this.supplierLink,
+      stock: stock ?? this.stock,
+      images: images ?? this.images,
     );
   }
 }

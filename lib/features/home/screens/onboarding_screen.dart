@@ -101,7 +101,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 return Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(color: Colors.white),
+                  errorBuilder: (_, _, _) => Container(color: Colors.white),
                 );
               }
               return Container(color: Colors.white);
@@ -110,7 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
           // Overlay si hay una imagen de fondo para que el texto sea legible
           if (_pages[_currentPage]['imageUrl'] != null)
-            Container(color: Colors.black.withOpacity(0.3)),
+            Container(color: Colors.black.withAlpha(76)),
 
           SafeArea(
             child: Column(
@@ -166,7 +166,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 decoration: BoxDecoration(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.primary.withOpacity(0.1),
+                                  ).colorScheme.primary.withAlpha(26),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(

@@ -77,7 +77,9 @@ class _AppDrawerState extends State<AppDrawer> {
         route == '/reports' ||
         route == '/quotes' ||
         route == '/my-reservations' ||
+        route == '/my-orders' ||
         route == '/marketing' ||
+        route == '/legal' ||
         route == '/app-colors-config' ||
         route == '/settings') {
       if (widget.currentRoute == route) {
@@ -189,29 +191,98 @@ class _AppDrawerState extends State<AppDrawer> {
             leading: const Icon(Icons.home),
             title: const Text('Inicio'),
             selected: widget.currentRoute == '/home',
-            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
+            selectedTileColor: AppColors.primaryBlue.withAlpha(26),
             onTap: () => _navigateTo(context, '/home'),
           ),
-          ListTile(
-            leading: const Icon(Icons.computer),
-            title: const Text('Nuestros Productos'),
-            selected: widget.currentRoute == '/products',
-            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
-            onTap: () => _navigateTo(context, '/products'),
+          ExpansionTile(
+            leading: const Icon(Icons.shopping_bag_outlined),
+            title: const Text('Catálogo y Servicios'),
+            initiallyExpanded: [
+              '/products',
+              '/services',
+              '/reserve-service',
+            ].contains(widget.currentRoute),
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                leading: const Icon(Icons.computer, size: 20),
+                title: const Text('Nuestros Productos'),
+                selected: widget.currentRoute == '/products',
+                selectedTileColor: AppColors.primaryBlue.withAlpha(26),
+                onTap: () => _navigateTo(context, '/products'),
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                leading: const Icon(Icons.build_circle, size: 20),
+                title: const Text('Nuestros Servicios'),
+                selected: widget.currentRoute == '/services',
+                selectedTileColor: AppColors.primaryBlue.withAlpha(26),
+                onTap: () => _navigateTo(context, '/services'),
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                leading: const Icon(Icons.build, size: 20),
+                title: const Text('Reservar Servicio'),
+                selected: widget.currentRoute == '/reserve-service',
+                selectedTileColor: AppColors.primaryBlue.withAlpha(26),
+                onTap: () => _navigateTo(context, '/reserve-service'),
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.build_circle),
-            title: const Text('Nuestros Servicios'),
-            selected: widget.currentRoute == '/services',
-            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
-            onTap: () => _navigateTo(context, '/services'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.build),
-            title: const Text('Reservar Servicio'),
-            selected: widget.currentRoute == '/reserve-service',
-            selectedTileColor: AppColors.primaryBlue.withOpacity(0.1),
-            onTap: () => _navigateTo(context, '/reserve-service'),
+          ExpansionTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Mis Actividades'),
+            initiallyExpanded: [
+              '/my-reservations',
+              '/my-orders',
+              '/quotes',
+            ].contains(widget.currentRoute),
+            children: [
+              ListTile(
+                contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                leading: const Icon(
+                  Icons.receipt_long,
+                  color: Colors.blue,
+                  size: 20,
+                ),
+                title: const Text('Mis Pedidos'),
+                selected: widget.currentRoute == '/my-orders',
+                selectedTileColor: Colors.blue.withAlpha(26),
+                onTap: () {
+                  Navigator.pop(context); // Cerrar Drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MyOrdersPage(),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                leading: const Icon(
+                  Icons.history,
+                  color: Colors.indigo,
+                  size: 20,
+                ),
+                title: const Text('Mis Reservas'),
+                selected: widget.currentRoute == '/my-reservations',
+                selectedTileColor: Colors.indigo.withAlpha(26),
+                onTap: () => _navigateTo(context, '/my-reservations'),
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                leading: const Icon(
+                  Icons.request_quote,
+                  color: Colors.amber,
+                  size: 20,
+                ),
+                title: const Text('Mis Cotizaciones'),
+                selected: widget.currentRoute == '/quotes',
+                selectedTileColor: Colors.amber.withAlpha(26),
+                onTap: () => _navigateTo(context, '/quotes'),
+              ),
+            ],
           ),
           if (user != null)
             FutureBuilder<String>(
@@ -219,209 +290,151 @@ class _AppDrawerState extends State<AppDrawer> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox.shrink();
                 final role = snapshot.data!;
+                final isAdmin = role == RoleService.ADMIN;
+                final isSeller = role == RoleService.SELLER;
+                final isTech = role == RoleService.TECHNICIAN;
 
-                // Opción para Administradores
-                if (role == RoleService.ADMIN) {
-                  return Column(
+                if (isAdmin || isSeller || isTech) {
+                  return ExpansionTile(
+                    leading: const Icon(Icons.admin_panel_settings_outlined),
+                    title: const Text('Administración'),
+                    initiallyExpanded: [
+                      '/admin',
+                      '/technician',
+                      '/reports',
+                      '/marketing',
+                      '/app-colors-config',
+                    ].contains(widget.currentRoute),
                     children: [
-                      ListTile(
-                        leading: Icon(
-                          Icons.admin_panel_settings,
-                          color: AppColors.roleAdmin,
+                      if (isAdmin || isSeller)
+                        ListTile(
+                          contentPadding: const EdgeInsets.only(
+                            left: 40,
+                            right: 16,
+                          ),
+                          leading: Icon(
+                            isAdmin ? Icons.admin_panel_settings : Icons.store,
+                            color: isAdmin
+                                ? AppColors.roleAdmin
+                                : AppColors.success,
+                            size: 20,
+                          ),
+                          title: Text(
+                            isAdmin
+                                ? 'Panel de Administración'
+                                : 'Gestión de Ventas',
+                          ),
+                          selected: widget.currentRoute == '/admin',
+                          selectedTileColor:
+                              (isAdmin
+                                      ? AppColors.roleAdmin
+                                      : AppColors.success)
+                                  .withAlpha(26),
+                          onTap: () => _navigateTo(context, '/admin'),
                         ),
-                        title: const Text('Panel de Administración'),
-                        selected: widget.currentRoute == '/admin',
-                        selectedTileColor: AppColors.roleAdmin.withOpacity(0.1),
-                        onTap: () => _navigateTo(context, '/admin'),
-                      ),
-                      ListTile(
-                        leading: Icon(
-                          Icons.build_circle,
-                          color: AppColors.roleTechnician,
+                      if (isAdmin || isTech)
+                        ListTile(
+                          contentPadding: const EdgeInsets.only(
+                            left: 40,
+                            right: 16,
+                          ),
+                          leading: Icon(
+                            Icons.build_circle,
+                            color: AppColors.roleTechnician,
+                            size: 20,
+                          ),
+                          title: const Text('Panel Técnico'),
+                          selected: widget.currentRoute == '/technician',
+                          selectedTileColor: AppColors.roleTechnician.withAlpha(
+                            26,
+                          ),
+                          onTap: () => _navigateTo(context, '/technician'),
                         ),
-                        title: const Text('Panel Técnico'),
-                        selected: widget.currentRoute == '/technician',
-                        selectedTileColor: AppColors.roleTechnician.withOpacity(
-                          0.1,
+                      ListTile(
+                        contentPadding: const EdgeInsets.only(
+                          left: 40,
+                          right: 16,
                         ),
-                        onTap: () => _navigateTo(context, '/technician'),
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.assessment,
-                          color: Colors.deepPurple,
-                        ),
-                        title: const Text('Generar Reportes'),
-                        selected: widget.currentRoute == '/reports',
-                        selectedTileColor: Colors.deepPurple.withOpacity(0.1),
-                        onTap: () => _navigateTo(context, '/reports'),
-                      ),
-
-                      ListTile(
-                        leading: const Icon(
-                          Icons.campaign,
-                          color: Colors.indigo,
-                        ),
-                        title: const Text('Marketing'),
-                        selected: widget.currentRoute == '/marketing',
-                        selectedTileColor: Colors.indigo.withOpacity(0.1),
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/marketing');
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.palette,
-                          color: Colors.purple,
-                        ),
-                        title: const Text('Configurar Colores'),
-                        selected: widget.currentRoute == '/app-colors-config',
-                        selectedTileColor: Colors.purple.withOpacity(0.1),
-                        onTap: () => _navigateTo(context, '/app-colors-config'),
-                      ),
-                    ],
-                  );
-                }
-
-                // Opción para Vendedores
-                if (role == RoleService.SELLER) {
-                  return Column(
-                    children: [
-                      ListTile(
-                        leading: Icon(Icons.store, color: AppColors.success),
-                        title: const Text('Gestión de Ventas'),
-                        selected: widget.currentRoute == '/admin',
-                        selectedTileColor: AppColors.success.withOpacity(0.1),
-                        onTap: () => _navigateTo(context, '/admin'),
-                      ),
-                      ListTile(
                         leading: Icon(
                           Icons.assessment,
-                          color: AppColors.success,
+                          color: isAdmin
+                              ? Colors.deepPurple
+                              : (isSeller
+                                    ? AppColors.success
+                                    : AppColors.roleTechnician),
+                          size: 20,
                         ),
-                        title: const Text('Reportes de Ventas'),
+                        title: const Text('Reportes'),
                         selected: widget.currentRoute == '/reports',
-                        selectedTileColor: AppColors.success.withOpacity(0.1),
-                        onTap: () => _navigateTo(context, '/reports'),
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.campaign,
-                          color: Colors.indigo,
-                        ),
-                        title: const Text('Marketing'),
-                        selected: widget.currentRoute == '/marketing',
-                        selectedTileColor: Colors.indigo.withOpacity(0.1),
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/marketing');
-                        },
-                      ),
-                    ],
-                  );
-                }
-
-                // Opción para Técnicos
-                if (role == RoleService.TECHNICIAN) {
-                  return Column(
-                    children: [
-                      ListTile(
-                        leading: Icon(
-                          Icons.build_circle,
-                          color: AppColors.roleTechnician,
-                        ),
-                        title: const Text('Panel Técnico'),
-                        selected: widget.currentRoute == '/technician',
-                        selectedTileColor: AppColors.roleTechnician.withOpacity(
-                          0.1,
-                        ),
-                        onTap: () => _navigateTo(context, '/technician'),
-                      ),
-                      ListTile(
-                        leading: Icon(
-                          Icons.assessment,
-                          color: AppColors.roleTechnician,
-                        ),
-                        title: const Text('Reportes Técnicos'),
-                        selected: widget.currentRoute == '/reports',
-                        selectedTileColor: AppColors.roleTechnician.withOpacity(
-                          0.1,
-                        ),
+                        selectedTileColor:
+                            (isAdmin
+                                    ? Colors.deepPurple
+                                    : (isSeller
+                                          ? AppColors.success
+                                          : AppColors.roleTechnician))
+                                .withAlpha(26),
                         onTap: () => _navigateTo(context, '/reports'),
                       ),
                       ListTile(
+                        contentPadding: const EdgeInsets.only(
+                          left: 40,
+                          right: 16,
+                        ),
                         leading: const Icon(
                           Icons.campaign,
                           color: Colors.indigo,
+                          size: 20,
                         ),
                         title: const Text('Marketing'),
                         selected: widget.currentRoute == '/marketing',
-                        selectedTileColor: Colors.indigo.withOpacity(0.1),
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/marketing');
-                        },
+                        selectedTileColor: Colors.indigo.withAlpha(26),
+                        onTap: () => _navigateTo(context, '/marketing'),
                       ),
+                      if (isAdmin)
+                        ListTile(
+                          contentPadding: const EdgeInsets.only(
+                            left: 40,
+                            right: 16,
+                          ),
+                          leading: const Icon(
+                            Icons.palette,
+                            color: Colors.purple,
+                            size: 20,
+                          ),
+                          title: const Text('Configurar Colores'),
+                          selected: widget.currentRoute == '/app-colors-config',
+                          selectedTileColor: Colors.purple.withAlpha(26),
+                          onTap: () =>
+                              _navigateTo(context, '/app-colors-config'),
+                        ),
                     ],
                   );
                 }
-
                 return const SizedBox.shrink();
               },
             ),
+          const Divider(),
           ListTile(
-            leading: const Icon(Icons.history, color: Colors.indigo),
-            title: const Text('Mis Reservas'),
-            selected: widget.currentRoute == '/my-reservations',
-            selectedTileColor: Colors.indigo.withOpacity(0.1),
-            onTap: () => _navigateTo(context, '/my-reservations'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.receipt_long, color: Colors.blue),
-            title: const Text('Mis Pedidos'),
-            selected: widget.currentRoute == '/my_orders',
-            selectedTileColor: Colors.blue.withOpacity(0.1),
-            onTap: () {
-              Navigator.pop(context); // Cerrar Drawer
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MyOrdersPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.request_quote, color: Colors.amber),
-            title: const Text('Cotizaciones'),
-            selected: widget.currentRoute == '/quotes',
-            selectedTileColor: Colors.amber.withOpacity(0.1),
-            onTap: () => _navigateTo(context, '/quotes'),
+            leading: const Icon(Icons.settings, color: Colors.grey),
+            title: const Text('Configuraciones'),
+            selected: widget.currentRoute == '/settings',
+            selectedTileColor: Colors.grey.withAlpha(26),
+            onTap: () => _navigateTo(context, '/settings'),
           ),
           ListTile(
             leading: const Icon(Icons.support_agent, color: Colors.teal),
             title: const Text('Contáctanos'),
             selected: widget.currentRoute == '/contact',
-            selectedTileColor: Colors.teal.withOpacity(0.1),
+            selectedTileColor: Colors.teal.withAlpha(26),
             onTap: () => _navigateTo(context, '/contact'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings, color: Colors.grey),
-            title: const Text('Configuraciones'),
-            selected: widget.currentRoute == '/settings',
-            selectedTileColor: Colors.grey.withOpacity(0.1),
-            onTap: () => _navigateTo(context, '/settings'),
           ),
           ListTile(
             leading: const Icon(Icons.gavel, color: Colors.blueGrey),
             title: const Text('Términos y Privacidad'),
             selected: widget.currentRoute == '/legal',
-            selectedTileColor: Colors.blueGrey.withOpacity(0.1),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/legal');
-            },
+            selectedTileColor: Colors.blueGrey.withAlpha(26),
+            onTap: () => _navigateTo(context, '/legal'),
           ),
-          const Divider(),
           ListTile(
             leading: Icon(Icons.logout, color: AppColors.error),
             title: Text(
@@ -430,6 +443,7 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
             onTap: () async {
               await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/login',

@@ -546,7 +546,7 @@ class _ReservationDetailPageState extends ConsumerState<ReservationDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26),
         border: Border.all(color: color),
         borderRadius: BorderRadius.circular(8),
       ),

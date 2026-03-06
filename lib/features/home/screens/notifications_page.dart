@@ -11,6 +11,8 @@ import 'package:techsc/features/orders/screens/order_detail_page.dart';
 import 'package:techsc/features/orders/screens/quote_detail_page.dart';
 import 'package:techsc/features/reservations/models/reservation_model.dart';
 import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
@@ -102,8 +104,8 @@ class NotificationsPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Notificaciones')),
       body: notificationsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        loading: () => const AppLoadingIndicator(),
+        error: (err, _) => AppErrorWidget(error: err),
         data: (notifications) {
           if (notifications.isEmpty) {
             return const Center(
@@ -148,7 +150,7 @@ class NotificationsPage extends ConsumerWidget {
                 child: ListTile(
                   tileColor: notification.isRead
                       ? Colors.transparent
-                      : AppColors.primaryBlue.withOpacity(0.05),
+                      : AppColors.primaryBlue.withAlpha(13),
                   leading: CircleAvatar(
                     backgroundColor: _getIconColor(notification.type),
                     child: Icon(

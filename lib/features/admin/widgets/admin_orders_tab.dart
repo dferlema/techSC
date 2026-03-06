@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/features/orders/widgets/admin_order_card.dart';
 import 'package:techsc/features/admin/providers/admin_providers.dart';
 import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class AdminOrdersTab extends ConsumerStatefulWidget {
   const AdminOrdersTab({super.key});
@@ -104,9 +106,11 @@ class _AdminOrdersTabState extends ConsumerState<AdminOrdersTab> {
                   },
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) =>
-                  Center(child: Text('${l10n.errorPrefix}: $err')),
+              loading: () => const AppLoadingIndicator(),
+              error: (err, _) => AppErrorWidget(
+                error: err,
+                onRetry: () => ref.invalidate(adminOrdersProvider),
+              ),
             ),
           ),
         ],

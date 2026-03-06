@@ -11,6 +11,8 @@ import 'package:techsc/features/reservations/models/service_model.dart';
 import 'package:techsc/features/reservations/providers/service_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class ServicesPage extends ConsumerStatefulWidget {
   final String routeName;
@@ -123,8 +125,8 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
           },
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: $err')),
+      loading: () => const AppLoadingIndicator(),
+      error: (err, _) => AppErrorWidget(error: err),
     );
   }
 
@@ -240,7 +242,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                           style: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : Colors.indigo[900]?.withOpacity(0.7),
+                                : Colors.indigo[900]?.withAlpha(178),
                             fontWeight: isSelected
                                 ? FontWeight.bold
                                 : FontWeight.w500,
@@ -296,8 +298,8 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                 },
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, __) => Center(child: Text('Error: $err')),
+            loading: () => const AppLoadingIndicator(),
+            error: (err, _) => AppErrorWidget(error: err),
           ),
         );
       },
@@ -331,7 +333,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -397,7 +399,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withAlpha(230),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -479,7 +481,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                                 borderRadius: BorderRadius.circular(15),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.orange.withOpacity(0.3),
+                                    color: Colors.orange.withAlpha(76),
                                     blurRadius: 8,
                                     offset: const Offset(0, 4),
                                   ),

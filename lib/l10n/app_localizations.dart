@@ -248,6 +248,12 @@ abstract class AppLocalizations {
   /// **'Productos'**
   String get productsTab;
 
+  /// No description provided for @inventoryTab.
+  ///
+  /// In es, this message translates to:
+  /// **'Inventario'**
+  String get inventoryTab;
+
   /// No description provided for @servicesTab.
   ///
   /// In es, this message translates to:
@@ -1801,6 +1807,30 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Banner eliminado correctamente'**
   String get bannerDeletedSuccess;
+
+  /// No description provided for @payphoneTokenLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Token de Pago (Payphone)'**
+  String get payphoneTokenLabel;
+
+  /// No description provided for @payphoneStoreIdLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'ID de Tienda (StoreID)'**
+  String get payphoneStoreIdLabel;
+
+  /// No description provided for @payphoneSandboxLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'Modo Sandbox (Pruebas)'**
+  String get payphoneSandboxLabel;
+
+  /// No description provided for @integrationsTab.
+  ///
+  /// In es, this message translates to:
+  /// **'Integraciones'**
+  String get integrationsTab;
 }
 
 class _AppLocalizationsDelegate

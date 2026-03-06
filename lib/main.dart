@@ -38,6 +38,11 @@ import 'package:techsc/features/admin/screens/marketing_campaign_page.dart';
 import 'package:techsc/features/admin/screens/app_colors_config_page.dart';
 import 'package:techsc/features/home/screens/legal_info_page.dart';
 import 'package:techsc/core/services/cache_service.dart';
+import 'package:techsc/features/cart/screens/cart_page.dart';
+import 'package:techsc/features/orders/screens/my_orders_page.dart';
+import 'package:techsc/features/inventory/screens/inventory_reports_page.dart';
+import 'package:techsc/features/catalog/screens/supplier_management_page.dart';
+import 'package:techsc/features/home/screens/notifications_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -137,6 +142,11 @@ class MyApp extends StatelessWidget {
               return LegalInfoPage(initialTabIndex: args);
             },
             '/main': (context) => const MainTabsScreen(),
+            '/cart': (context) => const CartPage(),
+            '/my-orders': (context) => const MyOrdersPage(),
+            '/inventory-reports': (context) => const InventoryReportsPage(),
+            '/supplier-management': (context) => const SupplierManagementPage(),
+            '/notifications': (context) => const NotificationsPage(),
           },
         );
       },

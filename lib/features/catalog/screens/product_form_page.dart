@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:techsc/core/services/notification_service.dart';
 import 'package:techsc/features/catalog/services/supplier_service.dart';
 import 'package:techsc/core/services/role_service.dart';
+import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
 import 'package:techsc/features/catalog/models/category_model.dart';
 import 'package:techsc/features/catalog/models/supplier_model.dart';
@@ -251,14 +252,14 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                         },
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
                             size: 16,
-                            color: Colors.white,
+                            color: AppColors.white,
                           ),
                         ),
                       ),
@@ -273,7 +274,7 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.8),
+                            color: Colors.blue.withAlpha(204),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(

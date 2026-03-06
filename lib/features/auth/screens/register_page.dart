@@ -165,7 +165,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.1),
+                          color: AppColors.primaryBlue.withAlpha(26),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(

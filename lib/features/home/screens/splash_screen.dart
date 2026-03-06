@@ -43,6 +43,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final completed = await _prefs.getOnboardingCompleted();
 
     if (!completed) {
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/onboarding');
       return;
     }
@@ -55,6 +56,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!expired) {
         // Sesión válida, actualizar actividad al entrar e ir al home
         await _prefs.updateLastActivity();
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/main');
         return;
       } else {
@@ -64,6 +66,7 @@ class _SplashScreenState extends State<SplashScreen> {
       }
     }
 
+    if (!mounted) return;
     // Si no hay usuario o la sesión expiró, ir a login
     Navigator.pushReplacementNamed(context, '/login');
   }
@@ -82,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withAlpha(51),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.computer, color: Colors.white, size: 60),

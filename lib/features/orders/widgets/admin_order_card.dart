@@ -7,7 +7,7 @@ import 'package:techsc/features/orders/utils/supplier_order_helper.dart';
 
 /// Tarjeta expandible que muestra los detalles de un pedido en el panel de administración.
 ///
-/// Incluye: info del cliente, link de pago, control de pagos y descuentos,
+/// Incluye: info del cliente, control de pagos y descuentos (con verificación Payphone),
 /// estado del pedido, lista de productos con costos, y gestión de proveedores.
 class AdminOrderCard extends StatefulWidget {
   final DocumentSnapshot doc;
@@ -26,11 +26,8 @@ class AdminOrderCard extends StatefulWidget {
 }
 
 class _AdminOrderCardState extends State<AdminOrderCard> {
-  late TextEditingController _paymentLinkController;
   late TextEditingController _institutionController;
   late TextEditingController _voucherController;
-  late TextEditingController _discountController;
-  bool _isSavingLink = false;
 
   // Payment Control State
   String _paymentMethod = 'efectivo';
@@ -45,17 +42,11 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
     super.initState();
     debugPrint('🆕 OrderCard initState for order: ${widget.doc.id}');
     final data = widget.doc.data() as Map<String, dynamic>;
-    _paymentLinkController = TextEditingController(
-      text: data['paymentLink'] ?? '',
-    );
     _institutionController = TextEditingController(
       text: data['financialInstitution'] ?? '',
     );
     _voucherController = TextEditingController(
       text: data['paymentVoucher'] ?? '',
-    );
-    _discountController = TextEditingController(
-      text: (data['discountPercentage'] ?? 0.0).toString(),
     );
     _paymentMethod = data['paymentMethod'] ?? 'efectivo';
     _isPaid = data['isPaid'] ?? false;
@@ -64,10 +55,8 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
 
   @override
   void dispose() {
-    _paymentLinkController.dispose();
     _institutionController.dispose();
     _voucherController.dispose();
-    _discountController.dispose();
     super.dispose();
   }
 
@@ -95,32 +84,8 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
     }
   }
 
-  Future<void> _savePaymentLink() async {
-    setState(() => _isSavingLink = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.doc.id)
-          .update({'paymentLink': _paymentLinkController.text.trim()});
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Link de pago guardado')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isSavingLink = false);
-    }
-  }
-
   Future<void> _savePaymentDetails() async {
     try {
-      final discount = double.tryParse(_discountController.text) ?? 0.0;
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(widget.doc.id)
@@ -129,7 +94,6 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
             'financialInstitution': _institutionController.text.trim(),
             'paymentVoucher': _voucherController.text.trim(),
             'isPaid': _isPaid,
-            'discountPercentage': discount,
           });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -483,7 +447,7 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isLocked
-            ? BorderSide(color: Colors.green.withOpacity(0.5), width: 1)
+            ? BorderSide(color: Colors.green.withAlpha(128), width: 1)
             : BorderSide.none,
       ),
       child: ExpansionTile(
@@ -621,73 +585,49 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
                     },
                   ),
 
-                // Link de Pago
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _paymentLinkController,
-                        readOnly: isLocked,
-                        decoration: InputDecoration(
-                          labelText: 'Link de Pago',
-                          hintText: 'https://...',
-                          isDense: true,
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.link),
-                          fillColor: isLocked ? Colors.grey.shade100 : null,
-                          filled: isLocked,
-                        ),
+                // Etiqueta de Payphone (si aplica)
+                if (data['paymentMethod'] == 'payphone' &&
+                    (data['isPaid'] == true))
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xFF005696,
+                      ).withOpacity(0.1), // Color oficial Payphone
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF005696).withOpacity(0.3),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    _isSavingLink
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : IconButton(
-                            onPressed: isLocked ? null : _savePaymentLink,
-                            icon: Icon(
-                              Icons.save,
-                              color: isLocked ? Colors.grey : Colors.blue,
-                            ),
-                            tooltip: 'Guardar Link',
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.verified_user,
+                          size: 16,
+                          color: Color(0xFF005696),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'PAGADO CON PAYPHONE',
+                          style: TextStyle(
+                            color: Color(0xFF005696),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
                           ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Payment Control Section
                 const Text(
-                  'Control de Pagos y Descuentos',
+                  'Gestión de Pago',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _discountController,
-                        keyboardType: TextInputType.number,
-                        readOnly: isLocked,
-                        decoration: InputDecoration(
-                          labelText: 'Descuento (%)',
-                          hintText: 'Ej: 5',
-                          isDense: true,
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.percent),
-                          fillColor: isLocked ? Colors.grey.shade100 : null,
-                          filled: isLocked,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: isLocked ? null : _savePaymentDetails,
-                      child: const Text('Aplicar'),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -725,7 +665,10 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
                       value: 'transferencia',
                       child: Text('Transferencia'),
                     ),
-                    DropdownMenuItem(value: 'tarjeta', child: Text('Tarjeta')),
+                    DropdownMenuItem(
+                      value: 'payphone',
+                      child: Text('Payphone'),
+                    ),
                   ],
                   onChanged: isLocked
                       ? null

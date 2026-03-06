@@ -7,6 +7,8 @@ import 'package:techsc/features/orders/models/quote_model.dart';
 import 'package:techsc/features/orders/providers/quote_providers.dart';
 import 'package:techsc/features/orders/screens/create_quote_page.dart';
 import 'package:techsc/features/orders/screens/quote_detail_page.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class QuoteListPage extends ConsumerWidget {
   const QuoteListPage({super.key});
@@ -49,8 +51,15 @@ class QuoteListPage extends ConsumerWidget {
             ),
           ),
           body: quotesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error: $err')),
+            loading: () => const AppLoadingIndicator(),
+            error: (err, _) => AppErrorWidget(
+              error: err,
+              onRetry: () => ref.invalidate(
+                quotesProvider(
+                  QuotesFilters(customerUid: isClient ? user.uid : null),
+                ),
+              ),
+            ),
             data: (quotes) {
               if (quotes.isEmpty) {
                 return Center(
@@ -215,10 +224,10 @@ class QuoteListPage extends ConsumerWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withAlpha(26),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: statusColor.withOpacity(0.3),
+                        color: statusColor.withAlpha(76),
                         width: 1,
                       ),
                     ),
@@ -277,7 +286,7 @@ class QuoteListPage extends ConsumerWidget {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
+                                      color: Colors.black.withAlpha(26),
                                       blurRadius: 4,
                                     ),
                                   ],

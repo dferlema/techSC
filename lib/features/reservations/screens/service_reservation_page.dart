@@ -66,8 +66,7 @@ class _ServiceReservationPageState
     'Diagnóstico Técnico',
   ];
 
-  // Ubicación predeterminada (Quito) para fallbacks si fuera necesario
-  static const LatLng _defaultLocation = LatLng(-0.1807, -78.4678);
+  // Ubicación predeterminada (Quito) para fallbacks si fuera necesario (removida por falta de uso)
 
   @override
   void initState() {
@@ -669,7 +668,7 @@ class _ServiceReservationPageState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.1),
+                color: theme.colorScheme.primary.withAlpha(26),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -714,7 +713,7 @@ class _ServiceReservationPageState
                   borderRadius: BorderRadius.circular(20),
                 ),
                 elevation: 4,
-                shadowColor: theme.colorScheme.primary.withOpacity(0.3),
+                shadowColor: theme.colorScheme.primary.withAlpha(76),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1098,7 +1097,7 @@ class _ServiceReservationPageState
                   borderRadius: BorderRadius.circular(12),
                 ),
                 elevation: 4,
-                shadowColor: Colors.blueAccent.withOpacity(0.4),
+                shadowColor: Colors.blueAccent.withAlpha(102),
                 minimumSize: const Size(double.infinity, 55),
               ),
               child: Text(

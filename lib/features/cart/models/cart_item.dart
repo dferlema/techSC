@@ -5,6 +5,7 @@ class CartItem {
   int quantity;
   final String? image;
   final String type; // 'product' or 'service'
+  final int? maxStock;
 
   CartItem({
     required this.id,
@@ -13,6 +14,7 @@ class CartItem {
     this.quantity = 1,
     this.image,
     this.type = 'product',
+    this.maxStock,
   });
 
   double get totalPrice => price * quantity;
@@ -28,6 +30,7 @@ class CartItem {
       'image': image,
       'type': type,
       'subtotal': totalPrice,
+      if (maxStock != null) 'maxStock': maxStock,
     };
   }
 }

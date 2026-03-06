@@ -150,8 +150,10 @@ class _ClientFormPageState extends State<ClientFormPage> {
         await db.collection('users').doc(widget.clientId).update(clientData);
       }
 
+      if (!mounted) return;
       Navigator.pop(context, true); // Éxito
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(
         context,

@@ -8,6 +8,9 @@ import 'package:techsc/features/catalog/screens/product_detail_page.dart';
 import 'package:techsc/features/catalog/providers/product_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:techsc/l10n/app_localizations.dart';
+import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:techsc/core/utils/snackbar_helper.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
   final String routeName;
@@ -47,22 +50,26 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   void _addToCart(ProductModel product) {
-    ref
-        .read(cartServiceProvider)
-        .addToCart(product.toFirestore()..['id'] = product.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('✅ ${product.name} agregado al carrito'),
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'VER',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CartPage()),
+    try {
+      ref
+          .read(cartServiceProvider)
+          .addToCart(product.toFirestore()..['id'] = product.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ ${product.name} agregado al carrito'),
+          duration: const Duration(seconds: 2),
+          action: SnackBarAction(
+            label: 'VER',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CartPage()),
+            ),
           ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      SnackbarHelper.showError(context, e);
+    }
   }
 
   @override
@@ -148,7 +155,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                                 style: TextStyle(
                                   color: isSelected
                                       ? Colors.white
-                                      : Colors.indigo[900]?.withOpacity(0.7),
+                                      : Colors.indigo[900]?.withAlpha(178),
                                   fontWeight: isSelected
                                       ? FontWeight.bold
                                       : FontWeight.w500,
@@ -279,8 +286,8 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
           },
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: $err')),
+      loading: () => const AppLoadingIndicator(),
+      error: (err, _) => AppErrorWidget(error: err),
     );
   }
 
@@ -296,7 +303,7 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -435,17 +442,18 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                           Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [
-                                  Colors.orange[700]!,
-                                  Colors.orange[400]!,
-                                ],
+                                colors: product.stock > 0
+                                    ? [Colors.orange[700]!, Colors.orange[400]!]
+                                    : [Colors.grey[500]!, Colors.grey[400]!],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(15),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.orange.withOpacity(0.3),
+                                  color: product.stock > 0
+                                      ? Colors.orange.withAlpha(76)
+                                      : Colors.grey.withAlpha(76),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
@@ -454,16 +462,18 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
-                                onTap: () => _addToCart(product),
+                                onTap: product.stock > 0
+                                    ? () => _addToCart(product)
+                                    : null,
                                 borderRadius: BorderRadius.circular(15),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 8,
                                   ),
                                   child: Text(
-                                    'Comprar',
-                                    style: TextStyle(
+                                    product.stock > 0 ? 'Comprar' : 'Agotado',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,

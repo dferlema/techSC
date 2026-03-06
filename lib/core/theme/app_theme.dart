@@ -72,7 +72,7 @@ class AppTheme {
       // Color Scheme basado en los colores del logo
       colorScheme: ColorScheme.light(
         primary: AppColors.primaryBlue,
-        secondary: AppColors.accentOrange,
+        secondary: AppColors.accentBlue,
         surface: AppColors.white,
         error: AppColors.error,
         onPrimary: AppColors.white,

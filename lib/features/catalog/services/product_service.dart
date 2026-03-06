@@ -23,34 +23,33 @@ class ProductService {
     }
 
     // 2. Listen to Firestore
-    yield* _db
-        .collection(_collection)
-        .where('categoryId', isEqualTo: categoryId)
-        .snapshots()
-        .map((snapshot) {
-          final List<Map<String, dynamic>> productsMap = snapshot.docs.map((
-            doc,
-          ) {
-            final data = doc.data();
-            return {...data, 'id': doc.id};
-          }).toList();
+    Query query = _db.collection(_collection);
+    if (categoryId.isNotEmpty) {
+      query = query.where('categoryId', isEqualTo: categoryId);
+    }
 
-          // Update cache
-          if (_cache != null) {
-            final sanitized = productsMap.map((p) {
-              return p.map((key, value) {
-                if (value is Timestamp) {
-                  return MapEntry(key, value.millisecondsSinceEpoch);
-                }
-                return MapEntry(key, value);
-              });
-            }).toList();
-            _cache.cacheCatalog(cacheKey, sanitized);
-          }
+    yield* query.snapshots().map((snapshot) {
+      final List<Map<String, dynamic>> productsMap = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return <String, dynamic>{...data, 'id': doc.id};
+      }).toList();
 
-          return productsMap
-              .map((p) => ProductModel.fromFirestoreMap(p, p['id']))
-              .toList();
-        });
+      // Update cache
+      if (_cache != null) {
+        final sanitized = productsMap.map((p) {
+          return p.map((key, value) {
+            if (value is Timestamp) {
+              return MapEntry(key, value.millisecondsSinceEpoch);
+            }
+            return MapEntry(key, value);
+          });
+        }).toList();
+        _cache.cacheCatalog(cacheKey, sanitized);
+      }
+
+      return productsMap
+          .map((p) => ProductModel.fromFirestoreMap(p, p['id']))
+          .toList();
+    });
   }
 }
