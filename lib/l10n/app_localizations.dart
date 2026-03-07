@@ -1831,6 +1831,18 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Integraciones'**
   String get integrationsTab;
+
+  /// No description provided for @editButton.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar'**
+  String get editButton;
+
+  /// No description provided for @deleteButton.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar'**
+  String get deleteButton;
 }
 
 class _AppLocalizationsDelegate

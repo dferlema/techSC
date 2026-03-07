@@ -1,0 +1,23 @@
+﻿Analyzing 3 items...                                            
+
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\screens\admin_panel_page.dart:435:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\screens\admin_panel_page.dart:456:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\screens\admin_panel_page.dart:537:39 - deprecated_member_use
+   info - 'Table.fromTextArray' is deprecated and shouldn't be used. Use TableHelper.fromTextArray() instead - lib\features\admin\widgets\admin_clients_tab.dart:144:17 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_clients_tab.dart:188:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_clients_tab.dart:225:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_clients_tab.dart:228:46 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\features\admin\widgets\admin_clients_tab.dart:492:17 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:111:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:135:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:144:35 - deprecated_member_use
+   info - Unnecessary use of multiple underscores - lib\features\admin\widgets\admin_dashboard_view.dart:305:18 - unnecessary_underscores
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:345:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:347:41 - deprecated_member_use
+   info - Unnecessary use of multiple underscores - lib\features\admin\widgets\admin_dashboard_view.dart:360:24 - unnecessary_underscores
+   info - The parameter name 'count' matches a visible type name - lib\features\admin\widgets\admin_dashboard_view.dart:361:20 - avoid_types_as_parameter_names
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:375:28 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:418:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:425:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\features\admin\widgets\admin_dashboard_view.dart:493:33 - deprecated_member_use
+

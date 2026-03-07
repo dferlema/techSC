@@ -1,9 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:techsc/features/inventory/models/inventory_movement_model.dart';
 import 'package:techsc/features/catalog/models/product_model.dart';
+import 'package:techsc/features/accounting/models/transaction_model.dart';
+import 'package:techsc/features/accounting/services/accounting_service.dart';
 
+/// Servicio de gestión de inventario.
+///
+/// Integrado con el módulo contable: los movimientos de entrada (compras)
+/// se registran automáticamente como egresos contables.
 class InventoryService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final AccountingService _accountingService = AccountingService();
   static const String _collection = 'inventory_movements';
   static const String _productsCollection = 'products';
 
@@ -59,15 +67,14 @@ class InventoryService {
         newStock -= quantity;
         if (newStock < 0) newStock = 0;
       } else if (type == MovementType.adjust) {
-        // Adjust quantity acts as a delta (positive or negative)
         newStock += quantity;
         if (newStock < 0) newStock = 0;
       }
 
-      // Update product
+      // Actualizar stock del producto
       transaction.update(productRef, {'stock': newStock});
 
-      // Create movement
+      // Crear el movimiento de inventario
       final movementRef = _db.collection(_collection).doc();
       final movement = InventoryMovementModel(
         id: movementRef.id,
@@ -83,6 +90,53 @@ class InventoryService {
 
       transaction.set(movementRef, movement.toFirestore());
     });
+
+    // --- Integración Contable ---
+    // Registrar egreso automático cuando se hace una entrada (compra de inventario)
+    if (type == MovementType.inward) {
+      await _registerPurchaseExpense(productId, quantity, reason);
+    }
+  }
+
+  /// Registra un egreso contable por una compra de inventario.
+  Future<void> _registerPurchaseExpense(
+    String productId,
+    int quantity,
+    String reason,
+  ) async {
+    try {
+      final doc = await _db
+          .collection(_productsCollection)
+          .doc(productId)
+          .get();
+      if (!doc.exists) return;
+
+      final product = ProductModel.fromFirestore(doc);
+      // Usar el precio del producto como costo estimado
+      final totalCost = product.price * quantity;
+      if (totalCost <= 0) return;
+
+      final subtotal = totalCost / 1.15;
+      final vatAmount = totalCost - subtotal;
+
+      final transaction = TransactionModel(
+        id: '',
+        type: TransactionType.egreso,
+        category: 'Compra Inventario',
+        amount: subtotal,
+        vatAmount: vatAmount,
+        vatRate: 0.15,
+        total: totalCost,
+        date: DateTime.now(),
+        description: '${product.name} x$quantity - $reason',
+        referenceId: productId,
+      );
+
+      await _accountingService.saveTransaction(transaction);
+      debugPrint('✅ Egreso contable registrado: ${product.name} x$quantity');
+    } catch (e) {
+      debugPrint('⚠️ Error al registrar egreso contable de inventario: $e');
+    }
   }
 
   // Future structure for AI reports

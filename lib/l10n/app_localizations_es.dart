@@ -926,4 +926,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get integrationsTab => 'Integraciones';
+
+  @override
+  String get editButton => 'Editar';
+
+  @override
+  String get deleteButton => 'Eliminar';
 }

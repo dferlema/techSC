@@ -7,6 +7,7 @@ class ConfigModel {
   final String payphoneToken;
   final String payphoneStoreId;
   final bool payphoneIsSandbox;
+  final double vatPercentage;
 
   ConfigModel({
     this.companyName = 'TechService Pro',
@@ -16,6 +17,7 @@ class ConfigModel {
     this.payphoneToken = '',
     this.payphoneStoreId = '',
     this.payphoneIsSandbox = true,
+    this.vatPercentage = 15.0,
   });
 
   Map<String, dynamic> toMap() {
@@ -27,6 +29,7 @@ class ConfigModel {
       'payphoneToken': payphoneToken,
       'payphoneStoreId': payphoneStoreId,
       'payphoneIsSandbox': payphoneIsSandbox,
+      'vatPercentage': vatPercentage,
     };
   }
 
@@ -41,6 +44,7 @@ class ConfigModel {
       payphoneToken: map['payphoneToken'] ?? '',
       payphoneStoreId: map['payphoneStoreId'] ?? '',
       payphoneIsSandbox: map['payphoneIsSandbox'] ?? true,
+      vatPercentage: (map['vatPercentage'] as num?)?.toDouble() ?? 15.0,
     );
   }
 }

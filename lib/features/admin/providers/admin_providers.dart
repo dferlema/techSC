@@ -6,6 +6,8 @@ import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/features/auth/models/user_model.dart';
 import 'package:techsc/core/services/config_service.dart';
 import 'package:techsc/core/models/config_model.dart';
+import 'package:techsc/features/admin/models/profit_range_model.dart';
+import 'package:techsc/features/admin/models/bank_account_model.dart';
 
 // Categorías
 final adminCategoriesProvider = StreamProvider<List<Map<String, dynamic>>>((
@@ -150,4 +152,12 @@ final appConfigProvider = StreamProvider<ConfigModel>((ref) {
 
 final bannersProvider = StreamProvider<QuerySnapshot>((ref) {
   return ConfigService().getBannersStream();
+});
+
+final profitRangesProvider = StreamProvider<List<ProfitRange>>((ref) {
+  return ConfigService().getProfitRangesStream();
+});
+
+final bankAccountsProvider = StreamProvider<List<BankAccount>>((ref) {
+  return ConfigService().getBankAccountsStream();
 });

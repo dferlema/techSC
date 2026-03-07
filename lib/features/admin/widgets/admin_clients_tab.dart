@@ -167,87 +167,172 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
   Widget _buildClientCard(Map<String, dynamic> client, AppLocalizations l10n) {
     final createdAt = (client['createdAt'] as Timestamp?)?.toDate();
     final role = client['role'] ?? RoleService.CLIENT;
-    final roleIcon = RoleService.getRoleIcon(role);
     final roleName = RoleService.getRoleName(role);
+    final roleColor = _getRoleColor(role);
+    final name = (client['name'] ?? '—') as String;
+    final initials = name.trim().isEmpty
+        ? '?'
+        : name.trim().split(' ').take(2).map((w) => w[0].toUpperCase()).join();
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          child: Text(roleIcon, style: const TextStyle(fontSize: 16)),
-        ),
-        title: Text(
-          client['name'] ?? '—',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 1.5,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
           children: [
-            Text('${l10n.idLabel}: ${client['id'] ?? '—'}'),
-            Text('${l10n.phoneLabel}: ${client['phone'] ?? '—'}'),
-            Text('📧 ${client['email'] ?? '—'}'),
-            if (createdAt != null)
-              Text('📅 ${createdAt.day}/${createdAt.month}/${createdAt.year}'),
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: _getRoleColor(role).withAlpha(51),
-                borderRadius: BorderRadius.circular(12),
-              ),
+            // Avatar con iniciales coloreadas por rol
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: roleColor.withOpacity(0.15),
               child: Text(
-                roleName,
+                initials,
                 style: TextStyle(
-                  fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: _getRoleColor(role),
+                  fontSize: 15,
+                  color: roleColor,
                 ),
               ),
             ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.admin_panel_settings,
-                size: 18,
-                color: Colors.orange,
-              ),
-              onPressed: () async {
-                final res = await showRoleAssignmentDialog(
-                  context,
-                  userId: client['docId'],
-                  currentRole: role,
-                  userName: client['name'] ?? '—',
-                  userEmail: client['email'] ?? '—',
-                );
-                if (res == true && mounted) setState(() {});
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
-              onPressed: () async {
-                final res = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ClientFormPage(
-                      clientId: client['docId'],
-                      initialData: client,
-                    ),
+            const SizedBox(width: 12),
+            // Info principal
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Chip de rol inline
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: roleColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: roleColor.withOpacity(0.3),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Text(
+                          roleName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: roleColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                );
-                if (res == true && mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
+                  const SizedBox(height: 3),
+                  // Teléfono + email en una fila compacta
+                  Text(
+                    '${client['phone'] ?? '—'}  •  ${client['email'] ?? '—'}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (createdAt != null)
+                    Text(
+                      '${l10n.idLabel}: ${client['id'] ?? '—'}  •  ${createdAt.day}/${createdAt.month}/${createdAt.year}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            // Menú de acciones agrupado en PopupMenuButton
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.grey),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onSelected: (value) async {
+                switch (value) {
+                  case 'role':
+                    final res = await showRoleAssignmentDialog(
+                      context,
+                      userId: client['docId'],
+                      currentRole: role,
+                      userName: name,
+                      userEmail: client['email'] ?? '—',
+                    );
+                    if (res == true && mounted) setState(() {});
+                    break;
+                  case 'edit':
+                    final res = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ClientFormPage(
+                          clientId: client['docId'],
+                          initialData: client,
+                        ),
+                      ),
+                    );
+                    if (res == true && mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(l10n.saveSuccess)));
+                    }
+                    break;
+                  case 'delete':
+                    _deleteDocument('users', client['docId'], l10n);
+                    break;
                 }
               },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
-              onPressed: () => _deleteDocument('users', client['docId'], l10n),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'role',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.admin_panel_settings,
+                        size: 18,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text('Cambiar Rol'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit, size: 18, color: Colors.blue),
+                      const SizedBox(width: 10),
+                      Text(l10n.editButton),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delete, size: 18, color: Colors.red),
+                      const SizedBox(width: 10),
+                      Text(l10n.deleteButton),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),

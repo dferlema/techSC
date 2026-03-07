@@ -318,5 +318,7 @@
   "payphoneTokenLabel": "Token de Pago (Payphone)",
   "payphoneStoreIdLabel": "ID de Tienda (StoreID)",
   "payphoneSandboxLabel": "Modo Sandbox (Pruebas)",
-  "integrationsTab": "Integraciones"
+  "integrationsTab": "Integraciones",
+  "editButton": "Editar",
+  "deleteButton": "Eliminar"
 }

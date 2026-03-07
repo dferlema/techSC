@@ -7,6 +7,8 @@ import 'package:techsc/features/auth/services/auth_service.dart';
 import 'package:techsc/core/services/role_service.dart';
 import 'package:techsc/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:techsc/features/accounting/models/transaction_model.dart';
+import 'package:techsc/features/accounting/services/accounting_service.dart';
 
 class ReservationDetailPage extends ConsumerStatefulWidget {
   final ReservationModel reservation;
@@ -156,6 +158,39 @@ class _ReservationDetailPageState extends ConsumerState<ReservationDetailPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('${l10n.errorPrefix}: $e')));
       }
+    }
+  }
+
+  /// Registra automáticamente un ingreso contable al completar la reservación.
+  Future<void> _registerReservationIncome() async {
+    try {
+      final reservation = widget.reservation;
+      final total = reservation.repairCost ?? 0.0;
+      if (total <= 0) return; // Sin costo, no registrar
+
+      final subtotal = total / 1.15;
+      final vatAmount = total - subtotal;
+
+      final transaction = TransactionModel(
+        id: '',
+        type: TransactionType.ingreso,
+        category: 'Servicio',
+        amount: subtotal,
+        vatAmount: vatAmount,
+        vatRate: 0.15,
+        total: total,
+        date: DateTime.now(),
+        description: '${reservation.serviceType} - ${reservation.clientName}',
+        clientIdentification: reservation.clientId,
+        referenceId: reservation.id,
+      );
+
+      await AccountingService().saveTransaction(transaction);
+      debugPrint(
+        '✅ Ingreso contable registrado para reservación ${reservation.id}',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error al registrar ingreso contable de reservación: $e');
     }
   }
 

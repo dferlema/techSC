@@ -13,6 +13,12 @@ class ProductModel {
   final String? supplierLink;
   final int stock;
   final List<String>? images;
+  final double? purchaseCost;
+  final double? purchaseCostWithTax;
+  final double? profitMargin;
+  final double? fixedProfit;
+  final bool useFixedProfit;
+  final double? cardPrice;
 
   ProductModel({
     required this.id,
@@ -27,6 +33,12 @@ class ProductModel {
     this.supplierLink,
     this.stock = 0,
     this.images,
+    this.purchaseCost,
+    this.purchaseCostWithTax,
+    this.profitMargin,
+    this.fixedProfit,
+    this.useFixedProfit = false,
+    this.cardPrice,
   });
 
   factory ProductModel.fromFirestore(DocumentSnapshot doc) {
@@ -49,6 +61,12 @@ class ProductModel {
       supplierLink: data['supplierLink'],
       stock: (data['stock'] as num?)?.toInt() ?? 0,
       images: data['images'] != null ? List<String>.from(data['images']) : null,
+      purchaseCost: (data['purchaseCost'] as num?)?.toDouble(),
+      purchaseCostWithTax: (data['purchaseCostWithTax'] as num?)?.toDouble(),
+      profitMargin: (data['profitMargin'] as num?)?.toDouble(),
+      fixedProfit: (data['fixedProfit'] as num?)?.toDouble(),
+      useFixedProfit: data['useFixedProfit'] ?? false,
+      cardPrice: (data['cardPrice'] as num?)?.toDouble(),
       createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : (data['createdAt'] is String
@@ -71,6 +89,12 @@ class ProductModel {
       'supplierLink': supplierLink,
       'stock': stock,
       'images': images,
+      'purchaseCost': purchaseCost,
+      'purchaseCostWithTax': purchaseCostWithTax,
+      'profitMargin': profitMargin,
+      'fixedProfit': fixedProfit,
+      'useFixedProfit': useFixedProfit,
+      'cardPrice': cardPrice,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -90,6 +114,12 @@ class ProductModel {
     String? supplierLink,
     int? stock,
     List<String>? images,
+    double? purchaseCost,
+    double? purchaseCostWithTax,
+    double? profitMargin,
+    double? fixedProfit,
+    bool? useFixedProfit,
+    double? cardPrice,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -104,6 +134,12 @@ class ProductModel {
       supplierLink: supplierLink ?? this.supplierLink,
       stock: stock ?? this.stock,
       images: images ?? this.images,
+      purchaseCost: purchaseCost ?? this.purchaseCost,
+      purchaseCostWithTax: purchaseCostWithTax ?? this.purchaseCostWithTax,
+      profitMargin: profitMargin ?? this.profitMargin,
+      fixedProfit: fixedProfit ?? this.fixedProfit,
+      useFixedProfit: useFixedProfit ?? this.useFixedProfit,
+      cardPrice: cardPrice ?? this.cardPrice,
     );
   }
 }

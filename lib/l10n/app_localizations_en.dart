@@ -918,4 +918,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get integrationsTab => 'Integrations';
+
+  @override
+  String get editButton => 'Edit';
+
+  @override
+  String get deleteButton => 'Delete';
 }

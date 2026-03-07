@@ -299,9 +299,10 @@ class _CartPageState extends ConsumerState<CartPage> {
               _buildPaymentOption(
                 id: 'payphone',
                 title: 'Tarjeta (Payphone)',
-                subtitle: 'Visa, Mastercard, American Express',
+                subtitle: 'Visa, Mastercard, Diners, Discover',
                 icon: Icons.credit_card,
                 color: AppColors.primaryBlue,
+                imageAsset: 'assets/images/payphone_cards.png',
               ),
               _buildPaymentOption(
                 id: 'transferencia',
@@ -334,6 +335,7 @@ class _CartPageState extends ConsumerState<CartPage> {
     required IconData icon,
     required Color color,
     bool isDiscount = false,
+    String? imageAsset,
   }) {
     final bool isSelected = _selectedPaymentMethod == id;
     return GestureDetector(
@@ -389,6 +391,17 @@ class _CartPageState extends ConsumerState<CartPage> {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  if (imageAsset != null) ...[
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.asset(
+                        imageAsset,
+                        height: 25,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

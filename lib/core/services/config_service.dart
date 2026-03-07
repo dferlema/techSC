@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:techsc/core/models/config_model.dart';
+import 'package:techsc/features/admin/models/profit_range_model.dart';
+import 'package:techsc/features/admin/models/bank_account_model.dart';
 
 /// Service to manage app-wide configuration settings (Company name, phone, VAT, etc.).
 class ConfigService {
@@ -125,5 +127,75 @@ class ConfigService {
       debugPrint('Error obteniendo configuración de colores: $e');
       return null;
     }
+  }
+
+  // --- Profit Range Methods ---
+
+  Stream<List<ProfitRange>> getProfitRangesStream() {
+    return _firestore
+        .collection(_collection)
+        .doc('profit_ranges')
+        .snapshots()
+        .map((doc) {
+          if (!doc.exists || doc.data() == null) return [];
+          final List<dynamic> list = doc.data()!['ranges'] ?? [];
+          return list
+              .map((item) => ProfitRange.fromMap(item as Map<String, dynamic>))
+              .toList();
+        });
+  }
+
+  Future<List<ProfitRange>> getProfitRanges() async {
+    final doc = await _firestore
+        .collection(_collection)
+        .doc('profit_ranges')
+        .get();
+    if (!doc.exists || doc.data() == null) return [];
+    final List<dynamic> list = doc.data()!['ranges'] ?? [];
+    return list
+        .map((item) => ProfitRange.fromMap(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> updateProfitRanges(List<ProfitRange> ranges) async {
+    await _firestore.collection(_collection).doc('profit_ranges').set({
+      'ranges': ranges.map((r) => r.toMap()).toList(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // --- Bank Account Methods ---
+
+  Stream<List<BankAccount>> getBankAccountsStream() {
+    return _firestore
+        .collection(_collection)
+        .doc('bank_accounts')
+        .snapshots()
+        .map((doc) {
+          if (!doc.exists || doc.data() == null) return [];
+          final List<dynamic> list = doc.data()!['accounts'] ?? [];
+          return list
+              .map((item) => BankAccount.fromMap(item as Map<String, dynamic>))
+              .toList();
+        });
+  }
+
+  Future<List<BankAccount>> getBankAccounts() async {
+    final doc = await _firestore
+        .collection(_collection)
+        .doc('bank_accounts')
+        .get();
+    if (!doc.exists || doc.data() == null) return [];
+    final List<dynamic> list = doc.data()!['accounts'] ?? [];
+    return list
+        .map((item) => BankAccount.fromMap(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> updateBankAccounts(List<BankAccount> accounts) async {
+    await _firestore.collection(_collection).doc('bank_accounts').set({
+      'accounts': accounts.map((a) => a.toMap()).toList(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

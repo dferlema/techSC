@@ -167,5 +167,30 @@ service cloud.firestore {
     match /inventory_movements/{movementId} {
       allow read, write: if isStaff();
     }
+
+    // --- Módulo Contable (Accounting) ---
+
+    // Transacciones contables (ingresos y egresos)
+    match /accounting_transactions/{transactionId} {
+      allow read: if isStaff();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Cierres de caja diarios
+    match /accounting_closures/{closureId} {
+      allow read: if isStaff();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Facturas electrónicas (puente SRI)
+    match /accounting_invoices/{invoiceId} {
+      allow read: if isStaff();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
   }
 }

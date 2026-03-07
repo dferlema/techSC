@@ -9,6 +9,10 @@ import 'package:techsc/features/admin/providers/admin_providers.dart';
 import 'package:techsc/l10n/app_localizations.dart';
 import 'package:techsc/core/widgets/app_loading_indicator.dart';
 import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:techsc/features/admin/screens/profit_margin_settings_page.dart';
+import 'package:techsc/core/theme/app_colors.dart';
+import 'package:techsc/features/admin/models/bank_account_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -22,6 +26,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   final ConfigService _configService = ConfigService();
   final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
+  final _profitMarginKey = GlobalKey();
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;
@@ -29,6 +34,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late TextEditingController _addressController;
   late TextEditingController _payphoneTokenController;
   late TextEditingController _payphoneStoreIdController;
+  late TextEditingController _vatController;
 
   bool _isLoading = false;
   bool _isBiometricEnabled = false;
@@ -43,6 +49,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _addressController = TextEditingController();
     _payphoneTokenController = TextEditingController();
     _payphoneStoreIdController = TextEditingController();
+    _vatController = TextEditingController();
     _loadInitialData();
   }
 
@@ -54,6 +61,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _addressController.text = config.companyAddress;
     _payphoneTokenController.text = config.payphoneToken;
     _payphoneStoreIdController.text = config.payphoneStoreId;
+    _vatController.text = config.vatPercentage.toString();
 
     final biometricEnabled = await _authService.isBiometricAuthEnabled();
     if (mounted) {
@@ -121,6 +129,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _addressController.dispose();
     _payphoneTokenController.dispose();
     _payphoneStoreIdController.dispose();
+    _vatController.dispose();
     super.dispose();
   }
 
@@ -137,6 +146,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         payphoneToken: _payphoneTokenController.text.trim(),
         payphoneStoreId: _payphoneStoreIdController.text.trim(),
         payphoneIsSandbox: _payphoneIsSandbox,
+        vatPercentage: double.tryParse(_vatController.text) ?? 15.0,
       );
       await _configService.updateConfig(config);
       if (mounted) {
@@ -276,9 +286,28 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           );
         }
 
+        String getTitle() {
+          switch (_currentIndex) {
+            case 0:
+              return l10n.companyInfoTab;
+            case 1:
+              return l10n.bannersTab;
+            case 2:
+              return l10n.securityTab;
+            case 3:
+              return 'Márgenes de Ganancia';
+            case 4:
+              return 'Cuentas Bancarias';
+            case 5:
+              return l10n.integrationsTab;
+            default:
+              return l10n.settingsPageTitle;
+          }
+        }
+
         return Scaffold(
           appBar: AppBar(
-            title: Text(l10n.settingsPageTitle),
+            title: Text(getTitle()),
             actions: const [CartBadge(), SizedBox(width: 8)],
           ),
           body: IndexedStack(
@@ -287,9 +316,38 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               _buildCompanyInfoTab(l10n),
               _buildBannersTab(l10n),
               _buildSecurityTab(l10n),
+              ProfitMarginSettingsPage(key: _profitMarginKey),
+              _buildBankAccountsTab(context),
               _buildIntegrationsTab(l10n),
             ],
           ),
+          floatingActionButton: _currentIndex == 3 || _currentIndex == 4
+              ? _currentIndex == 3
+                    ? ref
+                          .watch(profitRangesProvider)
+                          .when(
+                            data: (ranges) => FloatingActionButton.extended(
+                              onPressed: () {
+                                final state =
+                                    (_profitMarginKey.currentState as dynamic);
+                                if (state != null) {
+                                  state.addRange(ranges);
+                                }
+                              },
+                              label: const Text('Agregar Rango'),
+                              icon: const Icon(Icons.add),
+                              backgroundColor: AppColors.primaryBlue,
+                            ),
+                            loading: () => null,
+                            error: (_, __) => null,
+                          )
+                    : FloatingActionButton.extended(
+                        onPressed: () => _showBankAccountDialog(context),
+                        label: const Text('Agregar Cuenta'),
+                        icon: const Icon(Icons.add),
+                        backgroundColor: AppColors.primaryBlue,
+                      )
+              : null,
           bottomNavigationBar: NavigationBar(
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) =>
@@ -309,6 +367,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 icon: const Icon(Icons.security_outlined),
                 selectedIcon: const Icon(Icons.security),
                 label: l10n.securityTab,
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.trending_up_outlined),
+                selectedIcon: Icon(Icons.trending_up),
+                label: 'Márgenes',
+              ),
+              const NavigationDestination(
+                icon: Icon(Icons.account_balance_rounded),
+                selectedIcon: Icon(Icons.account_balance),
+                label: 'Cuentas',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.integration_instructions_outlined),
@@ -358,6 +426,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               label: l10n.companyAddressLabel,
               icon: Icons.location_on,
               maxLines: 2,
+              l10n: l10n,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _vatController,
+              label: 'IVA (%)',
+              icon: Icons.percent,
+              keyboardType: TextInputType.number,
               l10n: l10n,
             ),
             const SizedBox(height: 32),
@@ -600,6 +676,222 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- Bank Account Helpers ---
+
+  Future<void> _showBankAccountDialog(
+    BuildContext context, [
+    BankAccount? account,
+  ]) async {
+    final l10n = AppLocalizations.of(context)!;
+    final bankController = TextEditingController(text: account?.bankName);
+    final typeController = TextEditingController(text: account?.accountType);
+    final numberController = TextEditingController(
+      text: account?.accountNumber,
+    );
+    final holderNameController = TextEditingController(
+      text: account?.holderName,
+    );
+    final holderIdController = TextEditingController(text: account?.holderId);
+    final holderEmailController = TextEditingController(
+      text: account?.holderEmail,
+    );
+
+    final result = await showDialog<BankAccount>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(account == null ? 'Nueva Cuenta' : 'Editar Cuenta'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: bankController,
+                decoration: const InputDecoration(labelText: 'Banco'),
+              ),
+              TextField(
+                controller: typeController,
+                decoration: const InputDecoration(
+                  labelText: 'Tipo (Ahorros/Corriente)',
+                ),
+              ),
+              TextField(
+                controller: numberController,
+                decoration: const InputDecoration(
+                  labelText: 'Número de Cuenta',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: holderNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del Titular',
+                ),
+              ),
+              TextField(
+                controller: holderIdController,
+                decoration: const InputDecoration(
+                  labelText: 'CI/RUC del Titular',
+                ),
+              ),
+              TextField(
+                controller: holderEmailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email del Titular',
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(
+                context,
+                BankAccount(
+                  id:
+                      account?.id ??
+                      DateTime.now().millisecondsSinceEpoch.toString(),
+                  bankName: bankController.text,
+                  accountType: typeController.text,
+                  accountNumber: numberController.text,
+                  holderName: holderNameController.text,
+                  holderId: holderIdController.text,
+                  holderEmail: holderEmailController.text,
+                ),
+              );
+            },
+            child: Text(l10n.save),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      final currentAccounts = await _configService.getBankAccounts();
+      if (account == null) {
+        currentAccounts.add(result);
+      } else {
+        final index = currentAccounts.indexWhere((a) => a.id == account.id);
+        if (index != -1) currentAccounts[index] = result;
+      }
+      await _saveBankAccounts(currentAccounts);
+    }
+  }
+
+  Future<void> _saveBankAccounts(List<BankAccount> accounts) async {
+    setState(() => _isLoading = true);
+    try {
+      await _configService.updateBankAccounts(accounts);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cuentas actualizadas con éxito')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _shareOnWhatsApp(BankAccount account) async {
+    final message = Uri.encodeComponent(account.toWhatsAppString());
+    final url = Uri.parse('https://wa.me/?text=$message');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir WhatsApp')),
+        );
+      }
+    }
+  }
+
+  Widget _buildBankAccountsTab(BuildContext context) {
+    final accountsAsync = ref.watch(bankAccountsProvider);
+
+    return accountsAsync.when(
+      data: (accounts) {
+        if (accounts.isEmpty) {
+          return const Center(child: Text('No hay cuentas configuradas'));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: accounts.length,
+          itemBuilder: (context, index) {
+            final account = accounts[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                title: Text(
+                  account.bankName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${account.accountType} - ${account.accountNumber}',
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.share, color: Colors.green),
+                      onPressed: () => _shareOnWhatsApp(account),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _showBankAccountDialog(context, account),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Eliminar Cuenta'),
+                            content: const Text(
+                              '¿Está seguro de eliminar esta cuenta?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text('Cancelar'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: const Text('Eliminar'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          accounts.removeAt(index);
+                          await _saveBankAccounts(accounts);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const AppLoadingIndicator(),
+      error: (e, __) => AppErrorWidget(error: e),
     );
   }
 }

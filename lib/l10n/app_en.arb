@@ -297,5 +297,14 @@
   "searchProduct": "Search Part",
   "searchProductHint": "Part name...",
   "errorLoadingProducts": "Error loading parts",
-  "successAddedToCart": "{item} added to cart"
+  "successAddedToCart": "{item} added to cart",
+  "@successAddedToCart": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "editButton": "Edit",
+  "deleteButton": "Delete"
 }
