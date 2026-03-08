@@ -293,8 +293,9 @@ class _AppDrawerState extends State<AppDrawer> {
                 final isAdmin = role == RoleService.ADMIN;
                 final isSeller = role == RoleService.SELLER;
                 final isTech = role == RoleService.TECHNICIAN;
+                final isAccounting = role == RoleService.ACCOUNTING;
 
-                if (isAdmin || isSeller || isTech) {
+                if (isAdmin || isSeller || isTech || isAccounting) {
                   return ExpansionTile(
                     leading: const Icon(Icons.admin_panel_settings_outlined),
                     title: const Text('Administración'),
@@ -306,14 +307,18 @@ class _AppDrawerState extends State<AppDrawer> {
                       '/app-colors-config',
                     ].contains(widget.currentRoute),
                     children: [
-                      if (isAdmin || isSeller)
+                      if (isAdmin || isSeller || isAccounting || isTech)
                         ListTile(
                           contentPadding: const EdgeInsets.only(
                             left: 40,
                             right: 16,
                           ),
                           leading: Icon(
-                            isAdmin ? Icons.admin_panel_settings : Icons.store,
+                            isAdmin
+                                ? Icons.admin_panel_settings
+                                : (isAccounting
+                                      ? Icons.account_balance
+                                      : Icons.store),
                             color: isAdmin
                                 ? AppColors.roleAdmin
                                 : AppColors.success,
@@ -322,7 +327,11 @@ class _AppDrawerState extends State<AppDrawer> {
                           title: Text(
                             isAdmin
                                 ? 'Panel de Administración'
-                                : 'Gestión de Ventas',
+                                : (isAccounting
+                                      ? 'Panel Contable'
+                                      : (isTech
+                                            ? 'Panel Operativo'
+                                            : 'Gestión de Ventas')),
                           ),
                           selected: widget.currentRoute == '/admin',
                           selectedTileColor:
@@ -359,9 +368,11 @@ class _AppDrawerState extends State<AppDrawer> {
                           Icons.assessment,
                           color: isAdmin
                               ? Colors.deepPurple
-                              : (isSeller
-                                    ? AppColors.success
-                                    : AppColors.roleTechnician),
+                              : (isAccounting
+                                    ? Colors.teal
+                                    : (isSeller
+                                          ? AppColors.success
+                                          : AppColors.roleTechnician)),
                           size: 20,
                         ),
                         title: const Text('Reportes'),
@@ -369,9 +380,11 @@ class _AppDrawerState extends State<AppDrawer> {
                         selectedTileColor:
                             (isAdmin
                                     ? Colors.deepPurple
-                                    : (isSeller
-                                          ? AppColors.success
-                                          : AppColors.roleTechnician))
+                                    : (isAccounting
+                                          ? Colors.teal
+                                          : (isSeller
+                                                ? AppColors.success
+                                                : AppColors.roleTechnician)))
                                 .withAlpha(26),
                         onTap: () => _navigateTo(context, '/reports'),
                       ),

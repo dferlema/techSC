@@ -167,6 +167,8 @@ class _RoleAssignmentDialogState extends State<RoleAssignmentDialog> {
             const SizedBox(height: 8),
             _buildRoleOption(RoleService.SELLER),
             const SizedBox(height: 8),
+            _buildRoleOption(RoleService.ACCOUNTING),
+            const SizedBox(height: 8),
             _buildRoleOption(RoleService.ADMIN),
           ],
         ),

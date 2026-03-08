@@ -14,7 +14,8 @@ import 'package:techsc/core/widgets/app_loading_indicator.dart';
 import 'package:techsc/core/widgets/app_error_widget.dart';
 
 class AdminClientsTab extends ConsumerStatefulWidget {
-  const AdminClientsTab({super.key});
+  final bool isAdmin;
+  const AdminClientsTab({super.key, this.isAdmin = false});
 
   @override
   ConsumerState<AdminClientsTab> createState() => _AdminClientsTabState();
@@ -66,6 +67,10 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
         return Colors.purple;
       case RoleService.SELLER:
         return Colors.blue;
+      case RoleService.TECHNICIAN:
+        return Colors.orange;
+      case RoleService.ACCOUNTING:
+        return Colors.teal;
       default:
         return Colors.green;
     }
@@ -298,20 +303,21 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
                 }
               },
               itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'role',
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.admin_panel_settings,
-                        size: 18,
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(width: 10),
-                      const Text('Cambiar Rol'),
-                    ],
+                if (widget.isAdmin)
+                  PopupMenuItem(
+                    value: 'role',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.admin_panel_settings,
+                          size: 18,
+                          color: Colors.orange,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text('Cambiar Rol'),
+                      ],
+                    ),
                   ),
-                ),
                 PopupMenuItem(
                   value: 'edit',
                   child: Row(
@@ -322,16 +328,17 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
                     ],
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.delete, size: 18, color: Colors.red),
-                      const SizedBox(width: 10),
-                      Text(l10n.deleteButton),
-                    ],
+                if (widget.isAdmin)
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete, size: 18, color: Colors.red),
+                        const SizedBox(width: 10),
+                        Text(l10n.deleteButton),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           ],

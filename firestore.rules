@@ -31,12 +31,17 @@ service cloud.firestore {
       return isAuthenticated() && (getUserData().role in ['tecnico', 'technician', 'Technician']);
     }
 
+    function isAccounting() {
+      return isAuthenticated() && (getUserData().role in ['contabilidad', 'accounting', 'Accounting']);
+    }
+
     function isStaff() {
       return isAuthenticated() && (
         getUserData().role in [
           'administrador', 'admin', 'Admin',
           'vendedor', 'seller', 'Seller',
-          'tecnico', 'technician', 'Technician'
+          'tecnico', 'technician', 'Technician',
+          'contabilidad', 'accounting', 'Accounting'
         ]
       );
     }
@@ -173,23 +178,23 @@ service cloud.firestore {
     // Transacciones contables (ingresos y egresos)
     match /accounting_transactions/{transactionId} {
       allow read: if isStaff();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+      allow create: if isAdmin() || isAccounting();
+      allow update: if isAdmin() || isAccounting();
       allow delete: if isAdmin();
     }
 
     // Cierres de caja diarios
     match /accounting_closures/{closureId} {
       allow read: if isStaff();
-      allow create: if isAdmin();
+      allow create: if isAdmin() || isAccounting();
       allow update, delete: if isAdmin();
     }
 
     // Facturas electrónicas (puente SRI)
     match /accounting_invoices/{invoiceId} {
       allow read: if isStaff();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+      allow create: if isAdmin() || isAccounting();
+      allow update: if isAdmin() || isAccounting();
       allow delete: if isAdmin();
     }
   }

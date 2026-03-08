@@ -10,6 +10,7 @@ class RoleService {
   static const String SELLER = 'vendedor';
   static const String TECHNICIAN = 'tecnico';
   static const String CLIENT = 'cliente';
+  static const String ACCOUNTING = 'contabilidad';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -57,6 +58,8 @@ class RoleService {
           role = CLIENT;
         else if (role == 'cliente')
           role = CLIENT;
+        else if (role == 'accounting' || role == 'contabilidad')
+          role = ACCOUNTING;
 
         // 2. Save to cache
         if (_cache != null) {
@@ -122,6 +125,7 @@ class RoleService {
       if (newRole != ADMIN &&
           newRole != SELLER &&
           newRole != TECHNICIAN &&
+          newRole != ACCOUNTING &&
           newRole != CLIENT) {
         throw Exception('Rol inválido: $newRole');
       }
@@ -177,6 +181,8 @@ class RoleService {
         return 'Vendedor';
       case TECHNICIAN:
         return 'Técnico';
+      case ACCOUNTING:
+        return 'Contabilidad';
       case CLIENT:
         return 'Cliente';
       default:
@@ -193,6 +199,8 @@ class RoleService {
         return '💼';
       case TECHNICIAN:
         return '🔧';
+      case ACCOUNTING:
+        return '📊';
       case CLIENT:
         return '👤';
       default:
@@ -209,6 +217,8 @@ class RoleService {
         return 'Gestionar productos, servicios y ver todos los pedidos';
       case TECHNICIAN:
         return 'Gestionar reservas, contactar clientes y registrar reparaciones';
+      case ACCOUNTING:
+        return 'Gestionar ingresos, egresos y facturación electrónica';
       case CLIENT:
         return 'Comprar productos, reservar servicios y ver pedidos propios';
       default:

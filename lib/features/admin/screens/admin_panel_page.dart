@@ -241,7 +241,10 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> {
               Scaffold(body: Center(child: Text('Error al cargar rol: $err'))),
           data: (userRole) {
             final bool canAccessPanel =
-                userRole == RoleService.ADMIN || userRole == RoleService.SELLER;
+                userRole == RoleService.ADMIN ||
+                userRole == RoleService.SELLER ||
+                userRole == RoleService.TECHNICIAN ||
+                userRole == RoleService.ACCOUNTING;
             final bool isAdmin = userRole == RoleService.ADMIN;
 
             if (!canAccessPanel) return _buildAccessDenied(l10n);
@@ -320,8 +323,10 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> {
                     child: AdminDashboardView(onNavigateTo: _navigate),
                   ),
                   // 1 — Clientes
-                  isAdmin
-                      ? const AdminClientsTab()
+                  isAdmin ||
+                          userRole == RoleService.SELLER ||
+                          userRole == RoleService.TECHNICIAN
+                      ? AdminClientsTab(isAdmin: isAdmin)
                       : _buildRestriction(l10n.onlyAdminClients),
                   // 2 — Productos
                   _AdminTabContent(
@@ -350,11 +355,17 @@ class _AdminPanelPageState extends ConsumerState<AdminPanelPage> {
                   // 5 — Órdenes
                   const AdminOrdersTab(),
                   // 6 — Proveedores
-                  isAdmin
+                  isAdmin ||
+                          userRole == RoleService.ACCOUNTING ||
+                          userRole == RoleService.SELLER
                       ? const SupplierManagementPage()
                       : _buildRestriction(l10n.onlyAdminSuppliers),
                   // 7 — Contabilidad
-                  const AccountingTab(),
+                  isAdmin || userRole == RoleService.ACCOUNTING
+                      ? const AccountingTab()
+                      : _buildRestriction(
+                          'Solo administradores y contabilidad pueden ver esta sección',
+                        ),
                 ],
               ),
               floatingActionButton: _buildFAB(l10n),
@@ -416,8 +427,18 @@ class _DrawerHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final roleLabel = isAdmin ? 'Administrador' : 'Vendedor';
-    final roleIcon = isAdmin ? Icons.admin_panel_settings : Icons.store;
+    final roleLabel = isAdmin
+        ? 'Administrador'
+        : (userRole == RoleService.ACCOUNTING
+              ? 'Contabilidad'
+              : (userRole == RoleService.TECHNICIAN ? 'Técnico' : 'Vendedor'));
+    final roleIcon = isAdmin
+        ? Icons.admin_panel_settings
+        : (userRole == RoleService.ACCOUNTING
+              ? Icons.account_balance
+              : (userRole == RoleService.TECHNICIAN
+                    ? Icons.build
+                    : Icons.store));
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),

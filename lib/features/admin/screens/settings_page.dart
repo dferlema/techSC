@@ -13,6 +13,33 @@ import 'package:techsc/features/admin/screens/profit_margin_settings_page.dart';
 import 'package:techsc/core/theme/app_colors.dart';
 import 'package:techsc/features/admin/models/bank_account_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:techsc/features/admin/widgets/settings_dashboard_view.dart';
+
+class _NavIndex {
+  static const int dashboard = 0;
+  static const int companyInfo = 1;
+  static const int banners = 2;
+  static const int security = 3;
+  static const int margins = 4;
+  static const int accounts = 5;
+  static const int integrations = 6;
+}
+
+class _DrawerItem {
+  final int index;
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Color color;
+
+  const _DrawerItem({
+    required this.index,
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.color,
+  });
+}
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -22,11 +49,12 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  int _currentIndex = 0;
+  int _currentIndex = _NavIndex.dashboard;
   final ConfigService _configService = ConfigService();
   final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _profitMarginKey = GlobalKey();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;
@@ -118,6 +146,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       } else {
         setState(() => _isBiometricEnabled = true);
       }
+    }
+  }
+
+  void _navigate(int index) {
+    setState(() => _currentIndex = index);
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      _scaffoldKey.currentState?.closeDrawer();
     }
   }
 
@@ -288,31 +323,177 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
         String getTitle() {
           switch (_currentIndex) {
-            case 0:
+            case _NavIndex.dashboard:
+              return l10n.settingsPageTitle;
+            case _NavIndex.companyInfo:
               return l10n.companyInfoTab;
-            case 1:
+            case _NavIndex.banners:
               return l10n.bannersTab;
-            case 2:
+            case _NavIndex.security:
               return l10n.securityTab;
-            case 3:
+            case _NavIndex.margins:
               return 'Márgenes de Ganancia';
-            case 4:
+            case _NavIndex.accounts:
               return 'Cuentas Bancarias';
-            case 5:
+            case _NavIndex.integrations:
               return l10n.integrationsTab;
             default:
               return l10n.settingsPageTitle;
           }
         }
 
+        final drawerItems = [
+          _DrawerItem(
+            index: _NavIndex.dashboard,
+            label: 'Panel',
+            icon: Icons.dashboard_rounded,
+            selectedIcon: Icons.dashboard,
+            color: const Color(0xFF09325E),
+          ),
+          _DrawerItem(
+            index: _NavIndex.companyInfo,
+            label: l10n.companyInfoTab,
+            icon: Icons.business_outlined,
+            selectedIcon: Icons.business,
+            color: const Color(0xFF1565C0),
+          ),
+          _DrawerItem(
+            index: _NavIndex.banners,
+            label: l10n.bannersTab,
+            icon: Icons.image_outlined,
+            selectedIcon: Icons.image,
+            color: const Color(0xFF6A1B9A),
+          ),
+          _DrawerItem(
+            index: _NavIndex.security,
+            label: l10n.securityTab,
+            icon: Icons.security_outlined,
+            selectedIcon: Icons.security,
+            color: const Color(0xFF00695C),
+          ),
+          _DrawerItem(
+            index: _NavIndex.margins,
+            label: 'Márgenes',
+            icon: Icons.trending_up_outlined,
+            selectedIcon: Icons.trending_up,
+            color: const Color(0xFFE65100),
+          ),
+          _DrawerItem(
+            index: _NavIndex.accounts,
+            label: 'Cuentas',
+            icon: Icons.account_balance_rounded,
+            selectedIcon: Icons.account_balance,
+            color: const Color(0xFF880E4F),
+          ),
+          _DrawerItem(
+            index: _NavIndex.integrations,
+            label: l10n.integrationsTab,
+            icon: Icons.integration_instructions_outlined,
+            selectedIcon: Icons.integration_instructions,
+            color: const Color(0xFF1B5E20),
+          ),
+        ];
+
         return Scaffold(
+          key: _scaffoldKey,
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                if (_currentIndex != _NavIndex.dashboard) {
+                  setState(() => _currentIndex = _NavIndex.dashboard);
+                } else {
+                  Navigator.of(context).canPop()
+                      ? Navigator.of(context).pop()
+                      : Navigator.of(context).pushReplacementNamed('/main');
+                }
+              },
+            ),
             title: Text(getTitle()),
             actions: const [CartBadge(), SizedBox(width: 8)],
+          ),
+          drawer: NavigationDrawer(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: _navigate,
+            children: [
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primaryBlue, AppColors.accentBlue],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.settings,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Configuración',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.25),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Administrador',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Divider(),
+              ),
+              ...drawerItems.map(
+                (item) => NavigationDrawerDestination(
+                  icon: Icon(item.icon, color: item.color),
+                  selectedIcon: Icon(item.selectedIcon, color: item.color),
+                  label: Text(item.label),
+                ),
+              ),
+            ],
           ),
           body: IndexedStack(
             index: _currentIndex,
             children: [
+              SettingsDashboardView(onNavigateTo: _navigate, isAdmin: isAdmin),
               _buildCompanyInfoTab(l10n),
               _buildBannersTab(l10n),
               _buildSecurityTab(l10n),
@@ -321,8 +502,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               _buildIntegrationsTab(l10n),
             ],
           ),
-          floatingActionButton: _currentIndex == 3 || _currentIndex == 4
-              ? _currentIndex == 3
+          floatingActionButton:
+              _currentIndex == _NavIndex.margins ||
+                  _currentIndex == _NavIndex.accounts
+              ? _currentIndex == _NavIndex.margins
                     ? ref
                           .watch(profitRangesProvider)
                           .when(
@@ -348,43 +531,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         backgroundColor: AppColors.primaryBlue,
                       )
               : null,
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) =>
-                setState(() => _currentIndex = index),
-            destinations: [
-              NavigationDestination(
-                icon: const Icon(Icons.business_outlined),
-                selectedIcon: const Icon(Icons.business),
-                label: l10n.companyInfoTab,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.image_outlined),
-                selectedIcon: const Icon(Icons.image),
-                label: l10n.bannersTab,
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.security_outlined),
-                selectedIcon: const Icon(Icons.security),
-                label: l10n.securityTab,
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.trending_up_outlined),
-                selectedIcon: Icon(Icons.trending_up),
-                label: 'Márgenes',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.account_balance_rounded),
-                selectedIcon: Icon(Icons.account_balance),
-                label: 'Cuentas',
-              ),
-              NavigationDestination(
-                icon: const Icon(Icons.integration_instructions_outlined),
-                selectedIcon: const Icon(Icons.integration_instructions),
-                label: l10n.integrationsTab,
-              ),
-            ],
-          ),
         );
       },
     );

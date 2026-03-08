@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:techsc/core/services/role_service.dart';
+import 'package:techsc/core/providers/providers.dart';
 import 'package:techsc/core/theme/app_colors.dart';
 
 // ---------------------------------------------------------------------------
@@ -62,6 +65,11 @@ class AdminDashboardView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+    final roleAsync = ref.watch(userRoleProvider(user.uid));
+    final role = roleAsync.value ?? RoleService.CLIENT;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       child: Column(
@@ -79,7 +87,7 @@ class AdminDashboardView extends ConsumerWidget {
           const SizedBox(height: 28),
           _buildSectionTitle(context, 'Acceso Rápido', Icons.grid_view_rounded),
           const SizedBox(height: 12),
-          _buildQuickAccessGrid(context),
+          _buildQuickAccessGrid(context, role),
           const SizedBox(height: 28),
           _buildSectionTitle(
             context,
@@ -227,14 +235,18 @@ class AdminDashboardView extends ConsumerWidget {
   // -------------------------------------------------------------------------
   // Grid de acceso rápido
   // -------------------------------------------------------------------------
-  Widget _buildQuickAccessGrid(BuildContext context) {
+  Widget _buildQuickAccessGrid(BuildContext context, String role) {
     final sections = [
-      _QuickSection(
-        index: 1,
-        label: 'Clientes',
-        icon: Icons.people_rounded,
-        color: const Color(0xFF1565C0),
-      ),
+      if (role == RoleService.ADMIN ||
+          role == RoleService.SELLER ||
+          role == RoleService.TECHNICIAN ||
+          role == RoleService.ACCOUNTING)
+        _QuickSection(
+          index: 1,
+          label: 'Clientes',
+          icon: Icons.people_rounded,
+          color: const Color(0xFF1565C0),
+        ),
       _QuickSection(
         index: 2,
         label: 'Productos',
@@ -259,24 +271,29 @@ class AdminDashboardView extends ConsumerWidget {
         icon: Icons.receipt_long_rounded,
         color: const Color(0xFFE65100),
       ),
-      _QuickSection(
-        index: 6,
-        label: 'Proveedores',
-        icon: Icons.business_rounded,
-        color: const Color(0xFF880E4F),
-      ),
-      _QuickSection(
-        index: 7,
-        label: 'Contabilidad',
-        icon: Icons.calculate_rounded,
-        color: const Color(0xFF1B5E20),
-      ),
-      _QuickSection(
-        index: 8,
-        label: 'Categorías',
-        icon: Icons.category_rounded,
-        color: const Color(0xFFD84315),
-      ),
+      if (role == RoleService.ADMIN ||
+          role == RoleService.SELLER ||
+          role == RoleService.ACCOUNTING)
+        _QuickSection(
+          index: 6,
+          label: 'Proveedores',
+          icon: Icons.business_rounded,
+          color: const Color(0xFF880E4F),
+        ),
+      if (role == RoleService.ADMIN || role == RoleService.ACCOUNTING)
+        _QuickSection(
+          index: 7,
+          label: 'Contabilidad',
+          icon: Icons.calculate_rounded,
+          color: const Color(0xFF1B5E20),
+        ),
+      if (role == RoleService.ADMIN)
+        _QuickSection(
+          index: 8,
+          label: 'Categorías',
+          icon: Icons.category_rounded,
+          color: const Color(0xFFD84315),
+        ),
     ];
 
     return GridView.builder(
