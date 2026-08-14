@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:tscomputer/core/services/config_service.dart';
 import 'package:tscomputer/core/services/document_id_service.dart';
 import 'package:tscomputer/features/orders/models/order_model.dart';
 import 'package:tscomputer/features/accounting/models/transaction_model.dart';
 import 'package:tscomputer/features/accounting/services/accounting_service.dart';
 import 'package:tscomputer/features/accounting/services/receivable_service.dart';
 import 'package:tscomputer/features/accounting/services/journal_entry_service.dart';
+import 'package:tscomputer/features/accounting/services/purchase_invoice_service.dart';
 import 'package:tscomputer/features/accounting/services/account_mapper.dart';
 import 'package:tscomputer/features/inventory/models/inventory_movement_model.dart';
 import 'package:tscomputer/core/utils/firestore_retry.dart';
@@ -400,6 +402,63 @@ class OrderService {
       }
     } catch (e) {
       debugPrint('⚠️ Error al registrar ingreso contable del pedido $orderId: $e');
+    }
+  }
+
+  /// Registra la comisión que Payphone cobra por una venta pagada con tarjeta.
+  ///
+  /// Solo aplica a pedidos con método de pago 'payphone' y estado 'paid'/'isPaid'.
+  /// El monto de la comisión se calcula como un porcentaje (configurable, 5% por
+  /// defecto) sobre el TOTAL de la venta, y sobre esa base se aplica el IVA
+  /// (RIMPE: se capitaliza al gasto). Se delega en
+  /// [PurchaseInvoiceService.registerPayphoneCommissionInvoice], que crea la
+  /// factura y el asiento DR 5.4.04 Comisiones por Tarjetas / CR 1.1.01.03
+  /// Bancos de forma idempotente. Así el banco refleja el neto real depositado.
+  Future<void> registerPayphoneCommission(String orderId) async {
+    try {
+      final doc = await _db.collection(_collection).doc(orderId).get();
+      if (!doc.exists) return;
+
+      final data = doc.data() as Map<String, dynamic>;
+      final paymentMethod = (data['paymentMethod'] as String?) ?? '';
+      final isPaid = data['isPaid'] == true || data['paymentStatus'] == 'paid';
+      if (paymentMethod != 'payphone' || !isPaid) return;
+
+      double total = 0.0;
+      if (data['total'] != null) {
+        total = (data['total'] as num).toDouble();
+      } else {
+        final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
+        total = (originalQuote?['total'] as num?)?.toDouble() ?? 0.0;
+      }
+      if (total <= 0) return;
+
+      // Config: porcentaje de comisión y tasa de IVA.
+      final config = await ConfigService().getConfig();
+      final commissionRate = config.payphoneCommissionPercentage; // ej. 5.0
+      final vatRate = config.vatPercentage / 100.0; // ej. 0.15
+
+      // Base de la comisión = % sobre el total de la venta (lo que cobra Payphone).
+      final commissionBase = double.parse((total * commissionRate / 100).toStringAsFixed(2));
+      if (commissionBase <= 0) return;
+
+      final totalWithVat = commissionBase + (commissionBase * vatRate);
+      debugPrint(
+        '💳 Comisión Payphone pedido $orderId: base \$$commissionBase, '
+        'con IVA \$${totalWithVat.toStringAsFixed(2)}',
+      );
+
+      await PurchaseInvoiceService().registerPayphoneCommissionInvoice(
+        orderId: orderId,
+        date: DateTime.now(),
+        commissionBase: commissionBase,
+        vatRate: vatRate,
+        notes:
+            'Comisión Payphone pedido #${orderId.length > 8 ? orderId.substring(0, 8) : orderId}',
+      );
+      debugPrint('✅ Comisión Payphone registrada para pedido $orderId');
+    } catch (e) {
+      debugPrint('⚠️ Error al registrar comisión Payphone del pedido $orderId: $e');
     }
   }
 

@@ -9,6 +9,10 @@ class ConfigModel {
   final bool payphoneIsSandbox;
   final double vatPercentage;
 
+  /// Porcentaje de comisión que Payphone cobra por cada transacción
+  /// (ej. 5.0 = 5% sobre el total de la venta).
+  final double payphoneCommissionPercentage;
+
   ConfigModel({
     this.companyName = 'TechService Pro',
     this.companyEmail = 'techservicecomputer@hotmail.com',
@@ -18,6 +22,7 @@ class ConfigModel {
     this.payphoneStoreId = '',
     this.payphoneIsSandbox = true,
     this.vatPercentage = 15.0,
+    this.payphoneCommissionPercentage = 5.0,
   });
 
   Map<String, dynamic> toMap() {
@@ -30,6 +35,7 @@ class ConfigModel {
       'payphoneStoreId': payphoneStoreId,
       'payphoneIsSandbox': payphoneIsSandbox,
       'vatPercentage': vatPercentage,
+      'payphoneCommissionPercentage': payphoneCommissionPercentage,
     };
   }
 
@@ -45,6 +51,8 @@ class ConfigModel {
       payphoneStoreId: map['payphoneStoreId'] ?? '',
       payphoneIsSandbox: map['payphoneIsSandbox'] ?? true,
       vatPercentage: (map['vatPercentage'] as num?)?.toDouble() ?? 15.0,
+      payphoneCommissionPercentage:
+          (map['payphoneCommissionPercentage'] as num?)?.toDouble() ?? 5.0,
     );
   }
 }

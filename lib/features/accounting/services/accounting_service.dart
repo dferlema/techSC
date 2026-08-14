@@ -153,6 +153,13 @@ class AccountingService {
             await orderService.registerOrderIncome(doc.id);
             syncedCount++;
           }
+
+          // Registrar también la comisión Payphone de ventas pagadas con tarjeta
+          // que aún no la tienen (idempotente por pedido).
+          final method = (data['paymentMethod'] ?? '').toString();
+          if (method == 'payphone' && isPaid) {
+            await orderService.registerPayphoneCommission(doc.id);
+          }
         }
       }
 

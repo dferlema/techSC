@@ -240,6 +240,61 @@ void main() {
     });
   });
 
+  group('11.7 Comisión Payphone (venta con tarjeta)', () {
+    test('Venta \$115 total con comisión 5%+IVA: banco neto 108.39 y gasto 6.61', () {
+      // Venta: el cliente paga $115 (subtotal 100 + IVA 15).
+      final total = 115.0;
+      final commissionRate = 5.0;
+      final vatRate = 0.15;
+
+      // Base de la comisión = 5% sobre el total de la venta.
+      final commissionBase = double.parse((total * commissionRate / 100).toStringAsFixed(2));
+      final commissionVat = double.parse((commissionBase * vatRate).toStringAsFixed(2));
+      final commissionTotal = commissionBase + commissionVat;
+
+      // Asientos: venta DR Bancos total / CR IVA débito + Ingresos,
+      // y comisión DR 5.4.04 / CR Bancos (neto reflejado en el banco).
+      final entries = [
+        _entry([
+          _line('1.1.01.03', debit: total), // Bancos (bruto cobrado)
+          _line('2.1.02', credit: 15.0), // IVA débito fiscal
+          _line('4.1.01.01', credit: 100.0), // Ingreso subtotal
+        ]),
+        _entry([
+          _line('5.4.04', debit: commissionTotal), // Comisiones por Tarjetas (RIMPE: IVA capitalizado)
+          _line('1.1.01.03', credit: commissionTotal), // Bancos baja al neto depositado
+        ]),
+      ];
+
+      expect(commissionBase, closeTo(5.75, 0.001));
+      expect(commissionVat, closeTo(0.86, 0.001));
+      expect(commissionTotal, closeTo(6.61, 0.001));
+
+      final balances = AccountingCalculator.accountBalances(entries);
+      // Neto en bancos = 115 - 6.61 = 108.39 (lo que realmente deposita Payphone).
+      expect(AccountingCalculator.sumByPrefix(balances, '1.1.01.03'), closeTo(108.39, 0.01));
+      expect(AccountingCalculator.sumByPrefix(balances, '5.4'), closeTo(6.61, 0.01));
+      expect(AccountingCalculator.creditByPrefix(balances, '2.1.02'), closeTo(15.0, 0.001));
+
+      final bs = AccountingCalculator.balanceSheet(balances);
+      expect(bs['cuadra'], isTrue, reason: 'El balance debe cuadrar con la comisión');
+      expect(bs['diferencia'], closeTo(0, 0.001));
+    });
+
+    test('Sin comisión (pago efectivo) el banco no se reduce por gasto de tarjeta', () {
+      final entries = [
+        _entry([
+          _line('1.1.01.01', debit: 115.0), // Caja
+          _line('2.1.02', credit: 15.0),
+          _line('4.1.01.01', credit: 100.0),
+        ]),
+      ];
+      final balances = AccountingCalculator.accountBalances(entries);
+      expect(AccountingCalculator.sumByPrefix(balances, '1.1.01'), 115.0);
+      expect(AccountingCalculator.sumByPrefix(balances, '5.4'), 0.0);
+    });
+  });
+
   group('11.6 Análisis IA de ventas', () {
     test('Detecta producto en pérdida y margen bajo', () {
       final insights = AiService().analyzeSales([

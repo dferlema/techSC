@@ -67,6 +67,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late TextEditingController _payphoneTokenController;
   late TextEditingController _payphoneStoreIdController;
   late TextEditingController _vatController;
+  late TextEditingController _payphoneCommissionController;
 
   bool _isLoading = false;
   bool _isBiometricEnabled = false;
@@ -82,6 +83,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _payphoneTokenController = TextEditingController();
     _payphoneStoreIdController = TextEditingController();
     _vatController = TextEditingController();
+    _payphoneCommissionController = TextEditingController();
     _loadInitialData();
   }
 
@@ -94,6 +96,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _payphoneTokenController.text = config.payphoneToken;
     _payphoneStoreIdController.text = config.payphoneStoreId;
     _vatController.text = config.vatPercentage.toString();
+    _payphoneCommissionController.text = config.payphoneCommissionPercentage.toString();
 
     final biometricEnabled = await _authService.isBiometricAuthEnabled();
     if (mounted) {
@@ -169,6 +172,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _payphoneTokenController.dispose();
     _payphoneStoreIdController.dispose();
     _vatController.dispose();
+    _payphoneCommissionController.dispose();
     super.dispose();
   }
 
@@ -186,6 +190,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         payphoneStoreId: _payphoneStoreIdController.text.trim(),
         payphoneIsSandbox: _payphoneIsSandbox,
         vatPercentage: double.tryParse(_vatController.text) ?? 15.0,
+        payphoneCommissionPercentage:
+            double.tryParse(_payphoneCommissionController.text) ?? 5.0,
       );
       await _configService.updateConfig(config);
       if (mounted) {
@@ -808,6 +814,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     icon: Icons.store,
                     l10n: l10n,
                     helperText: 'ID de tu tienda en Payphone Developer',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _payphoneCommissionController,
+                    label: 'Comisión Payphone (%)',
+                    icon: Icons.percent,
+                    l10n: l10n,
+                    helperText:
+                        'Porcentaje que Payphone cobra por transacción (ej. 5 = 5%)',
                   ),
                   const SizedBox(height: 16),
                   SwitchListTile(

@@ -240,6 +240,52 @@ class PurchaseInvoiceService {
     return _persistInvoice(invoice);
   }
 
+  /// Registra la factura de comisión que Payphone emite por cada venta con tarjeta.
+  ///
+  /// Idempotente por ID determinista `payphone_<orderId>`. En régimen RIMPE el
+  /// IVA de la comisión NO es acreditable y se capitaliza al gasto: la cuenta
+  /// `5.4.04 Comisiones por Tarjetas` se debita por el TOTAL (base + IVA) y
+  /// Bancos (1.1.01.03) se acredita por el mismo monto, reflejando que Payphone
+  /// solo deposita el neto (total − comisión − IVA de la comisión).
+  Future<String?> registerPayphoneCommissionInvoice({
+    required String orderId,
+    required DateTime date,
+    required double commissionBase,
+    required double vatRate,
+    String? notes,
+  }) async {
+    if (commissionBase <= 0) return null;
+    final vatAmount = commissionBase * vatRate;
+    final total = commissionBase + vatAmount;
+
+    final invoiceId = 'payphone_$orderId';
+    final existing = await _firestore.collection(_collection).doc(invoiceId).get();
+    if (existing.exists) {
+      debugPrint('⏭️ Comisión Payphone ya registrada para pedido $orderId');
+      return invoiceId;
+    }
+
+    final invoice = PurchaseInvoiceModel(
+      id: invoiceId,
+      supplierName: 'Payphone',
+      documentType: 'Factura',
+      documentNumber: 'COM-$orderId',
+      issueDate: date,
+      subtotal: commissionBase,
+      vatAmount: vatAmount,
+      vatRate: vatRate,
+      total: total,
+      paymentType: 'transferencia', // Payphone deposita el neto a Bancos
+      category: 'Comisiones',
+      accountCode: '5.4.04', // Comisiones por Tarjetas
+      type: PurchaseInvoiceType.gasto,
+      status: PurchaseInvoiceStatus.pagada,
+      notes: notes,
+      createdAt: DateTime.now(),
+    );
+    return _persistInvoice(invoice);
+  }
+
   /// Persiste la factura y sus artefactos contables de forma idempotente.
   Future<String?> _persistInvoice(PurchaseInvoiceModel invoice) async {
     try {

@@ -594,6 +594,7 @@ class _CartPageState extends ConsumerState<CartPage> {
               .doc(orderId)
               .update({'paymentStatus': 'paid', 'isPaid': true});
           await OrderService().registerOrderIncome(orderId);
+          await OrderService().registerPayphoneCommission(orderId);
           if (!mounted) return;
           _showFinalSuccess(orderId);
         } else {

@@ -148,6 +148,12 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
           .doc(widget.doc.id)
           .update(updates);
 
+      // Si el pago es con Payphone y quedó pagado, registrar la comisión de la
+      // transacción (5% + IVA) para reflejar el neto depositado a Bancos.
+      if (_isPaid && _paymentMethod == 'payphone') {
+        await OrderService().registerPayphoneCommission(widget.doc.id);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Detalles de pago actualizados')),
