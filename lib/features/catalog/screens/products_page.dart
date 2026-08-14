@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/features/catalog/models/product_model.dart';
-import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/features/cart/screens/cart_page.dart';
-import 'package:techsc/features/catalog/screens/product_detail_page.dart';
-import 'package:techsc/features/catalog/providers/product_providers.dart';
+import 'package:tscomputer/features/catalog/models/product_model.dart';
+import 'package:tscomputer/core/widgets/cart_badge.dart';
+import 'package:tscomputer/core/providers/ai_providers.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/features/cart/screens/cart_page.dart';
+import 'package:tscomputer/features/catalog/screens/product_detail_page.dart';
+import 'package:tscomputer/features/catalog/providers/product_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
-import 'package:techsc/core/utils/snackbar_helper.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/utils/snackbar_helper.dart';
 
 class ProductsPage extends ConsumerStatefulWidget {
   final String routeName;
@@ -246,48 +247,73 @@ class _ProductsPageState extends ConsumerState<ProductsPage> {
   }
 
   Widget _buildProductList(String categoryId) {
-    final productsAsync = ref.watch(filteredProductsProvider(categoryId));
     final searchQuery = ref.watch(productSearchQueryProvider);
+    final useAi = searchQuery.trim().length >= 3;
 
+    if (useAi) {
+      final aiAsync = ref.watch(aiSearchProvider((searchQuery, categoryId)));
+      return aiAsync.when(
+        data: (products) =>
+            _buildProductListContent(products, searchQuery, categoryId),
+        loading: () => const AppLoadingIndicator(),
+        error: (err, _) => AppErrorWidget(error: err),
+      );
+    }
+
+    final productsAsync = ref.watch(filteredProductsProvider(categoryId));
     return productsAsync.when(
-      data: (products) {
-        if (products.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.shopping_bag_outlined,
-                  size: 80,
-                  color: Colors.grey[300],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  searchQuery.isEmpty
-                      ? AppLocalizations.of(context)!.noMoreProducts
-                      : AppLocalizations.of(context)!.noSearchResults,
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          itemCount: products.length,
-          itemBuilder: (context, index) {
-            final product = products[index];
-            return _buildProductCard(product);
-          },
-        );
-      },
+      data: (products) =>
+          _buildProductListContent(products, searchQuery, categoryId),
       loading: () => const AppLoadingIndicator(),
       error: (err, _) => AppErrorWidget(error: err),
+    );
+  }
+
+  Widget _buildProductListContent(
+      List<ProductModel> products, String searchQuery, String categoryId) {
+    if (products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.shopping_bag_outlined,
+              size: 80,
+              color: Colors.grey[300],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              searchQuery.isEmpty
+                  ? AppLocalizations.of(context)!.noMoreProducts
+                  : AppLocalizations.of(context)!.noSearchResults,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(productCategoriesProvider);
+        ref.invalidate(filteredProductsProvider(categoryId));
+        if (searchQuery.trim().length >= 3) {
+          ref.invalidate(aiSearchProvider((searchQuery, categoryId)));
+        }
+      },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        itemCount: products.length,
+        itemBuilder: (context, index) {
+          final product = products[index];
+          return _buildProductCard(product);
+        },
+      ),
     );
   }
 

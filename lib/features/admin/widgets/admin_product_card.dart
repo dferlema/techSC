@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/catalog/screens/product_form_page.dart';
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/features/catalog/screens/product_form_page.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 class AdminProductCard extends StatelessWidget {
   final DocumentSnapshot doc;
@@ -50,6 +50,26 @@ class AdminProductCard extends StatelessWidget {
     }
   }
 
+  Future<void> _openEditPage(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductFormPage(
+          productId: doc.id,
+          initialData: data,
+        ),
+      ),
+    );
+    if (result == true && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('✅ Actualizado')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = doc.data() as Map<String, dynamic>;
@@ -69,76 +89,68 @@ class AdminProductCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _openEditPage(context, data),
+          child: Stack(
             children: [
-              Expanded(
-                child: Image.network(
-                  image,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[100],
-                    child: const Icon(
-                      Icons.inventory_2_outlined,
-                      color: Colors.grey,
-                      size: 40,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                SizedBox(
+                  height: 160,
+                  child: Image.network(
+                      image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Colors.grey[100],
+                        child: const Icon(
+                          Icons.inventory_2_outlined,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: AppColors.nearBlack,
+                  Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.nearBlack,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+                ],
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Row(
+                  children: [
+                    _CircleIconButton(
+                      icon: Icons.edit_outlined,
+                      color: Colors.blue,
+                      onPressed: () => _openEditPage(context, data),
+                    ),
+                    const SizedBox(width: 4),
+                    _CircleIconButton(
+                      icon: Icons.delete_outline,
+                      color: Colors.red,
+                      onPressed: () => _deleteDocument(context, 'products', doc.id),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Row(
-              children: [
-                _CircleIconButton(
-                  icon: Icons.edit_outlined,
-                  color: Colors.blue,
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProductFormPage(
-                          productId: doc.id,
-                          initialData: data,
-                        ),
-                      ),
-                    );
-                    if (result == true && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('✅ Actualizado')),
-                      );
-                    }
-                  },
-                ),
-                const SizedBox(width: 4),
-                _CircleIconButton(
-                  icon: Icons.delete_outline,
-                  color: Colors.red,
-                  onPressed: () => _deleteDocument(context, 'products', doc.id),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

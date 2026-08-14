@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:tscomputer/core/platform/io_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
 
 /// Helper class to share products and services via WhatsApp
 class WhatsAppShareHelper {
@@ -210,7 +208,7 @@ class WhatsAppShareHelper {
     // Add deep link for "Ver más"
     if (serviceData['id'] != null) {
       message += '🔗 *Ver más en la app:* \n';
-      message += 'techsc://service?id=${serviceData['id']}\n\n';
+      message += 'tscomputer://service?id=${serviceData['id']}\n\n';
     }
 
     message += '---\n';
@@ -233,13 +231,10 @@ class WhatsAppShareHelper {
     try {
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
-        final tempDir = await getTemporaryDirectory();
-        final path =
-            '${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final file = File(path);
-        await file.writeAsBytes(response.bodyBytes);
-
-        await Share.shareXFiles([XFile(path)], text: message, subject: subject);
+        await shareBytes(
+          response.bodyBytes,
+          'share_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
       } else {
         throw Exception('Failed to download image');
       }

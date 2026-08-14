@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// El título de la aplicación
   ///
   /// In es, this message translates to:
-  /// **'TechSC'**
+  /// **'TS Computer'**
   String get appTitle;
 
   /// No description provided for @loginTitle.

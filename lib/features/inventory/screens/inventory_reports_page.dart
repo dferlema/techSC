@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/features/inventory/providers/inventory_providers.dart';
+import 'package:tscomputer/features/inventory/providers/inventory_providers.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class InventoryReportsPage extends ConsumerWidget {
   const InventoryReportsPage({super.key});
@@ -33,7 +33,10 @@ class InventoryReportsPage extends ConsumerWidget {
               .where((m) => m.type.name == 'outward')
               .fold(0, (sum, m) => sum + m.quantity);
 
-          return Padding(
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(allMovementsProvider),
+            child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,24 +134,23 @@ class InventoryReportsPage extends ConsumerWidget {
                   },
                 ),
                 const SizedBox(height: 24),
-                const Expanded(
-                  child: Card(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Text(
-                          'Próximamente: Integración automática con API externa para predicciones de stock en tiempo real.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: Colors.blueGrey,
-                          ),
+                const Card(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Próximamente: Integración automática con API externa para predicciones de stock en tiempo real.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blueGrey,
                         ),
                       ),
                     ),
                   ),
                 ),
               ],
+            ),
             ),
           );
         },

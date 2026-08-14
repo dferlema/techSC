@@ -15,12 +15,16 @@ import 'package:flutter/foundation.dart'
 /// );
 /// ```
 class DefaultFirebaseOptions {
+  static FirebaseOptions? _webOptions;
+
+  static void setWebOptions(FirebaseOptions options) {
+    _webOptions = options;
+  }
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      if (_webOptions != null) return _webOptions!;
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -49,6 +53,16 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyAnaRtyA2a2L9XxlL-CWZY_LBnYPW_hZwA',
+    appId: '1:955944960478:web:a3f65075fdc5282626dd4f',
+    messagingSenderId: '955944960478',
+    projectId: 'techservice-pro-de91c',
+    storageBucket: 'techservice-pro-de91c.firebasestorage.app',
+    authDomain: 'techservice-pro-de91c.firebaseapp.com',
+    measurementId: 'G-34HVF2ZPV2',
+  );
+
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBGgD8WJpClJ0i6yUx1nVWefuydAkG3v9g',
     appId: '1:955944960478:android:a6b8743a936427e026dd4f',
@@ -63,6 +77,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '955944960478',
     projectId: 'techservice-pro-de91c',
     storageBucket: 'techservice-pro-de91c.firebasestorage.app',
-    iosBundleId: 'com.example.techsc',
+    iosBundleId: 'com.example.tscomputer',
   );
 }

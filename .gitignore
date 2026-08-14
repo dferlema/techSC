@@ -49,3 +49,6 @@ app.*.map.json
 **/*.apk
 **/*.jks
 **/*.keystore
+
+# Node (dependencias web generadas por Firebase)
+node_modules/

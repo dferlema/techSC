@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/orders/widgets/admin_order_card.dart';
-import 'package:techsc/features/admin/providers/admin_providers.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/features/orders/widgets/admin_order_card.dart';
+import 'package:tscomputer/features/admin/providers/admin_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class AdminOrdersTab extends ConsumerStatefulWidget {
   const AdminOrdersTab({super.key});
@@ -94,16 +94,20 @@ class _AdminOrdersTabState extends ConsumerState<AdminOrdersTab> {
                 if (docs.isEmpty) {
                   return Center(child: Text(l10n.noMatchesFound));
                 }
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    return AdminOrderCard(
-                      doc: doc,
-                      onDelete: () => _deleteOrder(doc.id, l10n),
-                      statusColorCallback: getStatusColor,
-                    );
-                  },
+                return RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(adminOrdersProvider),
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      return AdminOrderCard(
+                        doc: doc,
+                        onDelete: () => _deleteOrder(doc.id, l10n),
+                        statusColorCallback: getStatusColor,
+                      );
+                    },
+                  ),
                 );
               },
               loading: () => const AppLoadingIndicator(),

@@ -1,4 +1,4 @@
-import 'package:techsc/core/models/config_model.dart';
+import 'package:tscomputer/core/models/config_model.dart';
 
 class BrandingHelper {
   static String _appName = 'TechService Pro';

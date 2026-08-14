@@ -37,7 +37,7 @@ class PayphoneService {
       "service": 0,
       "tip": 0,
       "currency": "USD",
-      "reference": reference ?? "Pago TechSC",
+      "reference": reference ?? "Pago TS Computer",
       "clientTransactionId": clientTransactionId,
       "storeId": storeId,
       if (responseUrl != null) "responseUrl": responseUrl,

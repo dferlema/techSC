@@ -3,9 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:techsc/features/orders/models/quote_model.dart';
-import 'package:techsc/core/models/config_model.dart';
-import 'package:techsc/core/services/config_service.dart';
+import 'package:tscomputer/features/orders/models/quote_model.dart';
+import 'package:tscomputer/core/models/config_model.dart';
+import 'package:tscomputer/core/services/config_service.dart';
 
 class PdfHelper {
   static Future<Uint8List> generateQuotePdf(QuoteModel quote) async {
@@ -118,6 +118,10 @@ class PdfHelper {
   }
 
   static pw.Widget _buildClientSection(QuoteModel quote, pw.Font iconFont) {
+    final paymentText = quote.paymentMethod == 'tarjeta'
+        ? 'TARJETA DE CRÉDITO'
+        : 'EFECTIVO';
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -127,13 +131,26 @@ class PdfHelper {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            'DATOS DEL CLIENTE',
-            style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.blue900,
-            ),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'DATOS DEL CLIENTE',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue900,
+                ),
+              ),
+              pw.Text(
+                'FORMA DE PAGO: $paymentText',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue900,
+                ),
+              ),
+            ],
           ),
           pw.SizedBox(height: 8),
           pw.Row(

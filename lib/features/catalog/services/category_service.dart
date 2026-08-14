@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/core/services/cache_service.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
 import 'dart:async';
 
 /// Service to manage product and service categories in Firestore.
@@ -54,7 +55,8 @@ class CategoryService {
   // Create new category
   Future<void> addCategory(String name, CategoryType type) async {
     final category = CategoryModel(id: '', name: name, type: type);
-    await _db.collection(_collection).add(category.toFirestore());
+    final id = await DocumentIdService().generateId(prefix: 'cat');
+    await _db.collection(_collection).doc(id).set(category.toFirestore());
   }
 
   // Update category

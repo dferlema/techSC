@@ -29,9 +29,9 @@ def process_file(path):
     if content != original_content:
         imports = []
         if 'AppLoadingIndicator' in content and 'app_loading_indicator.dart' not in content:
-            imports.append("import 'package:techsc/core/widgets/app_loading_indicator.dart';")
+            imports.append("import 'package:tscomputer/core/widgets/app_loading_indicator.dart';")
         if 'AppErrorWidget' in content and 'app_error_widget.dart' not in content:
-            imports.append("import 'package:techsc/core/widgets/app_error_widget.dart';")
+            imports.append("import 'package:tscomputer/core/widgets/app_error_widget.dart';")
         
         if imports:
             # find last import

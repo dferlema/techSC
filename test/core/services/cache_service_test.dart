@@ -1,18 +1,24 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_test/hive_test.dart';
-import 'package:techsc/core/services/cache_service.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
 
 void main() {
   late CacheService cacheService;
+  late Directory tempDir;
 
   setUp(() async {
-    await setUpTestHive();
+    // path_provider no está disponible en tests unitarios; usamos el
+    // directorio temporal del sistema y lo inyectamos a init(path:).
+    tempDir = await Directory.systemTemp.createTemp('cache_test');
     cacheService = CacheService();
-    await cacheService.init();
+    await cacheService.init(path: tempDir.path);
   });
 
   tearDown(() async {
-    await tearDownTestHive();
+    try {
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   group('CacheService - User Profile', () {

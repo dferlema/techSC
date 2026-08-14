@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:techsc/core/services/notification_service.dart';
-import 'package:techsc/features/orders/utils/supplier_order_helper.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/features/accounting/models/transaction_model.dart';
+import 'package:tscomputer/features/accounting/services/accounting_service.dart';
+import 'package:tscomputer/features/orders/services/order_service.dart';
+import 'package:tscomputer/features/orders/utils/supplier_order_helper.dart';
 
 /// Tarjeta expandible que muestra los detalles de un pedido en el panel de administración.
 ///
@@ -86,15 +89,65 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
 
   Future<void> _savePaymentDetails() async {
     try {
+      final updates = <String, dynamic>{
+        'paymentMethod': _paymentMethod,
+        'financialInstitution': _institutionController.text.trim(),
+        'paymentVoucher': _voucherController.text.trim(),
+        'isPaid': _isPaid,
+      };
+
+      if (_isPaid) {
+        final order = await FirebaseFirestore.instance
+            .collection('orders')
+            .doc(widget.doc.id)
+            .get();
+        final orderData = order.data();
+        final total = (orderData?['total'] as num?)?.toDouble() ?? 0.0;
+        final totalPaid = (orderData?['totalPaid'] as num?)?.toDouble() ?? 0.0;
+        final remaining = (total - totalPaid).clamp(0.0, double.infinity);
+        updates['paymentStatus'] = 'paid';
+        updates['paidAmount'] = total;
+        if (totalPaid >= total) {
+          // Ya está cubierto por abonos
+        } else if (totalPaid > 0) {
+          // Verificar si el ingreso completo ya fue registrado (order_$id)
+          final fullIncomeId = 'order_${widget.doc.id}';
+          final fullIncomeDoc = await FirebaseFirestore.instance
+              .collection('accounting_transactions')
+              .doc(fullIncomeId)
+              .get();
+          if (!fullIncomeDoc.exists) {
+            // Ingreso completo no registrado aún, registrar solo el saldo
+            final originalQuote = orderData?['originalQuote'] as Map<String, dynamic>?;
+            final applyTax = originalQuote?['applyTax'] == true;
+            final taxRate = applyTax ? 0.15 : 0.0;
+            final subtotal = applyTax ? remaining / 1.15 : remaining;
+            final vatAmount = applyTax ? remaining - subtotal : 0.0;
+            final tx = TransactionModel(
+              id: 'order_remaining_${widget.doc.id}',
+              type: TransactionType.ingreso,
+              category: 'Venta',
+              amount: subtotal,
+              vatAmount: vatAmount,
+              vatRate: taxRate,
+              total: remaining,
+              date: DateTime.now(),
+              description: 'Saldo restante pedido #${widget.doc.id.length > 8 ? widget.doc.id.substring(0, 8) : widget.doc.id}',
+              referenceId: widget.doc.id,
+            );
+            await AccountingService().saveTransaction(tx);
+          }
+          // Si el ingreso completo ya existe, no duplicar
+        } else {
+          await OrderService().registerOrderIncome(widget.doc.id);
+        }
+      }
+
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(widget.doc.id)
-          .update({
-            'paymentMethod': _paymentMethod,
-            'financialInstitution': _institutionController.text.trim(),
-            'paymentVoucher': _voucherController.text.trim(),
-            'isPaid': _isPaid,
-          });
+          .update(updates);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Detalles de pago actualizados')),
@@ -107,6 +160,190 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
         ).showSnackBar(SnackBar(content: Text('Error al guardar pago: $e')));
       }
     }
+  }
+
+  /// Muestra el diálogo para registrar un nuevo abono del cliente.
+  Future<void> _showAddPaymentDialog(double orderTotal, double totalPaid) async {
+    final amountController = TextEditingController();
+    final institutionController = TextEditingController();
+    final voucherController = TextEditingController();
+    final noteController = TextEditingController();
+    String method = 'efectivo';
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8C00).withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.payments_outlined,
+                    color: Color(0xFFFF8C00),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text('Registrar Abono', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Saldo pendiente referencia
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Saldo pendiente',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                        Text(
+                          '\$${(orderTotal - totalPaid).clamp(0, double.infinity).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Monto del abono
+                  TextField(
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Monto del abono *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Método de pago
+                  DropdownButtonFormField<String>(
+                    initialValue: method,
+                    decoration: const InputDecoration(
+                      labelText: 'Método de Pago',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.payment),
+                      isDense: true,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'efectivo', child: Text('Efectivo')),
+                      DropdownMenuItem(value: 'transferencia', child: Text('Transferencia')),
+                      DropdownMenuItem(value: 'payphone', child: Text('Payphone')),
+                      DropdownMenuItem(value: 'credito', child: Text('Crédito')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setDlg(() => method = v);
+                    },
+                  ),
+                  if (method == 'transferencia') ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: institutionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Institución Financiera',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.account_balance),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: voucherController,
+                      decoration: const InputDecoration(
+                        labelText: 'Número de Comprobante',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.receipt_long),
+                        isDense: true,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nota (opcional)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.edit_note),
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF8C00),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Registrar'),
+                onPressed: () async {
+                  final amountText = amountController.text.trim();
+                  final amount = double.tryParse(amountText.replaceAll(',', '.'));
+                  if (amount == null || amount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('⚠️ Ingrese un monto válido')),
+                    );
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  try {
+                    await OrderService().registerPayment(
+                      orderId: widget.doc.id,
+                      amount: amount,
+                      method: method,
+                      institution: institutionController.text.trim(),
+                      voucher: voucherController.text.trim(),
+                      note: noteController.text.trim(),
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✅ Abono de \$${amount.toStringAsFixed(2)} registrado'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('❌ Error: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _fetchProductDetails() async {
@@ -157,8 +394,38 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
     }
   }
 
-  Future<void> _updateItemCost(int index, double newCost) async {
-    try {
+  /// Confirmación con advertencias contables antes de entregar un pedido.
+  Future<bool?> _confirmOrderAccounting(double total) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Entregar pedido'),
+        content: Text(
+          'Al marcar como ENTREGADO se generarán los siguientes asientos contables:\n\n'
+          '• Venta por \$ ${total.toStringAsFixed(2)} (ingreso 4.x y CxC)\n'
+          '• IVA en ventas (si aplica)\n'
+          '• COGS (costo de venta) y baja de inventario\n\n'
+          '¿Deseas continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Entregar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateItemCost(int index, double newCost) async {    try {
       final data = widget.doc.data() as Map<String, dynamic>;
       final originalQuote = data['originalQuote'] as Map<String, dynamic>?;
       final items = List<Map<String, dynamic>>.from(
@@ -559,16 +826,13 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
                                   onTap: () =>
                                       _launchWhatsApp(userName, userPhone),
                                   borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    child: SvgPicture.network(
-                                      'https://static.whatsapp.net/rsrc.php/yZ/r/JvsnINJ2CZv.svg',
-                                      width: 24,
-                                      height: 24,
-                                      placeholderBuilder: (_) => const Icon(
-                                        Icons.phone,
-                                        color: Colors.green,
-                                      ),
+                                  child: Image.asset(
+                                    'assets/images/whatsapp_icon.png',
+                                    width: 24,
+                                    height: 24,
+                                    errorBuilder: (context, error, stackTrace) => const Icon(
+                                      Icons.phone,
+                                      color: Colors.green,
                                     ),
                                   ),
                                 ),
@@ -597,10 +861,10 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
                     decoration: BoxDecoration(
                       color: const Color(
                         0xFF005696,
-                      ).withOpacity(0.1), // Color oficial Payphone
+                      ).withValues(alpha: 0.1), // Color oficial Payphone
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFF005696).withOpacity(0.3),
+                        color: const Color(0xFF005696).withValues(alpha: 0.3),
                       ),
                     ),
                     child: const Row(
@@ -718,6 +982,290 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
                 ],
                 const Divider(),
 
+                // --- Sección de Abonos ---
+                StreamBuilder<QuerySnapshot>(
+                  stream: OrderService().getPaymentsStream(widget.doc.id),
+                  builder: (context, paymentsSnap) {
+                    if (paymentsSnap.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.error_outline, color: Colors.orange, size: 32),
+                              const SizedBox(height: 8),
+                              Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Text('${paymentsSnap.error}', style: TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    final payments = paymentsSnap.data?.docs ?? [];
+                    final totalPaid =
+                        (data['totalPaid'] as num?)?.toDouble() ?? 0.0;
+                    final balance =
+                        (data['balance'] as num?)?.toDouble() ??
+                        (total - totalPaid).clamp(0.0, double.infinity);
+                    final progress =
+                        total > 0
+                            ? (totalPaid / total).clamp(0.0, 1.0)
+                            : 0.0;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF8C00).withAlpha(25),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Icon(
+                                    Icons.payments_outlined,
+                                    size: 16,
+                                    color: Color(0xFFFF8C00),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Abonos del Cliente',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (!isLocked)
+                              TextButton.icon(
+                                onPressed: () =>
+                                    _showAddPaymentDialog(total, totalPaid),
+                                icon: const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 18,
+                                  color: Color(0xFFFF8C00),
+                                ),
+                                label: const Text(
+                                  'Agregar',
+                                  style: TextStyle(color: Color(0xFFFF8C00)),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Barra de progreso de pago
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                minHeight: 10,
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  progress >= 1.0
+                                      ? Colors.green
+                                      : const Color(0xFFFF8C00),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Pagado: \$${totalPaid.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  'Total: \$${total.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            // Saldo pendiente
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: balance <= 0
+                                    ? Colors.green.shade50
+                                    : Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: balance <= 0
+                                      ? Colors.green.shade200
+                                      : Colors.orange.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        balance <= 0
+                                            ? Icons.check_circle_outline
+                                            : Icons.pending_outlined,
+                                        size: 14,
+                                        color: balance <= 0
+                                            ? Colors.green.shade700
+                                            : Colors.orange.shade700,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        balance <= 0
+                                            ? 'Saldo: PAGADO'
+                                            : 'Saldo pendiente:',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: balance <= 0
+                                              ? Colors.green.shade700
+                                              : Colors.orange.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (balance > 0)
+                                    Text(
+                                      '\$${balance.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Lista de abonos
+                        if (payments.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ...payments.map((p) {
+                            final pd = p.data() as Map<String, dynamic>;
+                            final pAmount =
+                                (pd['amount'] as num?)?.toDouble() ?? 0.0;
+                            final pMethod = pd['method'] ?? 'efectivo';
+                            final pNote = pd['note'] ?? '';
+                            final pVoucher = pd['voucher'] ?? '';
+                            final pDate =
+                                (pd['date'] as Timestamp?)?.toDate() ??
+                                DateTime.now();
+                            final methodIcon = {
+                              'transferencia': Icons.account_balance,
+                              'payphone': Icons.phone_android,
+                              'efectivo': Icons.payments,
+                            }[pMethod] ?? Icons.payments;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.grey.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    methodIcon,
+                                    size: 16,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${pDate.day}/${pDate.month}/${pDate.year} • ${pMethod[0].toUpperCase()}${pMethod.substring(1)}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        if (pVoucher.isNotEmpty)
+                                          Text(
+                                            'Voucher: $pVoucher',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.blueGrey,
+                                            ),
+                                          ),
+                                        if (pNote.isNotEmpty)
+                                          Text(
+                                            pNote,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade700,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${pAmount.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ] else
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'Sin abonos registrados',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        const Divider(),
+                      ],
+                    );
+                  },
+                ),
+
                 // Estado
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -754,10 +1302,15 @@ class _AdminOrderCardState extends State<AdminOrderCard> {
                           ? null
                           : (newStatus) async {
                               if (newStatus != null) {
-                                await FirebaseFirestore.instance
-                                    .collection('orders')
-                                    .doc(widget.doc.id)
-                                    .update({'status': newStatus});
+                                // BLOQUE 9.2: advertencia contable pre-asiento
+                                if (newStatus == 'entregado') {
+                                  final proceed = await _confirmOrderAccounting(total);
+                                  if (proceed != true) return;
+                                }
+                                await OrderService().updateOrderStatus(
+                                  widget.doc.id,
+                                  newStatus,
+                                );
 
                                 // Notificar cambio de estado
                                 if (userId != null) {

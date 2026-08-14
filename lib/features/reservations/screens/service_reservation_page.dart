@@ -9,12 +9,15 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/core/services/notification_service.dart';
-import 'package:techsc/core/widgets/notification_icon.dart';
-import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/widgets/notification_icon.dart';
+import 'package:tscomputer/core/widgets/cart_badge.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
 
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/core/providers/ai_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Pantalla para reservar servicio técnico.
@@ -56,6 +59,13 @@ class _ServiceReservationPageState
 
   // Estado para controlar si el formulario de reserva ha comenzado
   bool _isReservationStarted = false;
+
+  // --- Búsqueda de clientes (solo modo manual) ---
+  final _clientSearchController = TextEditingController();
+  List<Map<String, dynamic>> _clientSearchResults = [];
+  bool _isSearchingClient = false;
+  bool _clientSelected = false;
+  String? _selectedClientId;
 
   // Lista de servicios disponibles para el dropdown
   final List<String> _services = [
@@ -201,6 +211,67 @@ class _ServiceReservationPageState
     }
   }
 
+  /// Busca clientes en Firestore por nombre, cédula o email.
+  Future<void> _searchClients(String query) async {
+    if (query.trim().length < 2) {
+      setState(() {
+        _clientSearchResults = [];
+        _isSearchingClient = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearchingClient = true);
+
+    try {
+      final q = query.trim().toLowerCase();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .limit(40)
+          .get();
+
+      final results = snapshot.docs
+          .map((doc) => {'uid': doc.id, ...doc.data()})
+          .where((u) {
+            final name = (u['name'] ?? '').toString().toLowerCase();
+            final cedula = (u['id'] ?? '').toString().toLowerCase();
+            final email = (u['email'] ?? '').toString().toLowerCase();
+            final phone = (u['phone'] ?? '').toString().toLowerCase();
+            return name.contains(q) ||
+                cedula.contains(q) ||
+                email.contains(q) ||
+                phone.contains(q);
+          })
+          .take(8)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _clientSearchResults = results;
+          _isSearchingClient = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isSearchingClient = false);
+    }
+  }
+
+  /// Rellena los campos del formulario con los datos del cliente seleccionado.
+  void _fillFromClient(Map<String, dynamic> client) {
+    setState(() {
+      _nameController.text = client['name'] ?? '';
+      _idController.text = client['id'] ?? '';
+      _emailController.text = client['email'] ?? '';
+      _phoneController.text = client['phone'] ?? '';
+      _addressController.text = client['address'] ?? '';
+      _clientSearchController.text =
+          '${client['name'] ?? ''} — ${client['id'] ?? ''}';
+      _clientSearchResults = [];
+      _clientSelected = true;
+      _selectedClientId = client['uid'] as String?;
+    });
+  }
+
   /// Libera los recursos de los controladores cuando se cierra la pantalla.
   @override
   void dispose() {
@@ -213,6 +284,7 @@ class _ServiceReservationPageState
     _problemController.dispose();
     _dateController.dispose();
     _timeController.dispose();
+    _clientSearchController.dispose();
     super.dispose();
   }
 
@@ -395,14 +467,9 @@ class _ServiceReservationPageState
     );
   }
 
-  /// Genera un ID único para la reserva (RyyyyMMdd-HHmmss-XXXX)
-  String _generateReservationId() {
-    final now = DateTime.now();
-    final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
-    final randomSuffix = DateTime.now().microsecondsSinceEpoch
-        .toString()
-        .substring(10); // Útimos 6 dígitos de microsegundos
-    return 'R$datePrefix-$randomSuffix';
+  /// Genera un ID único para la reserva (RYYYYMMDD-0001)
+  Future<String> _generateReservationId() async {
+    return DocumentIdService().generateId(prefix: 'R', useDate: true, digits: 4);
   }
 
   /// Valida el formulario y guarda la reserva en Firebase Firestore.
@@ -436,9 +503,8 @@ class _ServiceReservationPageState
       // Recopilar datos del formulario
       final reservationData = {
         'userId': widget.isManualRegistration
-            ? 'manual_by_tech'
-            : _currentUser
-                  ?.uid, // Vincular al usuario actual o marcar como manual
+            ? (_selectedClientId ?? 'manual_by_tech')
+            : _currentUser?.uid,
         'clientName': _nameController.text.trim(),
         'clientEmail': _emailController.text.trim(),
         'clientPhone': _phoneController.text.trim(),
@@ -455,12 +521,13 @@ class _ServiceReservationPageState
             : null,
         'scheduledDate': _selectedDate,
         'scheduledTime': _selectedTime!.format(context),
-        'status': 'pendiente', // Estado inicial
+        'selectedClientId': _selectedClientId,
+        'status': 'pendiente',
         'createdAt': FieldValue.serverTimestamp(),
       };
 
       // 4. Generar ID único para la reserva
-      final reservationId = _generateReservationId();
+      final reservationId = await _generateReservationId();
 
       await FirebaseFirestore.instance
           .collection('reservations')
@@ -608,6 +675,199 @@ class _ServiceReservationPageState
     );
   }
 
+  /// Widget buscador de clientes (solo visible en registro manual)
+  Widget _buildClientSearchCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.manage_search, color: Colors.blue.shade700, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _clientSelected
+                      ? 'Cliente seleccionado ✓'
+                      : 'Buscar Cliente Existente',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.blue.shade900,
+                  ),
+                ),
+              ),
+              if (_clientSelected)
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _clientSelected = false;
+                    _clientSearchController.clear();
+                    _clientSearchResults = [];
+                    _selectedClientId = null;
+                  }),
+                  child: Icon(Icons.clear, color: Colors.blue.shade600, size: 20),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Buscar por nombre, cédula, email o teléfono',
+            style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _clientSearchController,
+            readOnly: _clientSelected,
+            onChanged: _searchClients,
+            decoration: InputDecoration(
+              hintText: 'Ej: Diego Lema o 1712345678',
+              prefixIcon: _isSearchingClient
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    )
+                  : Icon(Icons.search, color: Colors.blue.shade700),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.blue.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.blue.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
+              ),
+            ),
+          ),
+
+          // Lista de resultados
+          if (_clientSearchResults.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: _clientSearchResults.map((client) {
+                    final name = (client['name'] ?? '—').toString();
+                    final cedula = (client['id'] ?? '').toString();
+                    final email = (client['email'] ?? '').toString();
+                    final phone = (client['phone'] ?? '').toString();
+                    return InkWell(
+                      onTap: () => _fillFromClient(client),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.blue.shade100,
+                              child: Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${cedula.isNotEmpty ? 'CI: $cedula' : ''}'
+                                    '${cedula.isNotEmpty && phone.isNotEmpty ? '  ·  ' : ''}'
+                                    '${phone.isNotEmpty ? '📞 $phone' : ''}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  if (email.isNotEmpty)
+                                    Text(
+                                      email,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 14,
+                              color: Colors.blue.shade400,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            )
+          else if (!_isSearchingClient &&
+              _clientSearchController.text.trim().length >= 2 &&
+              !_clientSelected)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.blue.shade500),
+                  const SizedBox(width: 6),
+                  Text(
+                    'No se encontraron clientes. Ingresa los datos manualmente.',
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -654,6 +914,35 @@ class _ServiceReservationPageState
             ? _buildReservationForm()
             : _buildWelcomeScreen(),
       ),
+      floatingActionButton: _isReservationStarted
+          ? Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom > 0
+                    ? MediaQuery.of(context).padding.bottom + 12
+                    : 28,
+                right: 8,
+              ),
+              child: FloatingActionButton(
+                onPressed: _saveReservation,
+                elevation: 6,
+                shape: const CircleBorder(),
+                child: Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [AppColors.primaryBlue, AppColors.accentBlue],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(Icons.check_rounded, color: Colors.white, size: 26),
+                ),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -765,7 +1054,6 @@ class _ServiceReservationPageState
   }
 
   Widget _buildReservationForm() {
-    final theme = Theme.of(context);
     return SingleChildScrollView(
       key: const ValueKey('form'),
       padding: const EdgeInsets.all(16.0),
@@ -774,6 +1062,13 @@ class _ServiceReservationPageState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            // --- Buscador de clientes (solo modo manual) ---
+            if (widget.isManualRegistration) ...[  
+              _buildClientSearchCard(),
+              const Divider(height: 32),
+            ],
+
             // --- Sección 1: Información Personal ---
             Text(
               AppLocalizations.of(context)!.personalInfoSection,
@@ -944,11 +1239,15 @@ class _ServiceReservationPageState
                 ),
               ),
               maxLines: 4,
+              onChanged: (_) => setState(() {}),
               validator: (v) => v!.trim().isEmpty
                   ? AppLocalizations.of(context)!.describeProblemLabelRequired
                   : null,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+
+            // Sugerencias de diagnóstico IA
+            _buildDiagnosisSuggestions(),
 
             const Divider(),
             const SizedBox(height: 16),
@@ -1084,35 +1383,80 @@ class _ServiceReservationPageState
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            // --- Botón Principal de Guardado ---
-            ElevatedButton(
-              onPressed: _saveReservation,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.secondary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 4,
-                shadowColor: Colors.blueAccent.withAlpha(102),
-                minimumSize: const Size(double.infinity, 55),
-              ),
-              child: Text(
-                AppLocalizations.of(context)!.confirmReservationButton,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 80),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDiagnosisSuggestions() {
+    final problem = _problemController.text.trim();
+    if (problem.length < 5) return const SizedBox.shrink();
+
+    final diagAsync = ref.watch(diagnosisProvider(problem));
+    return diagAsync.when(
+      data: (suggestions) {
+        if (suggestions.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 16, color: Colors.amber[700]),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Sugerencias de diagnóstico',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ...suggestions.take(2).map((s) => Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.lightbulb_outline,
+                        size: 18, color: Colors.amber[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        s['solution'] as String,
+                        style: const TextStyle(fontSize: 12, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+            ],
+          ),
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 8),
+            Text('Buscando soluciones similares...',
+                style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 

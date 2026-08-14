@@ -4,45 +4,49 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'firebase_options.dart';
 
-import 'package:techsc/core/services/preferences_service.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
-import 'package:techsc/core/theme/app_theme.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/core/services/config_service.dart';
-import 'package:techsc/core/services/deep_link_service.dart';
-import 'package:techsc/core/services/notification_service.dart';
+import 'package:tscomputer/core/services/preferences_service.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/theme/app_theme.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/services/config_service.dart';
+import 'package:tscomputer/core/services/deep_link_service.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
 
-import 'package:techsc/features/home/screens/splash_screen.dart';
-import 'package:techsc/features/home/screens/onboarding_screen.dart';
-import 'package:techsc/features/auth/screens/login_page.dart';
-import 'package:techsc/features/auth/screens/register_page.dart';
-import 'package:techsc/features/auth/screens/forgot_password_page.dart';
-import 'package:techsc/features/home/screens/main_tabs_screen.dart';
-import 'package:techsc/features/admin/screens/admin_panel_page.dart';
-import 'package:techsc/features/reservations/screens/technician_dashboard.dart';
-import 'package:techsc/features/home/screens/contact_page.dart';
-import 'package:techsc/features/catalog/screens/products_page.dart';
-import 'package:techsc/features/reservations/screens/my_reservations_page.dart';
-import 'package:techsc/features/reservations/screens/services_page.dart';
-import 'package:techsc/features/profile/screens/profile_edit_page.dart';
-import 'package:techsc/features/admin/screens/reports_page.dart';
-import 'package:techsc/features/orders/screens/quote_list_page.dart';
-import 'package:techsc/features/orders/screens/create_quote_page.dart';
-import 'package:techsc/features/admin/screens/settings_page.dart';
-import 'package:techsc/features/catalog/screens/category_management_page.dart';
-import 'package:techsc/features/admin/screens/marketing_campaign_page.dart';
-import 'package:techsc/features/admin/screens/app_colors_config_page.dart';
-import 'package:techsc/features/home/screens/legal_info_page.dart';
-import 'package:techsc/core/services/cache_service.dart';
-import 'package:techsc/features/cart/screens/cart_page.dart';
-import 'package:techsc/features/orders/screens/my_orders_page.dart';
-import 'package:techsc/features/inventory/screens/inventory_reports_page.dart';
-import 'package:techsc/features/catalog/screens/supplier_management_page.dart';
-import 'package:techsc/features/home/screens/notifications_page.dart';
+import 'package:tscomputer/features/home/screens/splash_screen.dart';
+import 'package:tscomputer/features/home/screens/onboarding_screen.dart';
+import 'package:tscomputer/features/auth/screens/login_page.dart';
+import 'package:tscomputer/features/auth/screens/register_page.dart';
+import 'package:tscomputer/features/auth/screens/forgot_password_page.dart';
+import 'package:tscomputer/features/home/screens/main_tabs_screen.dart';
+import 'package:tscomputer/features/admin/screens/admin_panel_page.dart';
+import 'package:tscomputer/features/reservations/screens/technician_dashboard.dart';
+import 'package:tscomputer/features/home/screens/contact_page.dart';
+import 'package:tscomputer/features/catalog/screens/products_page.dart';
+import 'package:tscomputer/features/reservations/screens/my_reservations_page.dart';
+import 'package:tscomputer/features/reservations/screens/services_page.dart';
+import 'package:tscomputer/features/profile/screens/profile_edit_page.dart';
+import 'package:tscomputer/features/admin/screens/reports_page.dart';
+import 'package:tscomputer/features/orders/screens/quote_list_page.dart';
+import 'package:tscomputer/features/orders/screens/create_quote_page.dart';
+import 'package:tscomputer/features/admin/screens/settings_page.dart';
+import 'package:tscomputer/features/catalog/screens/category_management_page.dart';
+import 'package:tscomputer/features/admin/screens/marketing_campaign_page.dart';
+import 'package:tscomputer/features/admin/screens/app_colors_config_page.dart';
+import 'package:tscomputer/features/accounting/screens/accounting_home_page.dart';
+import 'package:tscomputer/features/home/screens/legal_info_page.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
+import 'package:tscomputer/core/services/connectivity_service.dart';
+import 'package:tscomputer/features/cart/screens/cart_page.dart';
+import 'package:tscomputer/features/orders/screens/my_orders_page.dart';
+import 'package:tscomputer/features/inventory/screens/inventory_reports_page.dart';
+import 'package:tscomputer/features/catalog/screens/supplier_management_page.dart';
+import 'package:tscomputer/features/home/screens/notifications_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +67,19 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
+    // Habilitar persistencia offline de Firestore (no soportado en web)
+    if (!kIsWeb) {
+      try {
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        );
+        debugPrint("Firestore offline persistence enabled.");
+      } catch (e) {
+        debugPrint("Failed to enable Firestore persistence: $e");
+      }
+    }
+
     // Initialize Dynamic Colors
     try {
       final configService = ConfigService();
@@ -81,11 +98,18 @@ void main() async {
     }
   }
 
-  // Initialize Deep Link Service
-  DeepLinkService().init();
+  // Initialize Deep Link Service (native only)
+  if (!kIsWeb) {
+    DeepLinkService().init();
+  }
 
-  // Initialize Notification Service
-  await NotificationService().initialize();
+  // Initialize Connectivity Service
+  ConnectivityService().initialize();
+
+  // Initialize Notification Service (native only)
+  if (!kIsWeb) {
+    await NotificationService().initialize();
+  }
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -146,6 +170,7 @@ class MyApp extends StatelessWidget {
             '/my-orders': (context) => const MyOrdersPage(),
             '/inventory-reports': (context) => const InventoryReportsPage(),
             '/supplier-management': (context) => const SupplierManagementPage(),
+            '/accounting': (context) => const AccountingHomePage(),
             '/notifications': (context) => const NotificationsPage(),
           },
         );

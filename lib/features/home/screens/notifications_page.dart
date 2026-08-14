@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/models/notification_model.dart';
-import 'package:techsc/core/providers/notification_providers.dart';
-import 'package:techsc/core/services/deep_link_service.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/orders/models/quote_model.dart';
-import 'package:techsc/features/orders/screens/order_detail_page.dart';
-import 'package:techsc/features/orders/screens/quote_detail_page.dart';
-import 'package:techsc/features/reservations/models/reservation_model.dart';
-import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/models/notification_model.dart';
+import 'package:tscomputer/core/providers/notification_providers.dart';
+import 'package:tscomputer/core/services/deep_link_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/features/orders/models/quote_model.dart';
+import 'package:tscomputer/features/orders/screens/order_detail_page.dart';
+import 'package:tscomputer/features/orders/screens/quote_detail_page.dart';
+import 'package:tscomputer/features/reservations/models/reservation_model.dart';
+import 'package:tscomputer/features/reservations/screens/reservation_detail_page.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
@@ -127,68 +127,72 @@ class NotificationsPage extends ConsumerWidget {
             );
           }
 
-          return ListView.separated(
-            itemCount: notifications.length,
-            separatorBuilder: (ctx, i) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final notification = notifications[index];
-              return Dismissible(
-                key: Key(notification.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  color: Colors.red,
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                onDismissed: (direction) {
-                  notificationService.deleteNotification(notification.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notificación eliminada')),
-                  );
-                },
-                child: ListTile(
-                  tileColor: notification.isRead
-                      ? Colors.transparent
-                      : AppColors.primaryBlue.withAlpha(13),
-                  leading: CircleAvatar(
-                    backgroundColor: _getIconColor(notification.type),
-                    child: Icon(
-                      _getIcon(notification.type),
-                      color: Colors.white,
-                    ),
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(notificationsProvider),
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: notifications.length,
+              separatorBuilder: (ctx, i) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final notification = notifications[index];
+                return Dismissible(
+                  key: Key(notification.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    color: Colors.red,
+                    child: const Icon(Icons.delete, color: Colors.white),
                   ),
-                  title: Text(
-                    notification.title,
-                    style: TextStyle(
-                      fontWeight: notification.isRead
-                          ? FontWeight.normal
-                          : FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(notification.body),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat(
-                          'dd/MM/yyyy HH:mm',
-                        ).format(notification.createdAt),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    if (!notification.isRead) {
-                      notificationService.markAsRead(notification.id);
-                    }
-                    _handleNotificationTap(context, notification);
+                  onDismissed: (direction) {
+                    notificationService.deleteNotification(notification.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notificación eliminada')),
+                    );
                   },
-                ),
-              );
-            },
+                  child: ListTile(
+                    tileColor: notification.isRead
+                        ? Colors.transparent
+                        : AppColors.primaryBlue.withAlpha(13),
+                    leading: CircleAvatar(
+                      backgroundColor: _getIconColor(notification.type),
+                      child: Icon(
+                        _getIcon(notification.type),
+                        color: Colors.white,
+                      ),
+                    ),
+                    title: Text(
+                      notification.title,
+                      style: TextStyle(
+                        fontWeight: notification.isRead
+                            ? FontWeight.normal
+                            : FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(notification.body),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat(
+                            'dd/MM/yyyy HH:mm',
+                          ).format(notification.createdAt),
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      if (!notification.isRead) {
+                        notificationService.markAsRead(notification.id);
+                      }
+                      _handleNotificationTap(context, notification);
+                    },
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

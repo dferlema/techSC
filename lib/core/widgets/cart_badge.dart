@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/features/cart/screens/cart_page.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/features/cart/screens/cart_page.dart';
 
 class CartBadge extends ConsumerWidget {
   final Color color;

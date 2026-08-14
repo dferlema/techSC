@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 // ---------------------------------------------------------------------------
 // Dashboard de Configuraciones
@@ -167,6 +167,12 @@ class SettingsDashboardView extends ConsumerWidget {
           label: l10n.integrationsTab,
           icon: Icons.integration_instructions_outlined,
           color: const Color(0xFF1B5E20),
+        ),
+        _QuickSection(
+          index: 7,
+          label: 'Mantenimiento',
+          icon: Icons.build_outlined,
+          color: const Color(0xFFB71C1C),
         ),
       ]);
     }

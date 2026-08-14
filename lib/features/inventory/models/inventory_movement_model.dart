@@ -37,6 +37,14 @@ class InventoryMovementModel {
   final String userId;
   final int previousStock;
   final int newStock;
+  final double? unitCost;
+  final String? supplierName;
+  final String? supplierId;
+  final String? documentType;
+  final String? documentNumber;
+  final String? inventoryAccountCode;
+  final String? paymentType;
+  final double? vatRate;
 
   InventoryMovementModel({
     required this.id,
@@ -48,6 +56,14 @@ class InventoryMovementModel {
     required this.userId,
     required this.previousStock,
     required this.newStock,
+    this.unitCost,
+    this.supplierName,
+    this.supplierId,
+    this.documentType,
+    this.documentNumber,
+    this.inventoryAccountCode,
+    this.paymentType,
+    this.vatRate,
   });
 
   factory InventoryMovementModel.fromFirestore(DocumentSnapshot doc) {
@@ -75,6 +91,14 @@ class InventoryMovementModel {
       userId: data['userId'] ?? '',
       previousStock: (data['previousStock'] as num?)?.toInt() ?? 0,
       newStock: (data['newStock'] as num?)?.toInt() ?? 0,
+      unitCost: (data['unitCost'] as num?)?.toDouble(),
+      supplierName: data['supplierName'],
+      supplierId: data['supplierId'],
+      documentType: data['documentType'],
+      documentNumber: data['documentNumber'],
+      inventoryAccountCode: data['inventoryAccountCode'],
+      paymentType: data['paymentType'],
+      vatRate: (data['vatRate'] as num?)?.toDouble(),
     );
   }
 
@@ -88,6 +112,14 @@ class InventoryMovementModel {
       'userId': userId,
       'previousStock': previousStock,
       'newStock': newStock,
+      'unitCost': unitCost,
+      'supplierName': supplierName,
+      'supplierId': supplierId,
+      'documentType': documentType,
+      'documentNumber': documentNumber,
+      'inventoryAccountCode': inventoryAccountCode,
+      'paymentType': paymentType,
+      'vatRate': vatRate,
     };
   }
 
@@ -102,6 +134,14 @@ class InventoryMovementModel {
       'userId': userId,
       'previousStock': previousStock,
       'newStock': newStock,
+      'unitCost': unitCost,
+      'supplierName': supplierName,
+      'supplierId': supplierId,
+      'documentType': documentType,
+      'documentNumber': documentNumber,
+      'inventoryAccountCode': inventoryAccountCode,
+      'paymentType': paymentType,
+      'vatRate': vatRate,
     };
   }
 }

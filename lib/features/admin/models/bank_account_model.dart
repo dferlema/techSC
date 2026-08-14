@@ -43,11 +43,11 @@ class BankAccount {
 
   String toWhatsAppString() {
     return '''*DATOS DE PAGO*
-🏦 *Banco:* $bankName
+🏦 *Institución:* $bankName
 📄 *Tipo:* $accountType
-🔢 *Número:* $accountNumber
+🔢 *Cuenta Nro.:* $accountNumber
 👤 *Titular:* $holderName
-🆔 *CI/RUC:* $holderId
+🆔 *Cédula:* $holderId
 📧 *Correo:* $holderEmail''';
   }
 }

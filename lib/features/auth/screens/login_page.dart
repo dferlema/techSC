@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Necesario para ImageFilter
-import 'package:techsc/features/auth/services/auth_service.dart';
-import 'package:techsc/core/services/preferences_service.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:tscomputer/features/auth/services/auth_service.dart';
+import 'package:tscomputer/core/services/preferences_service.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -23,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _hasBiometricHardware = false;
   bool _isBiometricConfigured = false;
   final AuthService _authService = AuthService();
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -42,7 +44,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Cargar email guardado si "Recordarme" está activado
   Future<void> _loadSavedEmail() async {
     final rememberMe = await _preferencesService.getRememberMe();
     if (rememberMe) {
@@ -63,44 +64,24 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _togglePasswordVisibility() {
-    setState(() {
-      _obscurePassword = !_obscurePassword;
-    });
-  }
-
   void _onLoginPressed() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    if (!_formKey.currentState!.validate()) return;
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor ingresa correo y contraseña')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final authService = AuthService();
-      final user = await authService.loginWithEmailAndPassword(
-        email: email,
-        password: password,
+      final user = await _authService.loginWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
       );
 
       if (user != null && mounted) {
-        // 🛡️ Seguridad: Verificar si el correo está confirmado
         if (!user.emailVerified) {
-          await authService.signOut();
+          await _authService.signOut();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Text(
-                  'Por favor verifica tu correo electrónico antes de ingresar.',
-                ),
+                content: const Text('Por favor verifica tu correo electrónico antes de ingresar.'),
                 backgroundColor: AppColors.warning,
                 action: SnackBarAction(
                   label: 'Reenviar',
@@ -110,18 +91,13 @@ class _LoginPageState extends State<LoginPage> {
                       await user.sendEmailVerification();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Correo de verificación enviado.'),
-                          ),
+                          const SnackBar(content: Text('Correo de verificación enviado.')),
                         );
                       }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: $e'),
-                            backgroundColor: AppColors.error,
-                          ),
+                          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
                         );
                       }
                     }
@@ -130,22 +106,19 @@ class _LoginPageState extends State<LoginPage> {
               ),
             );
           }
-          return; // No permitir entrar si no está verificado
+          return;
         }
 
-        // Registrar inicio de sesión para el timeout de 10 min
         await PreferencesService().updateLastActivity();
 
-        // Guardar email si "Recordarme" está marcado
         if (_rememberMe) {
           await _preferencesService.saveRememberMe(true);
-          await _preferencesService.saveEmail(email);
+          await _preferencesService.saveEmail(_emailController.text.trim());
         } else {
           await _preferencesService.clearSavedEmail();
         }
 
-        // 🔐 Verificar si debemos ofrecer configurar biometría
-        await _promptBiometricSetup(email, password);
+        await _promptBiometricSetup(_emailController.text.trim(), _passwordController.text);
 
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/main');
@@ -153,18 +126,11 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text(e.toString()), backgroundColor: AppColors.error),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -173,7 +139,6 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final user = await _authService.loginWithBiometrics();
       if (user != null && mounted) {
-        // Registrar inicio de sesión
         await PreferencesService().updateLastActivity();
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/main');
@@ -181,10 +146,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: AppColors.error,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -192,17 +154,11 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  /// Pregunta al usuario si desea habilitar la autenticación biométrica
   Future<void> _promptBiometricSetup(String email, String password) async {
     try {
-      // 1. Verificar si ya está habilitada
       final alreadyEnabled = await _authService.isBiometricAuthEnabled();
       if (alreadyEnabled) return;
-
-      // 2. Verificar si el hardware biométrico está disponible
       if (!_hasBiometricHardware) return;
-
-      // 3. Mostrar diálogo de confirmación
       if (mounted) {
         final shouldEnable = await showDialog<bool>(
           context: context,
@@ -215,14 +171,10 @@ class _LoginPageState extends State<LoginPage> {
               ],
             ),
             content: const Text(
-              '¿Deseas usar tu huella o rostro para iniciar sesión más rápido la próxima vez?\n\n'
-              'Tus credenciales se guardarán de forma segura en el hardware de tu dispositivo.',
+              '¿Deseas usar tu huella o rostro para iniciar sesión más rápido la próxima vez?',
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Ahora no'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ahora no')),
               ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context, true),
                 icon: const Icon(Icons.check),
@@ -231,403 +183,490 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
         );
-
-        // 4. Si acepta, guardar credenciales
         if (shouldEnable == true) {
           await _authService.saveCredentialsForBiometrics(email, password);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  '✓ Biometría habilitada. Podrás usarla en tu próximo inicio de sesión.',
-                ),
+                content: const Text('✓ Biometría habilitada.'),
                 backgroundColor: AppColors.success,
-                duration: Duration(seconds: 3),
+                duration: const Duration(seconds: 3),
               ),
             );
           }
         }
       }
     } catch (e) {
-      // Silenciosamente ignorar errores en la configuración biométrica
-      // para no interrumpir el flujo de login
       debugPrint('Error al configurar biometría: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Colores base
-    final primaryColor = AppColors.primaryBlue;
-    final accentColor = AppColors.accentBlue;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = kIsWeb && screenWidth > 800;
 
+    if (isWide) {
+      return _buildWideLayout();
+    }
+    return _buildMobileLayout();
+  }
+
+  Widget _buildWideLayout() {
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent, // Transparente total
-        elevation: 0,
-        automaticallyImplyLeading: false, // Sin botón de atrás
-      ),
-      body: Stack(
+      body: Row(
         children: [
-          // 1. Fondo con Gradiente y Formas (Blobs)
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [primaryColor, AppColors.primaryDark, Colors.black87],
-              ),
-            ),
-          ),
-          // Decoración: Círculo brillante arriba izquierda
-          Positioned(
-            top: -100,
-            left: -100,
+          // Left panel - Branding
+          Expanded(
+            flex: 5,
             child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accentColor.withAlpha(102),
-                boxShadow: [
-                  BoxShadow(
-                    color: accentColor.withAlpha(102),
-                    blurRadius: 100,
-                    spreadRadius: 20,
-                  ),
-                ],
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0D1B2A), Color(0xFF1B2838), Color(0xFF0D1B2A)],
+                ),
               ),
-            ),
-          ),
-          // Decoración: Círculo brillante abajo derecha
-          Positioned(
-            bottom: -50,
-            right: -50,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.blueAccent.withAlpha(76),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blueAccent.withAlpha(76),
-                    blurRadius: 100,
-                    spreadRadius: 10,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 2. Contenido con Efecto Glass
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Stack(
                 children: [
-                  // Header: Logo y Texto (Fuera del glass para limpieza)
-                  Icon(
-                    Icons.admin_panel_settings_outlined, // Icono Premium
-                    size: 60,
-                    color: AppColors.white,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    BrandingHelper.appName,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.white,
-                      letterSpacing: 1.5,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(0, 2),
-                          blurRadius: 4.0,
-                          color: Colors.black26,
-                        ),
-                      ],
+                  Positioned(
+                    top: -100,
+                    left: -100,
+                    child: Container(
+                      width: 400,
+                      height: 400,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primaryBlue.withValues(alpha: 0.08),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    AppLocalizations.of(context)!.welcomeBack,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.white.withAlpha(204),
-                      letterSpacing: 0.5,
+                  Positioned(
+                    bottom: -80,
+                    right: -80,
+                    child: Container(
+                      width: 300,
+                      height: 300,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primaryBlue.withValues(alpha: 0.06),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 40),
-
-                  // TARJETA DE CRISTAL (Glassmorphism)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                      child: Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withAlpha(26), // Translucidez
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.white.withAlpha(51),
-                            width: 1.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.black.withAlpha(51),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // Campo Email
-                            TextFormField(
-                              controller: _emailController,
-                              style: TextStyle(color: AppColors.white),
-                              decoration: InputDecoration(
-                                labelText: AppLocalizations.of(
-                                  context,
-                                )!.emailLabel,
-                                labelStyle: TextStyle(
-                                  color: AppColors.white.withAlpha(204),
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.email_outlined,
-                                  color: AppColors.white.withAlpha(230),
-                                ),
-                                filled: true,
-                                fillColor: AppColors.white.withAlpha(26),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 20,
-                                ),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(60),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [AppColors.primaryBlue, AppColors.primaryBlue.withValues(alpha: 0.7)],
                               ),
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Campo Password
-                            TextFormField(
-                              controller: _passwordController,
-                              obscureText: _obscurePassword,
-                              style: TextStyle(color: AppColors.white),
-                              decoration: InputDecoration(
-                                labelText: AppLocalizations.of(
-                                  context,
-                                )!.passwordLabel,
-                                labelStyle: TextStyle(
-                                  color: AppColors.white.withAlpha(204),
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.lock_outline,
-                                  color: AppColors.white.withAlpha(230),
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                    color: AppColors.white.withAlpha(178),
-                                  ),
-                                  onPressed: _togglePasswordVisibility,
-                                ),
-                                filled: true,
-                                fillColor: AppColors.white.withAlpha(26),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                  horizontal: 20,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Opciones: Recordarme / Olvidaste
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Theme(
-                                      data: ThemeData(
-                                        unselectedWidgetColor: Colors.white70,
-                                      ),
-                                      child: Checkbox(
-                                        value: _rememberMe,
-                                        checkColor: primaryColor,
-                                        activeColor: AppColors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        onChanged: (value) async {
-                                          setState(
-                                            () => _rememberMe = value ?? false,
-                                          );
-                                          if (!_rememberMe) {
-                                            await _preferencesService
-                                                .clearSavedEmail();
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                    Text(
-                                      AppLocalizations.of(context)!.rememberMe,
-                                      style: TextStyle(
-                                        color: AppColors.white.withAlpha(230),
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      '/forgot-password',
-                                    );
-                                  },
-                                  child: Text(
-                                    AppLocalizations.of(
-                                      context,
-                                    )!.forgotPassword,
-                                    style: TextStyle(
-                                      color: AppColors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: AppColors.white
-                                          .withAlpha(128),
-                                    ),
-                                  ),
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primaryBlue.withValues(alpha: 0.4),
+                                  blurRadius: 40,
+                                  offset: const Offset(0, 16),
                                 ),
                               ],
                             ),
-
-                            const SizedBox(height: 30),
-
-                            // Botón LOGIN
-                            Container(
-                              width: double.infinity,
-                              height: 55,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(30),
-                                color: accentColor, // Color sólido
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: accentColor.withAlpha(102),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: ElevatedButton(
-                                onPressed: _onLoginPressed,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                ),
-                                child: _isLoading
-                                    ? CircularProgressIndicator(
-                                        color: AppColors.white,
-                                      )
-                                    : Text(
-                                        AppLocalizations.of(
-                                          context,
-                                        )!.loginButton,
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.white,
-                                          letterSpacing: 1.2,
-                                        ),
-                                      ),
-                              ),
+                            child: const Icon(Icons.computer_rounded, color: Colors.white, size: 50),
+                          ),
+                          const SizedBox(height: 40),
+                          Text(
+                            BrandingHelper.appName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 42,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Soluciones Tecnológicas de Calidad',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 60),
+                          _featureItem(Icons.speed_rounded, 'Gestión Rápida y Eficiente'),
+                          const SizedBox(height: 20),
+                          _featureItem(Icons.security_rounded, 'Seguridad Multi-Factor'),
+                          const SizedBox(height: 20),
+                          _featureItem(Icons.devices_rounded, 'Acceso desde Cualquier Dispositivo'),
+                        ],
                       ),
                     ),
-                  ),
-
-                  // Botón Biometría (Fuera de la tarjeta para menos ruido visual)
-                  if (_hasBiometricHardware && _isBiometricConfigured) ...[
-                    const SizedBox(height: 24),
-                    TextButton.icon(
-                      onPressed: _onBiometricLoginPressed,
-                      icon: Icon(
-                        Icons.fingerprint,
-                        color: AppColors.white,
-                        size: 28,
-                      ),
-                      label: Text(
-                        'Usar Huella Digital',
-                        style: TextStyle(color: AppColors.white, fontSize: 16),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        backgroundColor: AppColors.white.withAlpha(26),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          side: BorderSide(
-                            color: AppColors.white.withAlpha(76),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 30),
-
-                  // Registrar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context)!.noAccount,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pushNamed(context, '/register'),
-                        child: Text(
-                          AppLocalizations.of(context)!.createAccountHere,
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.white,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
           ),
+          // Right panel - Login form
+          Expanded(
+            flex: 4,
+            child: Container(
+              color: const Color(0xFFF8F9FC),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: _buildLoginForm(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0D1B2A), Color(0xFF1B2838), Color(0xFF0D1B2A)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -100,
+              left: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryBlue.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -50,
+              right: -50,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryBlue.withValues(alpha: 0.08),
+                ),
+              ),
+            ),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primaryBlue, AppColors.primaryBlue.withValues(alpha: 0.7)],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryBlue.withValues(alpha: 0.4),
+                            blurRadius: 30,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.computer_rounded, color: Colors.white, size: 40),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      BrandingHelper.appName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      AppLocalizations.of(context)!.welcomeBack,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        child: Container(
+                          padding: const EdgeInsets.all(28),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                          ),
+                          child: _buildLoginForm(isDark: true),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(AppLocalizations.of(context)!.noAccount, style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () => Navigator.pushNamed(context, '/register'),
+                          child: const Text(
+                            'Regístrate',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _featureItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.primaryBlue.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.primaryBlue, size: 22),
+        ),
+        const SizedBox(width: 16),
+        Text(
+          text,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16, fontWeight: FontWeight.w400),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginForm({bool isDark = false}) {
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1F36);
+    final subtextColor = isDark ? Colors.white.withValues(alpha: 0.6) : const Color(0xFF6B7280);
+    final fillColor = isDark ? Colors.white.withValues(alpha: 0.06) : const Color(0xFFF3F4F6);
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : const Color(0xFFE5E7EB);
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Iniciar Sesión',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ingresa tus credenciales para continuar',
+            style: TextStyle(color: subtextColor, fontSize: 14),
+          ),
+          const SizedBox(height: 32),
+
+          // Email
+          Text('Correo electrónico', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: TextStyle(color: textColor),
+            validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
+            decoration: InputDecoration(
+              hintText: 'tu@email.com',
+              hintStyle: TextStyle(color: subtextColor),
+              prefixIcon: Icon(Icons.email_outlined, color: subtextColor, size: 20),
+              filled: true,
+              fillColor: fillColor,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Password
+          Text('Contraseña', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            style: TextStyle(color: textColor),
+            validator: (v) => v!.isEmpty ? 'Campo obligatorio' : null,
+            decoration: InputDecoration(
+              hintText: '••••••••',
+              hintStyle: TextStyle(color: subtextColor),
+              prefixIcon: Icon(Icons.lock_outline, color: subtextColor, size: 20),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: subtextColor,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              filled: true,
+              fillColor: fillColor,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Remember me + Forgot
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: Checkbox(
+                      value: _rememberMe,
+                      onChanged: (v) async {
+                        setState(() => _rememberMe = v ?? false);
+                        if (!_rememberMe) await _preferencesService.clearSavedEmail();
+                      },
+                      activeColor: AppColors.primaryBlue,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Recordarme', style: TextStyle(color: subtextColor, fontSize: 13)),
+                ],
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                child: Text(
+                  '¿Olvidaste tu contraseña?',
+                  style: TextStyle(
+                    color: AppColors.primaryBlue,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          // Login button
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _onLoginPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.primaryBlue.withValues(alpha: 0.5),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text(
+                      'Iniciar Sesión',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+                    ),
+            ),
+          ),
+
+          if (_hasBiometricHardware && _isBiometricConfigured) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: _onBiometricLoginPressed,
+                icon: const Icon(Icons.fingerprint, size: 22),
+                label: const Text('Usar Huella Digital', style: TextStyle(fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? Colors.white : AppColors.primaryBlue,
+                  side: BorderSide(color: borderColor),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          if (!isDark)
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('¿No tienes cuenta? ', style: TextStyle(color: subtextColor, fontSize: 14)),
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/register'),
+                    child: Text(
+                      'Regístrate aquí',
+                      style: TextStyle(
+                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

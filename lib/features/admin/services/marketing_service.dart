@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/features/auth/models/user_model.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/features/auth/models/user_model.dart';
 import 'package:flutter/foundation.dart';
 
 /// Servicio para gestionar operaciones de Marketing
@@ -33,7 +34,8 @@ class MarketingService {
     required String sentBy,
   }) async {
     try {
-      await _firestore.collection('marketing_logs').add({
+      final id = await DocumentIdService().generateId(prefix: 'mkt', useDate: true);
+      await _firestore.collection('marketing_logs').doc(id).set({
         'productId': productId,
         'clientUid': clientUid,
         'sentAt': FieldValue.serverTimestamp(),

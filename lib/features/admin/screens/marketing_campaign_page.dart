@@ -1,16 +1,15 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:techsc/features/admin/providers/admin_providers.dart';
-import 'package:techsc/features/auth/models/user_model.dart';
-import 'package:techsc/core/utils/whatsapp_share_helper.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'dart:convert';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/platform/io_helper.dart';
+import 'package:tscomputer/features/admin/providers/admin_providers.dart';
+import 'package:tscomputer/features/auth/models/user_model.dart';
+import 'package:tscomputer/core/utils/whatsapp_share_helper.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class MarketingCampaignPage extends ConsumerStatefulWidget {
   const MarketingCampaignPage({super.key});
@@ -135,7 +134,7 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
                                   height: 40,
                                   width: 40,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(
+                                  errorBuilder: (_, _, _) => const Icon(
                                     Icons.image_not_supported,
                                     size: 20,
                                   ),
@@ -239,14 +238,9 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
         );
       }
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/campana_marketing.csv');
-      await file.writeAsString(buffer.toString(), encoding: utf8);
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Campaña Marketing - $productName',
-        text: 'CSV para envío masivo de publicidad.',
+      await shareBytes(
+        Uint8List.fromList(utf8.encode(buffer.toString())),
+        'campana_marketing.csv',
       );
     } catch (e) {
       if (mounted) {
@@ -297,36 +291,40 @@ class _MarketingCampaignPageState extends ConsumerState<MarketingCampaignPage> {
                 return Center(child: Text(l10n.noClientsFound));
               }
 
-              return ListView.builder(
-                itemCount: clients.length,
-                itemBuilder: (context, index) {
-                  final client = clients[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: AppColors.primaryBlue.withAlpha(51),
-                        child: Text(
-                          client.name.isNotEmpty
-                              ? client.name[0].toUpperCase()
-                              : '?',
+              return RefreshIndicator(
+                onRefresh: () async => ref.invalidate(marketingClientsProvider),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: clients.length,
+                  itemBuilder: (context, index) {
+                    final client = clients[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primaryBlue.withAlpha(51),
+                          child: Text(
+                            client.name.isNotEmpty
+                                ? client.name[0].toUpperCase()
+                                : '?',
+                          ),
+                        ),
+                        title: Text(client.name),
+                        subtitle: Text(client.phone),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: AppColors.whatsapp,
+                          ),
+                          onPressed: () => _sendPromotion(client, l10n),
                         ),
                       ),
-                      title: Text(client.name),
-                      subtitle: Text(client.phone),
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.send_rounded,
-                          color: AppColors.whatsapp,
-                        ),
-                        onPressed: () => _sendPromotion(client, l10n),
-                      ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               );
             },
           ),

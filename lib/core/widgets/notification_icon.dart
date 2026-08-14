@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:techsc/core/services/notification_service.dart';
-import 'package:techsc/features/home/screens/notifications_page.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
+import 'package:tscomputer/features/home/screens/notifications_page.dart';
 
 class NotificationIcon extends StatelessWidget {
   final Color? color;
@@ -11,6 +11,23 @@ class NotificationIcon extends StatelessWidget {
     return StreamBuilder<int>(
       stream: NotificationService().getUnreadCount(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline, color: Colors.orange, size: 32),
+                  const SizedBox(height: 8),
+                  Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text('${snapshot.error}', style: TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          );
+        }
         final count = snapshot.data ?? 0;
 
         return Stack(

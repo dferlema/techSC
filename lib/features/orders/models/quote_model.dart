@@ -1,13 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Un producto o servicio dentro de una cotización.
 class QuoteItem {
   final String id;
   final String name;
-  final String type; // 'product' or 'service'
+  final String type; // 'product' | 'service'
   final double price;
   final int quantity;
   final String description;
   final String? imageUrl;
+  final double? cashPrice;
+  final double? cardPrice;
 
   QuoteItem({
     required this.id,
@@ -17,7 +20,11 @@ class QuoteItem {
     required this.quantity,
     this.description = '',
     this.imageUrl,
+    this.cashPrice,
+    this.cardPrice,
   });
+
+  double get total => price * quantity;
 
   Map<String, dynamic> toMap() {
     return {
@@ -28,6 +35,8 @@ class QuoteItem {
       'quantity': quantity,
       'description': description,
       'imageUrl': imageUrl,
+      'cashPrice': cashPrice,
+      'cardPrice': cardPrice,
       'subtotal': total,
     };
   }
@@ -38,19 +47,20 @@ class QuoteItem {
       name: map['name'] ?? '',
       type: map['type'] ?? 'product',
       price: (map['price'] as num).toDouble(),
-      quantity: map['quantity'] as int,
+      quantity: (map['quantity'] as num).toInt(),
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'] ?? map['image'],
+      cashPrice: (map['cashPrice'] as num?)?.toDouble(),
+      cardPrice: (map['cardPrice'] as num?)?.toDouble(),
     );
   }
-
-  double get total => price * quantity;
 }
 
+/// Evento de historial de una cotización (creada, actualizada, aprobada...).
 class QuoteHistoryEvent {
   final DateTime date;
   final String userId;
-  final String action; // 'created', 'updated', 'approved', 'rejected'
+  final String action; // 'created' | 'updated' | 'approved' | 'rejected'
   final String description;
 
   QuoteHistoryEvent({
@@ -79,14 +89,15 @@ class QuoteHistoryEvent {
   }
 }
 
+/// Cotización completa.
 class QuoteModel {
   final String id;
   final String clientId; // RUC/Cédula
-  final String? customerUid; // Firebase UID
+  final String? customerUid; // Firebase UID del cliente
   final String clientName;
   final String clientEmail;
   final String clientPhone;
-  final String creatorId; // User ID of who created it (Seller/Tech/Admin)
+  final String creatorId; // ID del usuario que la creó
 
   final List<QuoteItem> items;
   final List<QuoteHistoryEvent> history;
@@ -94,10 +105,11 @@ class QuoteModel {
   final DateTime createdAt;
   final DateTime? expirationDate;
 
-  final String status; // 'draft', 'sent', 'approved', 'rejected', 'converted'
+  final String status; // 'draft' | 'sent' | 'approved' | 'rejected' | 'converted'
+  final String paymentMethod; // 'efectivo' | 'tarjeta'
   final bool applyTax;
-  final double taxRate; // 0.15 for 15%
-  final double discountPercentage; // e.g. 5.0 for 5%
+  final double taxRate; // 0.15 = 15%
+  final double discountPercentage;
 
   QuoteModel({
     required this.id,
@@ -112,12 +124,13 @@ class QuoteModel {
     required this.createdAt,
     this.expirationDate,
     this.status = 'draft',
-    this.applyTax = true,
+    this.paymentMethod = 'efectivo',
+    this.applyTax = false,
     this.taxRate = 0.15,
     this.discountPercentage = 0.0,
   });
 
-  double get subtotal => items.fold(0, (sum, item) => sum + item.total);
+  double get subtotal => items.fold(0.0, (acc, item) => acc + item.total);
   double get discountAmount => subtotal * (discountPercentage / 100);
   double get taxableAmount => subtotal - discountAmount;
   double get taxAmount => applyTax ? taxableAmount * taxRate : 0;
@@ -134,10 +147,10 @@ class QuoteModel {
       'items': items.map((x) => x.toMap()).toList(),
       'history': history.map((x) => x.toMap()).toList(),
       'createdAt': Timestamp.fromDate(createdAt),
-      'expirationDate': expirationDate != null
-          ? Timestamp.fromDate(expirationDate!)
-          : null,
+      'expirationDate':
+          expirationDate != null ? Timestamp.fromDate(expirationDate!) : null,
       'status': status,
+      'paymentMethod': paymentMethod,
       'applyTax': applyTax,
       'taxRate': taxRate,
       'discountPercentage': discountPercentage,
@@ -169,12 +182,19 @@ class QuoteModel {
       history: List<QuoteHistoryEvent>.from(
         (data['history'] ?? []).map((x) => QuoteHistoryEvent.fromMap(x)),
       ),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
+          : (data['createdAt'] is String
+                ? DateTime.parse(data['createdAt'])
+                : DateTime.now()),
       expirationDate: data['expirationDate'] != null
-          ? (data['expirationDate'] as Timestamp).toDate()
+          ? (data['expirationDate'] is Timestamp
+                ? (data['expirationDate'] as Timestamp).toDate()
+                : DateTime.tryParse(data['expirationDate'].toString()))
           : null,
       status: data['status'] ?? 'draft',
-      applyTax: data['applyTax'] ?? true,
+      paymentMethod: data['paymentMethod'] ?? 'efectivo',
+      applyTax: data['applyTax'] ?? false,
       taxRate: (data['taxRate'] as num?)?.toDouble() ?? 0.15,
       discountPercentage:
           (data['discountPercentage'] as num?)?.toDouble() ?? 0.0,
@@ -182,7 +202,7 @@ class QuoteModel {
   }
 
   QuoteModel copyWith({
-    String? id, // Added id
+    String? id,
     String? clientId,
     String? customerUid,
     String? clientName,
@@ -194,12 +214,13 @@ class QuoteModel {
     DateTime? createdAt,
     DateTime? expirationDate,
     String? status,
+    String? paymentMethod,
     bool? applyTax,
     double? taxRate,
     double? discountPercentage,
   }) {
     return QuoteModel(
-      id: id ?? this.id, // Use new id or existing
+      id: id ?? this.id,
       clientId: clientId ?? this.clientId,
       customerUid: customerUid ?? this.customerUid,
       clientName: clientName ?? this.clientName,
@@ -211,6 +232,7 @@ class QuoteModel {
       createdAt: createdAt ?? this.createdAt,
       expirationDate: expirationDate ?? this.expirationDate,
       status: status ?? this.status,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       applyTax: applyTax ?? this.applyTax,
       taxRate: taxRate ?? this.taxRate,
       discountPercentage: discountPercentage ?? this.discountPercentage,

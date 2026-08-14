@@ -1,26 +1,28 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/core/providers/providers.dart';
+import 'package:tscomputer/core/providers/providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/core/widgets/app_drawer.dart';
-import 'package:techsc/core/widgets/notification_icon.dart';
-import 'package:techsc/features/home/providers/home_providers.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/features/catalog/models/product_model.dart';
-import 'package:techsc/features/catalog/screens/product_detail_page.dart';
-import 'package:techsc/features/orders/screens/my_orders_page.dart';
-import 'package:techsc/features/orders/screens/quote_list_page.dart';
-import 'package:techsc/features/admin/screens/settings_page.dart';
-import 'package:techsc/features/admin/screens/admin_panel_page.dart';
-import 'package:techsc/features/admin/screens/reports_page.dart';
-import 'package:techsc/features/reservations/screens/technician_dashboard.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/widgets/app_drawer.dart';
+import 'package:tscomputer/core/widgets/responsive_builder.dart';
+import 'package:tscomputer/core/widgets/notification_icon.dart';
+import 'package:tscomputer/features/home/providers/home_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/features/catalog/models/product_model.dart';
+import 'package:tscomputer/features/catalog/screens/product_detail_page.dart';
+import 'package:tscomputer/features/orders/screens/my_orders_page.dart';
+import 'package:tscomputer/features/orders/screens/quote_list_page.dart';
+import 'package:tscomputer/features/admin/screens/settings_page.dart';
+import 'package:tscomputer/features/admin/screens/admin_panel_page.dart';
+import 'package:tscomputer/features/admin/screens/reports_page.dart';
+import 'package:tscomputer/features/reservations/screens/technician_dashboard.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   final String routeName;
@@ -82,6 +84,50 @@ class _HomePageState extends ConsumerState<HomePage> {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
       data: (config) {
+        final showAppBar = !kIsWeb || MediaQuery.of(context).size.width < 600;
+
+        final body = RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(configStreamProvider);
+            ref.invalidate(bannersProvider);
+            ref.invalidate(featuredProductsProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ResponsiveConstraints(
+              maxWidth: 1200,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: kIsWeb ? 0 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCarouselSection(),
+                    const SizedBox(height: 24),
+                    _buildStaffDashboard(context),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('¡Hola! ¿En qué podemos ayudarte hoy?'),
+                    _buildHelpSection(context),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle(
+                      AppLocalizations.of(context)!.servicesTitle,
+                    ),
+                    _buildServicesList(context),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle(
+                      AppLocalizations.of(context)!.productsTitle,
+                      onSeeMore: () => Navigator.pushNamed(context, '/products'),
+                    ),
+                    _buildProductsList(context),
+                    const SizedBox(height: 100),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+
+        if (!showAppBar) return body;
+
         return Scaffold(
           backgroundColor: AppColors.surfaceLight,
           appBar: AppBar(
@@ -100,52 +146,18 @@ class _HomePageState extends ConsumerState<HomePage> {
             ],
           ),
           drawer: const AppDrawer(currentRoute: '/home'),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Carousel Section
-                _buildCarouselSection(),
-
-                const SizedBox(height: 24),
-
-                // Staff Dashboard (Only visible to Admin, Seller, Technician)
-                _buildStaffDashboard(context),
-
-                const SizedBox(height: 24),
-
-                // 2. ¿En qué te podemos ayudar hoy? (Friendly Greeting)
-                _buildSectionTitle('¡Hola! ¿En qué podemos ayudarte hoy?'),
-                _buildHelpSection(context),
-
-                const SizedBox(height: 32),
-
-                // 3. Nuestros Servicios (Horizontal List)
-                _buildSectionTitle(AppLocalizations.of(context)!.servicesTitle),
-                _buildServicesList(context),
-
-                const SizedBox(height: 32),
-
-                // 4. Nuestros Productos (Horizontal List)
-                _buildSectionTitle(
-                  AppLocalizations.of(context)!.productsTitle,
-                  onSeeMore: () => Navigator.pushNamed(context, '/products'),
-                ),
-                _buildProductsList(context),
-
-                const SizedBox(height: 100), // Space for FAB
-              ],
-            ),
-          ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _launchWhatsApp(config.companyPhone),
-            backgroundColor: AppColors.whatsapp,
-            elevation: 4,
-            child: Image.asset(
-              'assets/images/whatsapp_icon.png',
-              width: 35,
-              height: 35,
+          body: body,
+          floatingActionButton: Padding(
+            padding: const EdgeInsets.only(bottom: 84),
+            child: FloatingActionButton(
+              onPressed: () => _launchWhatsApp(config.companyPhone),
+              backgroundColor: AppColors.whatsapp,
+              elevation: 4,
+              child: Image.asset(
+                'assets/images/whatsapp_icon.png',
+                width: 35,
+                height: 35,
+              ),
             ),
           ),
         );
@@ -155,7 +167,7 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildSectionTitle(String title, {VoidCallback? onSeeMore}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      padding: const EdgeInsets.fromLTRB(8, 24, 8, 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -223,15 +235,20 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.5,
-                children: cards,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount = constraints.maxWidth > 800 ? 4 : (constraints.maxWidth > 500 ? 3 : 2);
+                  return GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.5,
+                    children: cards,
+                  );
+                },
               ),
             ),
             const SizedBox(height: 16),
@@ -350,6 +367,18 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
     }
 
+    // Contabilidad: Admin, Accounting
+    if (role == RoleService.ADMIN || role == RoleService.ACCOUNTING) {
+      cards.add(
+        _buildDashboardCard(
+          'Contabilidad',
+          Icons.account_balance,
+          const Color(0xFF1B5E20),
+          () => Navigator.pushNamed(context, '/accounting'),
+        ),
+      );
+    }
+
     return cards;
   }
 
@@ -437,52 +466,57 @@ class _HomePageState extends ConsumerState<HomePage> {
       error: (_, _) => const SizedBox.shrink(),
       data: (role) {
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: [
-              _buildDashboardCard(
-                'Agendar Cita',
-                Icons.calendar_month_rounded,
-                Colors.blue,
-                () => Navigator.pushReplacementNamed(
-                  context,
-                  '/main',
-                  arguments: '/reserve-service',
-                ),
-              ),
-              _buildDashboardCard(
-                'Mis Reservas',
-                Icons.perm_contact_calendar_rounded,
-                Colors.orange,
-                () => Navigator.pushNamed(context, '/my-reservations'),
-              ),
-              _buildDashboardCard(
-                'Mis Pedidos',
-                Icons.shopping_bag_rounded,
-                Colors.purple,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MyOrdersPage()),
-                ),
-              ),
-              // Solo mostrar "Mis Cotizaciones" a Clientes (ya que staff tiene sus propias)
-              if (role == RoleService.CLIENT)
-                _buildDashboardCard(
-                  'Cotizaciones',
-                  Icons.description_outlined,
-                  Colors.indigo,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const QuoteListPage()),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final crossAxisCount = constraints.maxWidth > 800 ? 4 : (constraints.maxWidth > 500 ? 3 : 2);
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.5,
+                children: [
+                  _buildDashboardCard(
+                    'Agendar Cita',
+                    Icons.calendar_month_rounded,
+                    Colors.blue,
+                    () => Navigator.pushReplacementNamed(
+                      context,
+                      '/main',
+                      arguments: '/reserve-service',
+                    ),
                   ),
-                ),
-            ],
+                  _buildDashboardCard(
+                    'Mis Reservas',
+                    Icons.perm_contact_calendar_rounded,
+                    Colors.orange,
+                    () => Navigator.pushNamed(context, '/my-reservations'),
+                  ),
+                  _buildDashboardCard(
+                    'Mis Pedidos',
+                    Icons.shopping_bag_rounded,
+                    Colors.purple,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyOrdersPage()),
+                    ),
+                  ),
+                  // Solo mostrar "Mis Cotizaciones" a Clientes
+                  if (role == RoleService.CLIENT)
+                    _buildDashboardCard(
+                      'Cotizaciones',
+                      Icons.description_outlined,
+                      Colors.indigo,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const QuoteListPage()),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         );
       },
@@ -491,24 +525,29 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Widget _buildServicesList(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.5,
-        children: _services
-            .map(
-              (s) => _buildDashboardCard(
-                s['title'],
-                s['icon'],
-                s['color'],
-                () => Navigator.pushNamed(context, '/services'),
-              ),
-            )
-            .toList(),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final crossAxisCount = constraints.maxWidth > 800 ? 4 : (constraints.maxWidth > 500 ? 3 : 2);
+          return GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
+            children: _services
+                .map(
+                  (s) => _buildDashboardCard(
+                    s['title'],
+                    s['icon'],
+                    s['color'],
+                    () => Navigator.pushNamed(context, '/services'),
+                  ),
+                )
+                .toList(),
+          );
+        },
       ),
     );
   }

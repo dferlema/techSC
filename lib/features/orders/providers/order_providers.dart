@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/features/orders/models/order_model.dart';
-import 'package:techsc/features/orders/services/order_service.dart';
+import 'package:tscomputer/features/orders/models/order_model.dart';
+import 'package:tscomputer/features/orders/services/order_service.dart';
 
 /// Provider for OrderService singleton
 final orderServiceProvider = Provider<OrderService>((ref) {
@@ -13,13 +14,17 @@ final userOrdersProvider = StreamProvider.family<List<OrderModel>, String>((
   uid,
 ) {
   final orderService = ref.watch(orderServiceProvider);
-  return orderService.getUserOrders(uid);
+  return orderService.getUserOrders(uid).handleError(
+    (error) => debugPrint('Stream error [userOrders]: $error'),
+  );
 });
 
 /// StreamProvider for all orders (Admin/Seller view)
 final allOrdersProvider = StreamProvider<List<OrderModel>>((ref) {
   final orderService = ref.watch(orderServiceProvider);
-  return orderService.getAllOrders();
+  return orderService.getAllOrders().handleError(
+    (error) => debugPrint('Stream error [allOrders]: $error'),
+  );
 });
 
 /// FutureProvider for a specific order

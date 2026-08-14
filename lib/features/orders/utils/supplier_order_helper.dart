@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
 
 class SupplierOrderHelper {
   /// Sends a consolidated order message to a supplier for multiple items.

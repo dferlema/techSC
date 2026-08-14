@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:techsc/features/catalog/models/supplier_model.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/features/catalog/models/supplier_model.dart';
 
 /// Servicio para gestionar proveedores en Firestore.
 ///
@@ -42,11 +43,13 @@ class SupplierService {
   /// Agrega un nuevo proveedor
   Future<String?> addSupplier(SupplierModel supplier) async {
     try {
-      final docRef = await _firestore
+      final id = await DocumentIdService().generateId(prefix: 'prov');
+      await _firestore
           .collection(_collection)
-          .add(supplier.toMap());
-      debugPrint('Proveedor creado con ID: ${docRef.id}');
-      return docRef.id;
+          .doc(id)
+          .set(supplier.toMap());
+      debugPrint('Proveedor creado con ID: $id');
+      return id;
     } catch (e) {
       debugPrint('Error agregando proveedor: $e');
       rethrow;
@@ -93,6 +96,26 @@ class SupplierService {
       return query.docs.isNotEmpty;
     } catch (e) {
       debugPrint('Error verificando nombre de proveedor: $e');
+      return false;
+    }
+  }
+
+  /// Verifica si existe un proveedor con el mismo RUC
+  Future<bool> supplierRucExists(String ruc, {String? excludeId}) async {
+    if (ruc.isEmpty) return false;
+    try {
+      final query = await _firestore
+          .collection(_collection)
+          .where('ruc', isEqualTo: ruc)
+          .get();
+
+      if (excludeId != null) {
+        return query.docs.any((doc) => doc.id != excludeId);
+      }
+
+      return query.docs.isNotEmpty;
+    } catch (e) {
+      debugPrint('Error verificando RUC de proveedor: $e');
       return false;
     }
   }

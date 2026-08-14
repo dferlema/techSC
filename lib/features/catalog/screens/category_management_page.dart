@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
+import 'package:tscomputer/features/catalog/services/category_service.dart';
 
 class CategoryManagementPage extends StatefulWidget {
   const CategoryManagementPage({super.key});
@@ -12,6 +12,11 @@ class CategoryManagementPage extends StatefulWidget {
 class _CategoryManagementPageState extends State<CategoryManagementPage> {
   final CategoryService _categoryService = CategoryService();
   CategoryType _selectedType = CategoryType.product;
+  int _refreshTick = 0;
+
+  Future<void> _refresh() async {
+    setState(() => _refreshTick++);
+  }
 
   void _showCategoryDialog({CategoryModel? category, CategoryType? type}) {
     final nameController = TextEditingController(text: category?.name ?? '');
@@ -176,8 +181,19 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
 
   Widget _buildCategoryList(CategoryType type) {
     return StreamBuilder<List<CategoryModel>>(
+      key: ValueKey('$_refreshTick-$type'),
       stream: _categoryService.getCategories(type),
       builder: (context, snapshot) {
+        return _buildCategoryStreamBuilder(context, snapshot, type);
+      },
+    );
+  }
+
+  Widget _buildCategoryStreamBuilder(
+    BuildContext context,
+    AsyncSnapshot<List<CategoryModel>> snapshot,
+    CategoryType type,
+  ) {
         if (snapshot.hasError) {
           return Center(
             child: Column(
@@ -229,31 +245,33 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
         }
 
         final categories = snapshot.data!;
-        return ListView.separated(
-          itemCount: categories.length,
-          separatorBuilder: (context, index) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final category = categories[index];
-            return ListTile(
-              title: Text(category.name),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () => _showCategoryDialog(category: category),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _showDeleteDialog(category),
-                  ),
-                ],
-              ),
-            );
-          },
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: categories.length,
+            separatorBuilder: (context, index) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              return ListTile(
+                title: Text(category.name),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () => _showCategoryDialog(category: category),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _showDeleteDialog(category),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         );
-      },
-    );
   }
 
   void _showDeleteDialog(CategoryModel category) {

@@ -1,51 +1,43 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
-import 'package:techsc/features/orders/models/quote_model.dart';
-import 'package:techsc/features/orders/models/order_model.dart';
-import 'package:techsc/core/services/notification_service.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/features/orders/models/quote_model.dart';
+import 'package:tscomputer/features/orders/models/order_model.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
+import 'package:tscomputer/core/utils/firestore_retry.dart';
 
-/// Service to handle all Quote-related operations in Firestore.
-/// This includes creating, updating, approving, and rejecting quotes.
+/// Maneja todas las operaciones de cotizaciones en Firestore.
 class QuoteService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Collection References
   CollectionReference get _quotesCollection => _firestore.collection('quotes');
   CollectionReference get _ordersCollection => _firestore.collection('orders');
+
   final NotificationService _notificationService = NotificationService();
 
-  /// Creates a new quote with a custom sequential ID (format: yyyyMMdd-XX).
-  /// Sends a notification to the client if [QuoteModel.customerUid] is present.
+  /// Crea una cotización con ID secuencial (yyyyMMdd-XX).
   Future<String> createQuote(QuoteModel quote) async {
     try {
       final now = DateTime.now();
-      final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
-      final randomSuffix = DateTime.now().microsecondsSinceEpoch
-          .toString()
-          .substring(10); // Útimos 6 dígitos de microsegundos
-      final sequenceId = 'Q$datePrefix-$randomSuffix';
+      final id =
+          await DocumentIdService().generateId(prefix: 'Q', useDate: true);
+      final docRef = _quotesCollection.doc(id);
 
-      // Create document with the custom ID
-      final docRef = _quotesCollection.doc(sequenceId);
-
-      // Update the quote with the new ID and creation history
       final newQuote = quote.copyWith(
-        id: sequenceId,
+        id: id,
         history: [
           ...quote.history,
           QuoteHistoryEvent(
             date: now,
             userId: quote.creatorId,
             action: 'created',
-            description: 'Cotización creada #$sequenceId',
+            description: 'Cotización creada #$id',
           ),
         ],
       );
 
       await docRef.set(newQuote.toMap());
 
-      // 3. Send Notification to Client if customerUid is available
       if (newQuote.customerUid != null) {
         await _notificationService.sendNotification(
           title: 'Nueva Cotización Recibida',
@@ -56,13 +48,13 @@ class QuoteService {
         );
       }
 
-      return sequenceId;
+      return id;
     } catch (e) {
       throw Exception('Error creando cotización: $e');
     }
   }
 
-  /// Updates an existing quote and records the modification in its history.
+  /// Actualiza una cotización existente y registra la modificación.
   Future<void> updateQuote(
     QuoteModel quote,
     String userId,
@@ -87,8 +79,7 @@ class QuoteService {
     }
   }
 
-  /// Returns a stream of quotes filtered by customer, client, or creator.
-  /// Used for both client views and staff dashboards.
+  /// Stream de cotizaciones filtradas por cliente, customer o creador.
   Stream<List<QuoteModel>> getQuotes({
     String? customerUid,
     String? clientId,
@@ -102,8 +93,6 @@ class QuoteService {
       query = query.where('clientId', isEqualTo: clientId);
     }
 
-    // If not client, maybe we want to filter by creator (e.g. for sellers seeing their own)
-    // Note: Admins likely want to see all, so we might not pass creatorId for them.
     if (creatorId != null) {
       query = query.where('creatorId', isEqualTo: creatorId);
     }
@@ -115,27 +104,19 @@ class QuoteService {
     });
   }
 
-  /// Fetches a single quote by its custom [id].
+  /// Obtiene una cotización por su ID.
   Future<QuoteModel?> getQuoteById(String id) async {
-    final doc = await _quotesCollection.doc(id).get();
+    final doc = await retryFirestore(() => _quotesCollection.doc(id).get());
     if (doc.exists) {
       return QuoteModel.fromFirestore(doc);
     }
     return null;
   }
 
-  /// Helper to generate a unique Order ID (PyyyyMMdd-HHmmss-XXXX)
-  String _generateOrderId() {
-    final now = DateTime.now();
-    final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
-    final randomSuffix = DateTime.now().microsecondsSinceEpoch
-        .toString()
-        .substring(10);
-    return 'P$datePrefix-$randomSuffix';
-  }
+  Future<String> _generateOrderId() =>
+      DocumentIdService().generateId(prefix: 'ord', useDate: true);
 
-  /// Atomically approves a quote and converts it into a new [OrderModel].
-  /// This operation is performed within a Firestore transaction for consistency.
+  /// Aprueba una cotización y la convierte en una orden (transacción atómica).
   Future<String> approveQuote(
     String quoteId,
     String userId, {
@@ -143,10 +124,7 @@ class QuoteService {
   }) async {
     QuoteModel? approvedQuoteCaptured;
 
-    // Generate the ID *before* the transaction.
-    // Note: In high concurrency, this might cause collision, but for this scale it's acceptable.
-    // Ideally we would read-modify-write a counter in the transaction.
-    final customOrderId = _generateOrderId();
+    final customOrderId = await _generateOrderId();
 
     final orderId = await _firestore.runTransaction((transaction) async {
       final quoteRef = _quotesCollection.doc(quoteId);
@@ -163,7 +141,6 @@ class QuoteService {
         throw Exception('Quote is already approved or converted');
       }
 
-      // 1. Update Quote Status
       final approvedQuote = quote.copyWith(
         status: 'approved',
         history: [
@@ -180,8 +157,6 @@ class QuoteService {
 
       transaction.update(quoteRef, approvedQuote.toMap());
 
-      // 2. Create Order with userId and other fields
-      // Use the custom ID
       final orderRef = _ordersCollection.doc(customOrderId);
 
       final newOrder = OrderModel(
@@ -193,7 +168,6 @@ class QuoteService {
         createdAt: DateTime.now(),
       );
 
-      // Convert to map and add userId (customerUid from quote, or fallback to clientId)
       final orderData = newOrder.toMap();
       orderData['userId'] = quote.customerUid ?? quote.clientId;
       orderData['userEmail'] = quote.clientEmail;
@@ -203,7 +177,6 @@ class QuoteService {
       return orderRef.id;
     });
 
-    // Post-transaction Notification
     if (approvedQuoteCaptured != null) {
       try {
         final q = approvedQuoteCaptured!;
@@ -220,7 +193,7 @@ class QuoteService {
     return orderId;
   }
 
-  /// Rejects a quote and updates its status.
+  /// Rechaza una cotización y actualiza su estado.
   Future<void> rejectQuote(
     String quoteId,
     String userId, {
@@ -228,8 +201,7 @@ class QuoteService {
   }) async {
     final quoteRef = _quotesCollection.doc(quoteId);
 
-    // Retrieve first to add history
-    final doc = await quoteRef.get();
+    final doc = await retryFirestore(() => quoteRef.get());
     if (!doc.exists) return;
     final quote = QuoteModel.fromFirestore(doc);
 
@@ -241,7 +213,8 @@ class QuoteService {
           date: DateTime.now(),
           userId: userId,
           action: 'rejected',
-          description: historyDescription ?? 'Cotización rechazada por cliente',
+          description:
+              historyDescription ?? 'Cotización rechazada por cliente',
         ),
       ],
     );

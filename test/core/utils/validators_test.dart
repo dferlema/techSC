@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:techsc/core/utils/validators.dart';
+import 'package:tscomputer/core/utils/validators.dart';
 
 void main() {
   group('Validators - Ecuador ID', () {

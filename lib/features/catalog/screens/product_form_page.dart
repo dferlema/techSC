@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/notification_service.dart';
-import 'package:techsc/features/catalog/services/supplier_service.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/features/catalog/models/supplier_model.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
-import 'package:techsc/features/admin/providers/admin_providers.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/core/services/config_service.dart';
-import 'package:techsc/features/admin/models/profit_range_model.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
+import 'package:tscomputer/features/catalog/services/supplier_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/features/catalog/widgets/supplier_link_dialog.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
+import 'package:tscomputer/features/catalog/models/supplier_model.dart';
+import 'package:tscomputer/features/catalog/services/category_service.dart';
+import 'package:tscomputer/features/admin/providers/admin_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/core/services/config_service.dart';
+import 'package:tscomputer/features/admin/models/profit_range_model.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
 import 'dart:async';
 
-/// Pagina de formulario para crear o editar productos.
-/// Permite ingresar nombre, especificaciones, precio, categoría y URL de imagen.
+/// Página de formulario para crear o editar productos con UI/UX moderno e intuitivo.
 class ProductFormPage extends ConsumerStatefulWidget {
   final String? productId;
   final Map<String, dynamic>? initialData;
@@ -51,9 +51,8 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
   StreamSubscription? _profitRangesSub;
   StreamSubscription? _configSub;
 
-  // Guardamos el ID de la categoría seleccionada
+  // Cuentas de categoría
   String? _selectedCategoryId;
-  // Guardamos el nombre para denormalización (compatibilidad y facilidad de lectura)
   String? _selectedCategoryName;
 
   String? _selectedLabel;
@@ -75,7 +74,6 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
   @override
   void initState() {
     super.initState();
-    // Inicializar controladores con datos existentes si es edición, o vacíos si es nuevo
     _nameController = TextEditingController(
       text: widget.initialData?['name'] ?? '',
     );
@@ -91,7 +89,6 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
       text: widget.initialData?['description'] ?? '',
     );
 
-    // Cargar vinculación de categoría
     _selectedCategoryId = widget.initialData?['categoryId'];
     _selectedCategoryName = widget.initialData?['category'];
 
@@ -100,15 +97,12 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     _rating = (widget.initialData?['rating'] as num?)?.toDouble() ?? 4.5;
     _isFeatured = widget.initialData?['isFeatured'] ?? false;
 
-    // Cargar imágenes existentes
     if (widget.initialData?['images'] != null) {
       _imageUrls = List<String>.from(widget.initialData!['images']);
     } else if (widget.initialData?['image'] != null) {
-      // Compatibilidad con formato antiguo (una sola imagen)
       _imageUrls = [widget.initialData!['image']];
     }
 
-    // Cargar datos de proveedor
     _selectedSupplierId = widget.initialData?['supplierId'];
     _selectedSupplierName = widget.initialData?['supplierName'];
     _supplierProductLinkController = TextEditingController(
@@ -134,17 +128,15 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     _isAutoPriceEnabled = widget.productId == null;
     _useFixedProfit = widget.initialData?['useFixedProfit'] ?? false;
 
-    // Listeners for auto-calculation
     _costWithoutIvaController.addListener(_onCostChanged);
 
-    // Initial load of profit ranges
     _profitRangesSub = ConfigService().getProfitRangesStream().listen((ranges) {
-      setState(() => _profitRanges = ranges);
+      if (mounted) setState(() => _profitRanges = ranges);
       if (_isAutoPriceEnabled) _calculatePrices();
     });
 
     _configSub = ConfigService().getConfigStream().listen((config) {
-      setState(() => _vatPercentage = config.vatPercentage);
+      if (mounted) setState(() => _vatPercentage = config.vatPercentage);
       if (_isAutoPriceEnabled) _calculatePrices();
     });
   }
@@ -179,21 +171,17 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     double fixedProfit = 0;
 
     if (_useFixedProfit) {
-      // Modo Ganancia Fija: El usuario ingresa $ y calculamos %
       fixedProfit = double.tryParse(_fixedProfitController.text) ?? 0;
       if (costWithIva > 0) {
         margin = (fixedProfit / costWithIva) * 100;
         _profitMarginController.text = margin.toStringAsFixed(1);
       }
     } else {
-      // Modo Porcentaje:
       if (isMarginChange) {
-        // Si el usuario cambió manualmente el %, calculamos el $
         margin = double.tryParse(_profitMarginController.text) ?? 0;
         fixedProfit = (costWithIva * margin) / 100;
         _fixedProfitController.text = fixedProfit.toStringAsFixed(2);
       } else {
-        // Si no es un cambio manual de %, usamos los rangos automáticos
         bool found = false;
         for (final range in _profitRanges) {
           if (costWithIva >= range.minPrice && costWithIva <= range.maxPrice) {
@@ -215,13 +203,11 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     }
 
     final pvp = costWithIva + fixedProfit;
-    // El precio principal es el de tarjeta (incluye comisión 6%)
     final cardPrice = pvp / (1 - 0.06);
 
     _priceController.text = cardPrice.toStringAsFixed(2);
-    _cardPriceController.text = pvp.toStringAsFixed(2); // Cash price
+    _cardPriceController.text = pvp.toStringAsFixed(2);
 
-    // Necesario para que los widgets que no son controllers se actualicen (ej. PVP y Efectivo)
     if (mounted) setState(() {});
   }
 
@@ -289,11 +275,12 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
       };
 
       final db = FirebaseFirestore.instance;
+      final idService = DocumentIdService();
       String finalProductId;
 
       if (widget.productId == null) {
-        final docRef = await db.collection('products').add(productData);
-        finalProductId = docRef.id;
+        finalProductId = await idService.generateId(prefix: 'prod');
+        await db.collection('products').doc(finalProductId).set(productData);
       } else {
         await db
             .collection('products')
@@ -317,25 +304,25 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     }
   }
 
+  // --- UI BUILDERS ---
+
   Widget _buildCard({
     required List<Widget> children,
     Color? color,
-    EdgeInsets? padding,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: padding ?? const EdgeInsets.all(24),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: color ?? Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey.withOpacity(0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,79 +331,47 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     );
   }
 
-  Widget _buildInfoItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.1)),
-      ),
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.nearBlack,
-                ),
-              ),
-            ],
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeaderCard(
-    String title,
-    IconData icon,
-    List<Color> colors,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(24),
-          topRight: Radius.circular(24),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 20),
-          const SizedBox(width: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.nearBlack,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -424,14 +379,45 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     );
   }
 
+  InputDecoration _buildInputDecoration({
+    required String labelText,
+    required IconData prefixIcon,
+    String? prefixText,
+    String? hintText,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      prefixText: prefixText,
+      prefixIcon: Icon(prefixIcon, color: AppColors.primaryBlue),
+      filled: true,
+      fillColor: Colors.grey[50],
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: AppColors.primaryBlue, width: 2),
+      ),
+    );
+  }
+
   Widget _buildImageGalleryCard(AppLocalizations l10n) {
     return _buildCard(
-      padding: EdgeInsets.zero,
       children: [
-        _buildSectionHeaderCard('Imágenes del Producto', Icons.image_outlined, [
-          AppColors.primaryBlue,
-          AppColors.accentBlue,
-        ]),
+        _buildSectionHeader(
+          title: 'Imágenes del Producto',
+          subtitle: 'Añada los enlaces de las imágenes de alta calidad',
+          icon: Icons.photo_library_outlined,
+          color: AppColors.primaryBlue,
+        ),
+        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -442,41 +428,44 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                   Expanded(
                     child: TextFormField(
                       controller: _newImageUrlController,
-                      decoration: InputDecoration(
+                      decoration: _buildInputDecoration(
+                        labelText: 'URL de Imagen',
                         hintText: l10n.imageLinkHint,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        prefixIcon: const Icon(Icons.link),
+                        prefixIcon: Icons.link,
                       ),
                       keyboardType: TextInputType.url,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppColors.primaryBlue, AppColors.accentBlue],
+                  ElevatedButton(
+                    onPressed: () {
+                      final url = _newImageUrlController.text.trim();
+                      if (url.isNotEmpty) {
+                        setState(() {
+                          _imageUrls.add(url);
+                          _newImageUrlController.clear();
+                        });
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        final url = _newImageUrlController.text.trim();
-                        if (url.isNotEmpty) {
-                          setState(() {
-                            _imageUrls.add(url);
-                            _newImageUrlController.clear();
-                          });
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.add_photo_alternate,
-                        color: Colors.white,
-                      ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 20),
+                        SizedBox(width: 4),
+                        Text('Agregar', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
                     ),
                   ),
                 ],
@@ -489,6 +478,7 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                     scrollDirection: Axis.horizontal,
                     itemCount: _imageUrls.length,
                     itemBuilder: (context, index) {
+                      final isMain = index == 0;
                       return Container(
                         margin: const EdgeInsets.only(right: 12),
                         width: 130,
@@ -498,7 +488,10 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.grey.withOpacity(0.2),
+                                  color: isMain
+                                      ? AppColors.primaryBlue
+                                      : Colors.grey.shade300,
+                                  width: isMain ? 2 : 1,
                                 ),
                                 image: DecorationImage(
                                   image: NetworkImage(_imageUrls[index]),
@@ -513,9 +506,9 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                                 onTap: () =>
                                     setState(() => _imageUrls.removeAt(index)),
                                 child: Container(
-                                  padding: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(6),
                                   decoration: const BoxDecoration(
-                                    color: Colors.black54,
+                                    color: Color(0xB3000000),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -526,7 +519,7 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                                 ),
                               ),
                             ),
-                            if (index == 0)
+                            if (isMain)
                               Positioned(
                                 bottom: 8,
                                 left: 8,
@@ -539,13 +532,23 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                                     color: AppColors.primaryBlue,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Text(
-                                    'Principal',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.star,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Principal',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -563,8 +566,7 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.grey.withOpacity(0.1),
-                      style: BorderStyle.solid,
+                      color: Colors.grey.shade300,
                     ),
                   ),
                   child: Column(
@@ -572,13 +574,13 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                     children: [
                       Icon(
                         Icons.add_a_photo_outlined,
-                        size: 32,
+                        size: 36,
                         color: Colors.grey[400],
                       ),
                       const SizedBox(height: 8),
                       Text(
                         l10n.noImagesAdded,
-                        style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
                     ],
                   ),
@@ -592,48 +594,42 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
 
   Widget _buildGeneralInfoCard(AppLocalizations l10n) {
     return _buildCard(
-      padding: EdgeInsets.zero,
       children: [
-        _buildSectionHeaderCard('Información Básica', Icons.info_outline, [
-          AppColors.roleClient,
-          AppColors.success,
-        ]),
+        _buildSectionHeader(
+          title: 'Información del Producto',
+          subtitle: 'Nombre, especificaciones y descripción comercial',
+          icon: Icons.inventory_2_outlined,
+          color: Colors.teal,
+        ),
+        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: l10n.productName,
-                  prefixIcon: const Icon(Icons.shopping_bag_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                decoration: _buildInputDecoration(
+                  labelText: '${l10n.productName} *',
+                  prefixIcon: Icons.shopping_bag_outlined,
                 ),
                 validator: (v) => v!.trim().isEmpty ? l10n.errorPrefix : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _specsController,
-                decoration: InputDecoration(
+                decoration: _buildInputDecoration(
                   labelText: l10n.productSpecs,
-                  prefixIcon: const Icon(Icons.list_alt_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  prefixIcon: Icons.list_alt_outlined,
+                  hintText: 'Ej: RAM 16GB, SSD 512GB, Core i7',
                 ),
                 maxLines: 2,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
-                decoration: InputDecoration(
+                decoration: _buildInputDecoration(
                   labelText: l10n.productDescription,
-                  prefixIcon: const Icon(Icons.description_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  prefixIcon: Icons.description_outlined,
                 ),
                 maxLines: 3,
               ),
@@ -646,123 +642,92 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
 
   Widget _buildPricingCard(AppLocalizations l10n) {
     return _buildCard(
-      padding: EdgeInsets.zero,
       children: [
-        _buildSectionHeaderCard(
-          'Dashboard de Precios',
-          Icons.analytics_outlined,
-          [AppColors.goldAccent, AppColors.warning],
+        _buildSectionHeader(
+          title: 'Precios y Márgenes de Ganancia',
+          subtitle: 'Calculadora automática de PVP Efectivo y Tarjeta',
+          icon: Icons.calculate_outlined,
+          color: Colors.orange.shade800,
         ),
+        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Método de Cálculo',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.nearBlack,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        'Manual',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      Switch(
-                        value: _isAutoPriceEnabled,
-                        onChanged: (v) {
-                          setState(() {
-                            _isAutoPriceEnabled = v;
-                            if (v) _calculatePrices();
-                          });
-                        },
-                        activeColor: AppColors.goldAccent,
-                      ),
-                      Text(
-                        'Auto',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.goldAccent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+              // Auto vs Manual Mode Switch
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.orange.shade200),
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('% Ganancia')),
-                        selected: !_useFixedProfit,
-                        selectedColor: AppColors.primaryBlue,
-                        labelStyle: TextStyle(
-                          color: !_useFixedProfit
-                              ? Colors.white
-                              : AppColors.textPrimary,
-                          fontSize: 12,
+                    Row(
+                      children: [
+                        Icon(Icons.auto_mode, color: Colors.orange.shade800),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Cálculo Automático',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade900,
+                          ),
                         ),
-                        onSelected: (selected) {
-                          if (selected)
-                            setState(() {
-                              _useFixedProfit = false;
-                              _calculatePrices();
-                            });
-                        },
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Center(child: Text('\$ Ganancia Fija')),
-                        selected: _useFixedProfit,
-                        selectedColor: AppColors.primaryBlue,
-                        labelStyle: TextStyle(
-                          color: _useFixedProfit
-                              ? Colors.white
-                              : AppColors.textPrimary,
-                          fontSize: 12,
-                        ),
-                        onSelected: (selected) {
-                          if (selected)
-                            setState(() {
-                              _useFixedProfit = true;
-                              _calculatePrices();
-                            });
-                        },
-                      ),
+                    Switch(
+                      value: _isAutoPriceEnabled,
+                      activeThumbColor: Colors.orange.shade800,
+                      onChanged: (v) {
+                        setState(() {
+                          _isAutoPriceEnabled = v;
+                          if (v) _calculatePrices();
+                        });
+                      },
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Ganancia Porcentaje vs Fija Selector
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('% Ganancia'),
+                    icon: Icon(Icons.percent),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('\$ Ganancia Fija'),
+                    icon: Icon(Icons.attach_money),
+                  ),
+                ],
+                selected: {_useFixedProfit},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _useFixedProfit = selection.first;
+                    _calculatePrices();
+                  });
+                },
+              ),
               const SizedBox(height: 20),
+
+              // Cost inputs
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _costWithoutIvaController,
-                      decoration: InputDecoration(
+                      decoration: _buildInputDecoration(
                         labelText: 'Costo (sin IVA)',
+                        prefixIcon: Icons.payments_outlined,
                         prefixText: '\$ ',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -772,20 +737,20 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                     child: TextFormField(
                       controller: _costWithIvaController,
                       readOnly: true,
-                      decoration: InputDecoration(
-                        labelText: 'Costo (con IVA)',
+                      decoration: _buildInputDecoration(
+                        labelText: 'Costo (con IVA ${(_vatPercentage).toInt()}%)',
+                        prefixIcon: Icons.receipt_long,
                         prefixText: '\$ ',
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      ).copyWith(
+                        fillColor: Colors.grey[100],
                       ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
+
+              // Profit margin inputs
               Row(
                 children: [
                   Expanded(
@@ -793,16 +758,14 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                       controller: _profitMarginController,
                       readOnly: _isAutoPriceEnabled && _useFixedProfit,
                       onChanged: (v) => _onProfitChanged(isMarginChange: true),
-                      decoration: InputDecoration(
+                      decoration: _buildInputDecoration(
                         labelText: 'Ganancia (%)',
+                        prefixIcon: Icons.trending_up,
                         prefixText: '% ',
-                        filled: _isAutoPriceEnabled && _useFixedProfit,
+                      ).copyWith(
                         fillColor: (_isAutoPriceEnabled && _useFixedProfit)
                             ? Colors.grey[100]
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            : Colors.grey[50],
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -813,16 +776,14 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                       controller: _fixedProfitController,
                       readOnly: _isAutoPriceEnabled && !_useFixedProfit,
                       onChanged: (v) => _onProfitChanged(isFixedChange: true),
-                      decoration: InputDecoration(
-                        labelText: 'Ganancia (\$)',
+                      decoration: _buildInputDecoration(
+                        labelText: 'Ganancia (\$) ',
+                        prefixIcon: Icons.attach_money,
                         prefixText: '\$ ',
-                        filled: _isAutoPriceEnabled && !_useFixedProfit,
+                      ).copyWith(
                         fillColor: (_isAutoPriceEnabled && !_useFixedProfit)
                             ? Colors.grey[100]
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                            : Colors.grey[50],
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -832,18 +793,98 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
               const SizedBox(height: 24),
               const Divider(),
               const SizedBox(height: 16),
-              _buildInfoItem(
-                'PVP FINAL (TARJETA)',
-                '\$ ${_priceController.text}',
-                Icons.credit_card,
-                AppColors.accentBlue,
-              ),
-              const SizedBox(height: 12),
-              _buildInfoItem(
-                'PRECIO EFECTIVO',
-                '\$ ${_cardPriceController.text}',
-                Icons.payments_outlined,
-                AppColors.success,
+
+              // Financial Result Cards
+              Row(
+                children: [
+                  // PVP Efectivo
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.payments,
+                                color: Colors.green.shade700,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'PVP EFECTIVO',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '\$ ${_cardPriceController.text.isEmpty ? '0.00' : _cardPriceController.text}',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.green.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // PVP Tarjeta
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.credit_card,
+                                color: Colors.blue.shade700,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'PVP TARJETA',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '\$ ${_priceController.text.isEmpty ? '0.00' : _priceController.text}',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -854,29 +895,45 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
 
   Widget _buildDetailsCard(AppLocalizations l10n) {
     return _buildCard(
-      padding: EdgeInsets.zero,
       children: [
-        _buildSectionHeaderCard(
-          'Clasificación y Atributos',
-          Icons.settings_outlined,
-          [AppColors.primaryBlue, AppColors.roleTechnician],
+        _buildSectionHeader(
+          title: 'Clasificación y Atributos',
+          subtitle: 'Categoría del producto, estado de IVA y visibilidad',
+          icon: Icons.tune_outlined,
+          color: Colors.indigo,
         ),
+        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               StreamBuilder<List<CategoryModel>>(
                 stream: CategoryService().getCategories(CategoryType.product),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.orange, size: 32),
+                            const SizedBox(height: 8),
+                            Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text('${snapshot.error}', style: TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                   final categories = snapshot.data ?? [];
                   return DropdownButtonFormField<String>(
                     initialValue: _selectedCategoryId,
-                    decoration: InputDecoration(
+                    decoration: _buildInputDecoration(
                       labelText: l10n.productCategory,
-                      prefixIcon: const Icon(Icons.category_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icons.category_outlined,
                     ),
                     items: categories
                         .map(
@@ -898,84 +955,118 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                 },
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedLabel,
-                decoration: InputDecoration(
-                  labelText: l10n.productLabel,
-                  prefixIcon: const Icon(Icons.label_important_outline),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: ['Ninguna', 'Oferta', 'Agotado']
-                    .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedLabel = v!),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedTaxStatus,
-                decoration: InputDecoration(
-                  labelText: l10n.taxStatus,
-                  prefixIcon: const Icon(Icons.receipt_long_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: ['Incluye impuesto', 'Más impuesto', 'Ninguno']
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedTaxStatus = v!),
-              ),
-              const SizedBox(height: 20),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      'Calificación Inicial',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.nearBlack,
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedLabel,
+                      decoration: _buildInputDecoration(
+                        labelText: l10n.productLabel,
+                        prefixIcon: Icons.label_outlined,
                       ),
+                      items: ['Ninguna', 'Oferta', 'Agotado']
+                          .map(
+                            (l) => DropdownMenuItem(value: l, child: Text(l)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedLabel = v!),
                     ),
                   ),
-                  Slider(
-                    value: _rating,
-                    min: 1,
-                    max: 5,
-                    activeColor: AppColors.goldAccent,
-                    divisions: 8,
-                    onChanged: (v) => setState(() => _rating = v),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        _rating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedTaxStatus,
+                      decoration: _buildInputDecoration(
+                        labelText: l10n.taxStatus,
+                        prefixIcon: Icons.monetization_on_outlined,
                       ),
-                    ],
+                      items: ['Incluye impuesto', 'Más impuesto', 'Ninguno']
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedTaxStatus = v!),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
+
+              // Rating Slider
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Calificación Inicial',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.nearBlack,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: _rating,
+                      min: 1,
+                      max: 5,
+                      activeColor: Colors.amber,
+                      divisions: 8,
+                      onChanged: (v) => setState(() => _rating = v),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Featured Switch
               SwitchListTile(
                 title: const Text(
                   'Producto Destacado',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: const Text('Mostrar en la sección principal'),
+                subtitle: const Text('Mostrar en el carrusel de inicio'),
                 value: _isFeatured,
-                activeColor: AppColors.goldAccent,
+                activeThumbColor: AppColors.primaryBlue,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey.shade200),
                 ),
                 tileColor: Colors.grey[50],
                 onChanged: (bool value) => setState(() => _isFeatured = value),
@@ -992,13 +1083,14 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
       return const SizedBox.shrink();
     }
     return _buildCard(
-      padding: EdgeInsets.zero,
       children: [
-        _buildSectionHeaderCard(
-          'Información de Proveedor',
-          Icons.business_outlined,
-          [AppColors.primaryDark, AppColors.primaryBlue],
+        _buildSectionHeader(
+          title: 'Información de Proveedor',
+          subtitle: 'Vínculo y compras directas',
+          icon: Icons.business_outlined,
+          color: Colors.purple,
         ),
+        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -1006,18 +1098,32 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
               StreamBuilder<List<SupplierModel>>(
                 stream: SupplierService().getSuppliers(),
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.orange, size: 32),
+                            const SizedBox(height: 8),
+                            Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text('${snapshot.error}', style: TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
                   final suppliers = snapshot.data ?? [];
                   return DropdownButtonFormField<String>(
                     initialValue: _selectedSupplierId,
-                    decoration: InputDecoration(
+                    decoration: _buildInputDecoration(
                       labelText: l10n.supplierInfo,
-                      prefixIcon: const Icon(Icons.business),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      prefixIcon: Icons.business,
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('—')),
+                      const DropdownMenuItem(value: null, child: Text('— Sin Proveedor —')),
                       ...suppliers.map(
                         (s) =>
                             DropdownMenuItem(value: s.id, child: Text(s.name)),
@@ -1040,12 +1146,9 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                   Expanded(
                     child: TextFormField(
                       controller: _supplierProductLinkController,
-                      decoration: InputDecoration(
+                      decoration: _buildInputDecoration(
                         labelText: l10n.supplierLink,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        prefixIcon: const Icon(Icons.link),
+                        prefixIcon: Icons.link,
                       ),
                       keyboardType: TextInputType.url,
                     ),
@@ -1070,7 +1173,7 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
                         backgroundColor: AppColors.primaryBlue,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       child: const Icon(Icons.visibility),
@@ -1090,77 +1193,101 @@ class _ProductFormPageState extends ConsumerState<ProductFormPage> {
     final l10n = AppLocalizations.of(context)!;
     final userRoleAsync = ref.watch(currentUserRoleProvider);
 
+    final titleText = widget.productId == null
+        ? l10n.productFormTitleNew
+        : l10n.productFormTitleEdit;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundGray,
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(
+          titleText,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check, size: 28),
+            onPressed: _isSaving ? null : () => _saveProduct(l10n),
+            tooltip: 'Guardar',
+          ),
+        ],
+      ),
       body: _isSaving
           ? const Center(child: AppLoadingIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 120,
-                  pinned: true,
-                  stretch: true,
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
-                  flexibleSpace: FlexibleSpaceBar(
-                    title: Text(
-                      widget.productId == null
-                          ? l10n.productFormTitleNew
-                          : l10n.productFormTitleEdit,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    centerTitle: false,
-                    titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
-                    background: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.primaryBlue,
-                            AppColors.primaryDark,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  actions: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: IconButton(
-                        icon: const Icon(Icons.check_circle, size: 28),
-                        onPressed: _isSaving ? null : () => _saveProduct(l10n),
-                      ),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildImageGalleryCard(l10n),
+                    _buildGeneralInfoCard(l10n),
+                    _buildPricingCard(l10n),
+                    _buildDetailsCard(l10n),
+                    userRoleAsync.when(
+                      data: (role) => _buildSupplierCard(l10n, role),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
                   ],
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildImageGalleryCard(l10n),
-                          _buildGeneralInfoCard(l10n),
-                          _buildPricingCard(l10n),
-                          _buildDetailsCard(l10n),
-                          userRoleAsync.when(
-                            data: (role) => _buildSupplierCard(l10n, role),
-                            loading: () => const SizedBox.shrink(),
-                            error: (_, __) => const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _isSaving ? null : () => _saveProduct(l10n),
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(
+                _isSaving
+                    ? 'GUARDANDO...'
+                    : (widget.productId == null
+                        ? 'GUARDAR PRODUCTO'
+                        : 'GUARDAR CAMBIOS'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

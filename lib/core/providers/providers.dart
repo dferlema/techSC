@@ -1,17 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
-import 'package:techsc/core/services/config_service.dart';
-import 'package:techsc/core/services/cache_service.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
-import 'package:techsc/features/catalog/services/product_service.dart';
-import 'package:techsc/features/reservations/services/service_service.dart';
-import 'package:techsc/features/auth/services/user_service.dart';
-import 'package:techsc/features/auth/models/user_model.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/features/cart/services/cart_service.dart';
+import 'package:tscomputer/core/services/config_service.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
+import 'package:tscomputer/features/catalog/services/category_service.dart';
+import 'package:tscomputer/features/catalog/services/product_service.dart';
+import 'package:tscomputer/features/reservations/services/service_service.dart';
+import 'package:tscomputer/features/auth/services/user_service.dart';
+import 'package:tscomputer/features/auth/models/user_model.dart';
+import 'package:tscomputer/features/auth/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:techsc/core/services/payphone_service.dart';
-import 'package:techsc/features/home/providers/home_providers.dart';
+import 'package:tscomputer/core/services/payphone_service.dart';
+import 'package:tscomputer/features/home/providers/home_providers.dart';
 
 /// Provider for RoleService singleton
 final roleServiceProvider = Provider<RoleService>((ref) {
@@ -65,7 +66,9 @@ final userRoleProvider = FutureProvider.family<String, String>((
 
 /// Provider to watch current user data
 final userDataProvider = StreamProvider.family<UserModel?, String>((ref, uid) {
-  return ref.watch(userServiceProvider).watchUser(uid);
+  return ref.watch(userServiceProvider).watchUser(uid).handleError(
+    (error) => debugPrint('Stream error [userData]: $error'),
+  );
 });
 
 /// Provider for AuthService
@@ -73,12 +76,16 @@ final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 /// Provider for current Firebase User
 final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.watch(authServiceProvider).authStateChanges;
+  return ref.watch(authServiceProvider).authStateChanges.handleError(
+    (error) => debugPrint('Stream error [authState]: $error'),
+  );
 });
 
 /// Provider to watch all users
 final allUsersProvider = StreamProvider<List<UserModel>>((ref) {
-  return ref.watch(userServiceProvider).watchAllUsers();
+  return ref.watch(userServiceProvider).watchAllUsers().handleError(
+    (error) => debugPrint('Stream error [allUsers]: $error'),
+  );
 });
 
 /// Provider for PayphoneService
@@ -94,6 +101,6 @@ final payphoneServiceProvider = Provider<PayphoneService?>((ref) {
       );
     },
     loading: () => null,
-    error: (_, __) => null,
+    error: (_, _) => null,
   );
 });

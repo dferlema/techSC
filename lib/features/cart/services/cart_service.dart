@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:techsc/features/cart/models/cart_item.dart';
-import 'package:techsc/core/services/notification_service.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/features/cart/models/cart_item.dart';
+import 'package:tscomputer/core/services/notification_service.dart';
+import 'package:tscomputer/features/orders/services/order_service.dart';
 
 /// Service to manage the shopping cart state and order creation.
 /// Uses the [ChangeNotifier] pattern for reactive UI updates.
@@ -93,14 +94,8 @@ class CartService extends ChangeNotifier {
   }
 
   /// Helper to generate a unique Order ID (PyyyyMMdd-HHmmss-XXXX)
-  String _generateOrderId() {
-    final now = DateTime.now();
-    final datePrefix = DateFormat('yyyyMMdd-HHmmss').format(now);
-    final randomSuffix = DateTime.now().microsecondsSinceEpoch
-        .toString()
-        .substring(10); // Útimos 6 dígitos de microsegundos
-    return 'P$datePrefix-$randomSuffix';
-  }
+  Future<String> _generateOrderId() =>
+      DocumentIdService().generateId(prefix: 'ord', useDate: true);
 
   /// Converts the current cart items into a Firestore order.
   /// Generates a [QuoteModel]-compatible snapshot within the order for history tracking.
@@ -110,6 +105,7 @@ class CartService extends ChangeNotifier {
     String? paymentId,
     String paymentMethod = 'efectivo',
     double discountPercentage = 0.0,
+    bool applyVAT = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -176,8 +172,8 @@ class CartService extends ChangeNotifier {
       'createdAt': Timestamp.now(),
       'expirationDate': null,
       'status': 'converted', // Ya convertido a orden
-      'applyTax': false,
-      'taxRate': 0.0,
+      'applyTax': applyVAT,
+      'taxRate': applyVAT ? 0.15 : 0.0,
       'subtotal': subtotal,
       'discountPercentage': currentDiscount,
       'discountAmount': discountAmount,
@@ -185,7 +181,7 @@ class CartService extends ChangeNotifier {
     };
 
     // Generate Unique ID
-    final customOrderId = _generateOrderId();
+    final customOrderId = await _generateOrderId();
 
     // Crear objeto de orden con estructura compatible con quote-based orders
     final orderData = {
@@ -212,6 +208,9 @@ class CartService extends ChangeNotifier {
         .collection('orders')
         .doc(customOrderId)
         .set(orderData);
+
+    // Registrar ingreso contable para todos los pedidos (independientemente del método de pago)
+    await OrderService().registerOrderIncome(customOrderId);
 
     // Enviar notificación centralizada
     await NotificationService().notifyOrderCreated(

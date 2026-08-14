@@ -1,12 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/orders/screens/my_orders_page.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/services/preferences_service.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/core/platform/platform_image.dart';
+import 'package:tscomputer/features/orders/screens/my_orders_page.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/services/preferences_service.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 class AppDrawer extends StatefulWidget {
   final String currentRoute;
@@ -131,7 +131,7 @@ class _AppDrawerState extends State<AppDrawer> {
                           radius: 30,
                           backgroundColor: AppColors.white,
                           backgroundImage: imagePath != null
-                              ? FileImage(File(imagePath))
+                              ? getLocalImageProvider(imagePath)
                               : null,
                           child: imagePath == null
                               ? Icon(

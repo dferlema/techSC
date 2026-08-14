@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/orders/providers/order_providers.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/features/orders/providers/order_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/features/orders/widgets/client_order_card.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/features/orders/widgets/client_order_card.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class MyOrdersPage extends ConsumerWidget {
   const MyOrdersPage({super.key});
@@ -85,18 +85,23 @@ class MyOrdersPage extends ConsumerWidget {
               );
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: orders.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final order = orders[index];
-                return ClientOrderCard(
-                  docId: order.id,
-                  data: order.toMap(),
-                  onPay: (link) => _launchPaymentLink(context, link),
-                );
-              },
+            return RefreshIndicator(
+              onRefresh: () async => ref.invalidate(userOrdersProvider(user.uid)),
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: orders.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final order = orders[index];
+                  return ClientOrderCard(
+                    docId: order.id,
+                    data: order.toMap(),
+                    onPay: (link) => _launchPaymentLink(context, link),
+                  );
+                },
+              ),
             );
           },
         ),

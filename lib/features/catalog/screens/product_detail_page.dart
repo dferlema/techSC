@@ -3,17 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/core/utils/whatsapp_share_helper.dart';
-import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/features/catalog/services/supplier_service.dart';
-import 'package:techsc/features/catalog/models/product_model.dart';
-import 'package:techsc/features/catalog/models/supplier_model.dart';
-import 'package:techsc/features/catalog/widgets/supplier_link_dialog.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/utils/snackbar_helper.dart';
+import 'package:tscomputer/core/providers/ai_providers.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/utils/whatsapp_share_helper.dart';
+import 'package:tscomputer/core/widgets/cart_badge.dart';
+import 'package:tscomputer/features/catalog/services/supplier_service.dart';
+import 'package:tscomputer/features/catalog/models/product_model.dart';
+import 'package:tscomputer/features/catalog/models/supplier_model.dart';
+import 'package:tscomputer/features/catalog/widgets/supplier_link_dialog.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/utils/snackbar_helper.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final ProductModel product;
@@ -589,6 +590,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     loading: () => const AppLoadingIndicator(),
                     error: (_, _) => const SizedBox.shrink(),
                   ),
+                  _buildSimilarProductsSection(),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -602,6 +604,23 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             .doc(widget.productId)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.orange, size: 32),
+                    const SizedBox(height: 8),
+                    Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text('${snapshot.error}', style: TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+                  ],
+                ),
+              ),
+            );
+          }
           final liveStock = snapshot.hasData && snapshot.data!.exists
               ? (snapshot.data!.data() as Map<String, dynamic>)['stock']
                         as int? ??
@@ -704,6 +723,114 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSimilarProductsSection() {
+    final similarAsync = ref.watch(similarProductsProvider(widget.productId));
+    return similarAsync.when(
+      data: (products) {
+        if (products.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 32),
+            const Text(
+              'Productos Similares',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF111111),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: products.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final p = products[index];
+                  return GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailPage(
+                          product: p,
+                          productId: p.id,
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      width: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(13),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(16),
+                              ),
+                              child: p.imageUrl != null
+                                  ? CachedNetworkImage(
+                                      imageUrl: p.imageUrl!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                    )
+                                  : Container(color: Colors.grey[200]),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '\$${p.price}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 }

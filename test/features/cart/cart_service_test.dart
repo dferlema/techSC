@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
+import 'package:tscomputer/features/cart/services/cart_service.dart';
 
 void main() {
   late CartService cartService;

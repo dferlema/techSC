@@ -46,6 +46,15 @@ service cloud.firestore {
       );
     }
 
+    // Un cliente autenticado solo puede crear/actualizar registros contables
+    // vinculados a una orden que le pertenece (integración contable automática
+    // al comprar desde el carrito).
+    function isOwnOrder(orderId) {
+      return isAuthenticated() && orderId != null && orderId != '' &&
+        get(/databases/$(database)/documents/orders/$(orderId)).data
+          .get('userId', '') == request.auth.uid;
+    }
+
     // --- Collection Rules ---
 
     // Users: Complex rules for privacy and role management
@@ -91,6 +100,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Configuración inicial del negocio (wizard contable) y empleados
+    match /business_config/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isAccounting();
+    }
+
+    match /business_employees/{employeeId} {
+      allow read: if isStaff();
+      allow write: if isAdmin() || isAccounting();
+    }
+
     // Quotes & Orders
     match /quotes/{quoteId} {
       allow read: if isAuthenticated() && (
@@ -119,6 +139,17 @@ service cloud.firestore {
       );
       allow update: if isStaff() && (resource.data.status != 'entregado' || isAdmin());
       allow delete: if isAdmin();
+
+      match /payments/{paymentId} {
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data
+            .get('userId', '') == request.auth.uid ||
+          isStaff()
+        );
+        allow create: if isStaff();
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
     }
 
     // Reservations
@@ -137,6 +168,16 @@ service cloud.firestore {
         (resource.data.status != 'completada' || isAdmin());
         
       allow delete: if isAdmin();
+
+      match /payments/{paymentId} {
+        allow read: if isAuthenticated() && (
+          resource.data.get('userId', '') == request.auth.uid ||
+          isStaff()
+        );
+        allow create: if isStaff();
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
     }
 
     // Notifications
@@ -159,7 +200,14 @@ service cloud.firestore {
     // Suppliers (Proveedores)
     match /suppliers/{supplierId} {
       allow read: if isStaff();
-      allow write: if isStaff(); // Admins and Sellers can manage suppliers
+      allow write: if isStaff();
+    }
+
+    // Sequential ID counters (used by DocumentIdService for atomic IDs).
+    // Clients generate order/payment IDs when buying from the cart, so any
+    // authenticated user may read/write counters.
+    match /_counters/{counterId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Marketing Logs
@@ -168,30 +216,130 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Inventory Movements
+    // Inventory Movements (staff records purchases/sales; clients never write)
     match /inventory_movements/{movementId} {
-      allow read, write: if isStaff();
+      allow read: if isAuthenticated() && isStaff();
+      allow write: if isStaff();
     }
 
     // --- Módulo Contable (Accounting) ---
+    //
+    // La integración contable automática se dispara desde operaciones que
+    // ejecutan clientes (compra en carrito), vendedores y técnicos, por lo que
+    // el CREATE de transacciones/asientos/CxC se permite a staff o al dueño de
+    // la orden referenciada. La gestión manual (update/delete) queda para
+    // admin/contabilidad.
 
-    // Transacciones contables (ingresos y egresos)
     match /accounting_transactions/{transactionId} {
       allow read: if isStaff();
-      allow create: if isAdmin() || isAccounting();
-      allow update: if isAdmin() || isAccounting();
+      allow create: if isStaff() ||
+        isOwnOrder(request.resource.data.get('referenceId', ''));
+      allow update: if isAdmin() || isAccounting() || isStaff();
       allow delete: if isAdmin();
+
+      // Historial previo de cada transacción al ser modificada
+      match /_history/{historyId} {
+        allow read: if isStaff();
+        allow write: if isAdmin() || isAccounting() || isStaff();
+      }
     }
 
-    // Cierres de caja diarios
     match /accounting_closures/{closureId} {
       allow read: if isStaff();
       allow create: if isAdmin() || isAccounting();
       allow update, delete: if isAdmin();
     }
 
-    // Facturas electrónicas (puente SRI)
     match /accounting_invoices/{invoiceId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() || isAccounting();
+      allow update: if isAdmin() || isAccounting();
+      allow delete: if isAdmin();
+    }
+
+    // Facturas de compra y gastos (fuente de verdad de compras). El personal
+    // registra facturas (incluidas las generadas al registrar movimientos de
+    // inventario IN); la gestión estructural queda para admin/contabilidad.
+    match /purchase_invoices/{invoiceId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update: if isAdmin() || isAccounting() || isStaff();
+      allow delete: if isAdmin();
+    }
+
+    match /chart_of_accounts/{accountId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isAccounting();
+      // Los asientos automáticos (clientes comprando, ventas, compras) solo
+      // actualizan el campo `balance`; la edición estructural queda para
+      // admin/contabilidad.
+      allow update: if isAdmin() || isAccounting() ||
+        (isStaff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['balance']));
+      allow delete: if isAdmin() || isAccounting();
+    }
+
+    match /accounting_entries/{entryId} {
+      allow read: if isStaff();
+      allow create: if isStaff() ||
+        isOwnOrder(request.resource.data.get('referenceId', ''));
+      allow update: if isAdmin() || isAccounting();
+      allow delete: if isAdmin();
+    }
+
+    // Diario legado/consulta de reportes financieros
+    match /journal_entries/{entryId} {
+      allow read: if isStaff();
+      allow write: if isAdmin() || isAccounting();
+    }
+
+    match /accounts_receivable/{receivableId} {
+      allow read: if isStaff();
+      allow create: if isStaff() ||
+        isOwnOrder(request.resource.data.get('originId', ''));
+      allow update: if isAdmin() || isAccounting() || isStaff();
+      allow delete: if isAdmin();
+      match /payments/{paymentId} {
+        allow read: if isStaff();
+        allow create: if isStaff();
+        allow update: if isAdmin() || isAccounting();
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /accounts_payable/{payableId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update: if isAdmin() || isAccounting() || isStaff();
+      allow delete: if isAdmin();
+      match /payments/{paymentId} {
+        allow read: if isStaff();
+        allow create: if isStaff();
+        allow update: if isAdmin() || isAccounting();
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /bank_reconciliation/{reconId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() || isAccounting();
+      allow update: if isAdmin() || isAccounting();
+      allow delete: if isAdmin();
+    }
+
+    match /receipt_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isAccounting();
+    }
+
+    // --- Nómina (Payroll) ---
+    match /payroll_entries/{payrollId} {
+      allow read: if isStaff();
+      allow create, update: if isAdmin() || isAccounting();
+      allow delete: if isAdmin();
+    }
+
+    // --- NUEVO: Presupuestos (Budget vs Actual) ---
+    match /budgets/{budgetId} {
       allow read: if isStaff();
       allow create: if isAdmin() || isAccounting();
       allow update: if isAdmin() || isAccounting();

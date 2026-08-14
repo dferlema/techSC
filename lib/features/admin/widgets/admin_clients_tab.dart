@@ -1,17 +1,18 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/features/admin/screens/client_form_page.dart';
-import 'package:techsc/features/admin/widgets/role_assignment_dialog.dart';
-import 'package:techsc/features/admin/providers/admin_providers.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/platform/io_helper.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/features/admin/screens/client_form_page.dart';
+import 'package:tscomputer/features/admin/widgets/role_assignment_dialog.dart';
+import 'package:tscomputer/features/admin/providers/admin_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class AdminClientsTab extends ConsumerStatefulWidget {
   final bool isAdmin;
@@ -94,9 +95,10 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
         );
       }
 
-      final output = await getApplicationDocumentsDirectory();
-      final file = File('${output.path}/clientes_techservice.csv');
-      await file.writeAsString(buffer.toString());
+      await shareBytes(
+        Uint8List.fromList(utf8.encode(buffer.toString())),
+        'clientes_techservice.csv',
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -537,10 +539,15 @@ class _AdminClientsTabState extends ConsumerState<AdminClientsTab> {
                     ),
                   ),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: paginated.length,
-                      itemBuilder: (context, index) =>
-                          _buildClientCard(paginated[index], l10n),
+                    child: RefreshIndicator(
+                      onRefresh: () async =>
+                          ref.invalidate(adminClientsProvider),
+                      child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: paginated.length,
+                        itemBuilder: (context, index) =>
+                            _buildClientCard(paginated[index], l10n),
+                      ),
                     ),
                   ),
                   if (filteredLines.length > _itemsPerPage)

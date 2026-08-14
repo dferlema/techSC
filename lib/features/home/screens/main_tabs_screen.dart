@@ -1,13 +1,16 @@
-// lib/screens/main_tabs_screen.dart
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/widgets/app_drawer.dart';
-import 'package:techsc/core/services/preferences_service.dart';
-import 'package:techsc/features/home/screens/home_page.dart';
-import 'package:techsc/features/reservations/screens/service_reservation_page.dart';
-import 'package:techsc/features/home/screens/contact_page.dart';
+import 'package:tscomputer/core/platform/platform_image.dart';
+import 'package:tscomputer/core/widgets/app_drawer.dart';
+import 'package:tscomputer/core/widgets/web_layout.dart';
+import 'package:tscomputer/core/widgets/responsive_builder.dart';
+import 'package:tscomputer/core/services/preferences_service.dart';
+import 'package:tscomputer/features/home/screens/home_page.dart';
+import 'package:tscomputer/features/reservations/screens/service_reservation_page.dart';
+import 'package:tscomputer/features/home/screens/contact_page.dart';
+import 'package:tscomputer/core/widgets/offline_indicator.dart';
 
 class MainTabsScreen extends StatefulWidget {
   const MainTabsScreen({super.key});
@@ -21,6 +24,7 @@ class _MainTabsScreenState extends State<MainTabsScreen>
   late TabController _tabController;
   int _currentIndex = 0;
   String _userName = 'Usuario';
+  String? _profileImagePath;
   bool _isInit = true;
 
   final List<Widget> _screens = [
@@ -92,6 +96,11 @@ class _MainTabsScreenState extends State<MainTabsScreen>
       } catch (e) {
         debugPrint('Error loading user: $e');
       }
+
+      final path = await PreferencesService().getProfileImagePath(user.uid);
+      if (mounted && path != _profileImagePath) {
+        setState(() => _profileImagePath = path);
+      }
     }
   }
 
@@ -150,6 +159,10 @@ class _MainTabsScreenState extends State<MainTabsScreen>
   }
 
   void _onTabTapped(int index) {
+    if (index == 3) {
+      Navigator.pushNamed(context, '/profile-edit');
+      return;
+    }
     _tabController.animateTo(index);
   }
 
@@ -163,38 +176,175 @@ class _MainTabsScreenState extends State<MainTabsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final theme = Theme.of(context);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    final mobileLayout = Scaffold(
       drawer: AppDrawer(
         currentRoute: _indexToRoute(_currentIndex),
         userName: _userName,
       ),
-      body: IndexedStack(index: _currentIndex, children: _screens),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey[600],
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.build_outlined),
-            activeIcon: Icon(Icons.build),
-            label: 'Reservar',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.support_agent_outlined),
-            activeIcon: Icon(Icons.support_agent),
-            label: 'Contacto',
+      body: Column(
+        children: [
+          const OfflineIndicator(),
+          Expanded(
+            child: IndexedStack(index: _currentIndex, children: _screens),
           ),
         ],
+      ),
+      extendBody: true,
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          bottom: bottomInset > 0 ? bottomInset + 4 : 20,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              height: 64,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 0.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: List.generate(
+                  4,
+                  (i) => _NavItem(
+                    index: i,
+                    isSelected: _currentIndex == i,
+                    imagePath: i == 3 ? _profileImagePath : null,
+                    onTap: () => _onTabTapped(i),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return ResponsiveBuilder(
+      builder: (context, screenSize) {
+        if (screenSize == ScreenSize.mobile) {
+          return mobileLayout;
+        }
+        return WebLayout(
+          currentIndex: _currentIndex,
+          mobileChild: IndexedStack(index: _currentIndex, children: _screens),
+        );
+      },
+    );
+  }
+}
+
+const _labels = ['Inicio', 'Reservar', 'Contacto', 'Perfil'];
+const _icons = [
+  Icons.home_outlined,
+  Icons.build_outlined,
+  Icons.support_agent_outlined,
+  Icons.person_outline,
+];
+const _activeIcons = [
+  Icons.home_rounded,
+  Icons.build_rounded,
+  Icons.support_agent_rounded,
+  Icons.person,
+];
+
+class _NavItem extends StatelessWidget {
+  final int index;
+  final bool isSelected;
+  final String? imagePath;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.index,
+    required this.isSelected,
+    this.imagePath,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = isSelected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withValues(alpha: 0.5);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (index == 3)
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: isSelected
+                      ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                      : Colors.transparent,
+                  backgroundImage: imagePath != null
+                      ? getLocalImageProvider(imagePath!)
+                      : null,
+                  child: imagePath == null
+                      ? Icon(
+                          isSelected ? _activeIcons[index] : _icons[index],
+                          size: 18,
+                          color: color,
+                        )
+                      : null,
+                )
+              else
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    isSelected ? _activeIcons[index] : _icons[index],
+                    key: ValueKey('nav_${index}_$isSelected'),
+                    color: color,
+                    size: 24,
+                  ),
+                ),
+              const SizedBox(height: 3),
+              Text(
+                _labels[index],
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

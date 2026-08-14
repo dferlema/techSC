@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:techsc/core/widgets/notification_icon.dart';
-import 'package:techsc/core/widgets/app_drawer.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/core/widgets/notification_icon.dart';
+import 'package:tscomputer/core/widgets/app_drawer.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 class ContactPage extends StatelessWidget {
   const ContactPage({super.key});
@@ -182,15 +181,12 @@ class ContactPage extends StatelessWidget {
                     color: Colors.white.withAlpha(38),
                     shape: BoxShape.circle,
                   ),
-                  child: SvgPicture.network(
-                    'https://static.whatsapp.net/rsrc.php/yZ/r/JvsnINJ2CZv.svg',
+                  child: Image.asset(
+                    'assets/images/whatsapp_icon.png',
                     width: 50,
                     height: 50,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
-                      BlendMode.srcIn,
-                    ),
-                    placeholderBuilder: (context) => const Icon(
+                    color: Colors.white,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
                       Icons.chat_bubble_rounded,
                       color: Colors.white,
                       size: 40,

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:techsc/features/reservations/models/reservation_model.dart';
-import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
-import 'package:techsc/features/reservations/providers/reservation_providers.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/features/reservations/models/reservation_model.dart';
+import 'package:tscomputer/features/reservations/screens/reservation_detail_page.dart';
+import 'package:tscomputer/features/reservations/providers/reservation_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class MyReservationsPage extends ConsumerWidget {
   const MyReservationsPage({super.key});
@@ -40,13 +40,17 @@ class MyReservationsPage extends ConsumerWidget {
           if (reservations.isEmpty) {
             return _buildEmptyState(context, theme);
           }
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            itemCount: reservations.length,
-            itemBuilder: (context, index) {
-              final reservation = reservations[index];
-              return _buildReservationCard(context, reservation, theme);
-            },
+          return RefreshIndicator(
+            onRefresh: () async => ref.invalidate(myReservationsProvider),
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              itemCount: reservations.length,
+              itemBuilder: (context, index) {
+                final reservation = reservations[index];
+                return _buildReservationCard(context, reservation, theme);
+              },
+            ),
           );
         },
         loading: () => const AppLoadingIndicator(),
@@ -157,7 +161,7 @@ class MyReservationsPage extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'ID: ${reservation.id.substring(0, 8).toUpperCase()}',
+                    'ID: ${reservation.id.toUpperCase()}',
                     style: TextStyle(
                       fontFamily: 'monospace',
                       color: Colors.grey[400],

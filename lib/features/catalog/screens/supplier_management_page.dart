@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/features/catalog/models/supplier_model.dart';
-import 'package:techsc/features/catalog/services/supplier_service.dart';
-import 'package:techsc/features/catalog/screens/supplier_form_page.dart';
+import 'package:tscomputer/features/catalog/models/supplier_model.dart';
+import 'package:tscomputer/features/catalog/services/supplier_service.dart';
+import 'package:tscomputer/features/catalog/screens/supplier_form_page.dart';
 
 /// Página de gestión de proveedores.
 ///
@@ -16,6 +16,19 @@ class SupplierManagementPage extends StatefulWidget {
 
 class _SupplierManagementPageState extends State<SupplierManagementPage> {
   final _supplierService = SupplierService();
+  late Stream<List<SupplierModel>> _suppliersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _suppliersStream = _supplierService.getSuppliers();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _suppliersStream = _supplierService.getSuppliers();
+    });
+  }
 
   Future<void> _deleteSupplier(SupplierModel supplier) async {
     final confirm = await showDialog<bool>(
@@ -109,7 +122,7 @@ class _SupplierManagementPageState extends State<SupplierManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: StreamBuilder<List<SupplierModel>>(
-        stream: _supplierService.getSuppliers(),
+        stream: _suppliersStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -146,7 +159,10 @@ class _SupplierManagementPageState extends State<SupplierManagementPage> {
             );
           }
 
-          return ListView.builder(
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(8),
             itemCount: suppliers.length,
             itemBuilder: (context, index) {
@@ -166,6 +182,8 @@ class _SupplierManagementPageState extends State<SupplierManagementPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
+                      if (supplier.ruc.isNotEmpty)
+                        Text('🪪 RUC: ${supplier.ruc}'),
                       if (supplier.contactName.isNotEmpty)
                         Text('👤 ${supplier.contactName}'),
                       if (supplier.contactPhone.isNotEmpty) ...[
@@ -196,6 +214,14 @@ class _SupplierManagementPageState extends State<SupplierManagementPage> {
                             ),
                           ],
                         ),
+                      ],
+                      if (supplier.email.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text('📧 ${supplier.email}'),
+                      ],
+                      if (supplier.address.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text('📍 ${supplier.address}'),
                       ],
                       if (supplier.website.isNotEmpty) ...[
                         const SizedBox(height: 2),
@@ -229,6 +255,7 @@ class _SupplierManagementPageState extends State<SupplierManagementPage> {
                 ),
               );
             },
+          ),
           );
         },
       ),

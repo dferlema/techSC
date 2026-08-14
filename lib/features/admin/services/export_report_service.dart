@@ -1,10 +1,35 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:tscomputer/core/platform/io_helper.dart';
+
+/// Caché simple de nombres de usuario para evitar N+1 queries en reportes.
+class _NameCache {
+  static final _NameCache _instance = _NameCache._();
+  factory _NameCache() => _instance;
+  _NameCache._();
+  Map<String, String>? _cache;
+  DateTime _lastFetch = DateTime(2000);
+
+  Future<Map<String, String>> getNames() async {
+    if (_cache != null && DateTime.now().difference(_lastFetch).inMinutes < 5) {
+      return _cache!;
+    }
+    final userDocs = await FirebaseFirestore.instance.collection('users').get();
+    final map = <String, String>{};
+    for (var doc in userDocs.docs) {
+      final data = doc.data();
+      map[doc.id] = data['name'] ?? data['userName'] ?? 'Desconocido';
+    }
+    _cache = map;
+    _lastFetch = DateTime.now();
+    return map;
+  }
+
+  void invalidate() { _cache = null; }
+}
 
 class ExportReportService {
   Future<void> generateSalesCSV(List<QueryDocumentSnapshot> docs) async {
@@ -13,15 +38,7 @@ class ExportReportService {
       'Pedido ID,Fecha,Vendedor,Cliente,Teléfono,Productos,Método Pago,Estado Pago,Total',
     );
 
-    // Fetch sellers
-    Map<String, String> sellerNames = {};
-    final userDocs = await FirebaseFirestore.instance.collection('users').get();
-    for (var doc in userDocs.docs) {
-      final data = doc.data();
-      if (data.containsKey('name')) {
-        sellerNames[doc.id] = data['name'];
-      }
-    }
+    final sellerNames = await _NameCache().getNames();
 
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
@@ -58,16 +75,9 @@ class ExportReportService {
       );
     }
 
-    final output = await getTemporaryDirectory();
-    final file = File(
-      '${output.path}/reporte_ventas_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
-    );
-    await file.writeAsString(buffer.toString(), encoding: utf8);
-
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'Reporte de Ventas CSV',
-      text: 'Aquí está el reporte de ventas generado desde TechSC.',
+    await shareBytes(
+      Uint8List.fromList(utf8.encode(buffer.toString())),
+      'reporte_ventas_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
     );
   }
 
@@ -75,15 +85,7 @@ class ExportReportService {
     final excel = Excel.createExcel();
     final sheet = excel['Reporte de Ventas'];
 
-    // Fetch sellers
-    Map<String, String> sellerNames = {};
-    final userDocs = await FirebaseFirestore.instance.collection('users').get();
-    for (var doc in userDocs.docs) {
-      final data = doc.data();
-      if (data.containsKey('name')) {
-        sellerNames[doc.id] = data['name'];
-      }
-    }
+    final sellerNames = await _NameCache().getNames();
 
     // Headers
     sheet.appendRow([
@@ -134,18 +136,11 @@ class ExportReportService {
       ]);
     }
 
-    final output = await getTemporaryDirectory();
-    final file = File(
-      '${output.path}/reporte_ventas_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx',
-    );
     final bytes = excel.save();
     if (bytes != null) {
-      await file.writeAsBytes(bytes);
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Reporte de Ventas Excel',
-        text: 'Aquí está el reporte de ventas generado desde TechSC.',
+      await shareBytes(
+        Uint8List.fromList(bytes),
+        'reporte_ventas_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx',
       );
     }
   }
@@ -156,17 +151,7 @@ class ExportReportService {
       'Reserva ID,Fecha,Técnico,Cliente,Dispositivo,Problema,Solución,Repuestos,Método Pago,Estado Pago,Costo',
     );
 
-    // Fetch technicians
-    Map<String, String> techNames = {};
-    final userDocs = await FirebaseFirestore.instance.collection('users').get();
-    for (var doc in userDocs.docs) {
-      final data = doc.data();
-      if (data.containsKey('name')) {
-        techNames[doc.id] = data['name'];
-      } else if (data.containsKey('userName')) {
-        techNames[doc.id] = data['userName'];
-      }
-    }
+    final techNames = await _NameCache().getNames();
 
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
@@ -200,16 +185,9 @@ class ExportReportService {
       );
     }
 
-    final output = await getTemporaryDirectory();
-    final file = File(
-      '${output.path}/reporte_servicios_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
-    );
-    await file.writeAsString(buffer.toString(), encoding: utf8);
-
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'Reporte de Servicios CSV',
-      text: 'Aquí está el reporte de servicios generado desde TechSC.',
+    await shareBytes(
+      Uint8List.fromList(utf8.encode(buffer.toString())),
+      'reporte_servicios_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv',
     );
   }
 
@@ -217,17 +195,7 @@ class ExportReportService {
     final excel = Excel.createExcel();
     final sheet = excel['Reporte de Servicios'];
 
-    // Fetch technicians
-    Map<String, String> techNames = {};
-    final userDocs = await FirebaseFirestore.instance.collection('users').get();
-    for (var doc in userDocs.docs) {
-      final data = doc.data();
-      if (data.containsKey('name')) {
-        techNames[doc.id] = data['name'];
-      } else if (data.containsKey('userName')) {
-        techNames[doc.id] = data['userName'];
-      }
-    }
+    final techNames = await _NameCache().getNames();
 
     // Headers
     sheet.appendRow([
@@ -270,18 +238,11 @@ class ExportReportService {
       ]);
     }
 
-    final output = await getTemporaryDirectory();
-    final file = File(
-      '${output.path}/reporte_servicios_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx',
-    );
     final bytes = excel.save();
     if (bytes != null) {
-      await file.writeAsBytes(bytes);
-
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: 'Reporte de Servicios Excel',
-        text: 'Aquí está el reporte de servicios generado desde TechSC.',
+      await shareBytes(
+        Uint8List.fromList(bytes),
+        'reporte_servicios_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx',
       );
     }
   }

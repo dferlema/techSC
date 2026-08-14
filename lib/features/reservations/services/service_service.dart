@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/cache_service.dart';
-import 'package:techsc/features/reservations/models/service_model.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
+import 'package:tscomputer/features/reservations/models/service_model.dart';
 
 class ServiceService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -15,7 +15,7 @@ class ServiceService {
     // 1. Emit cached data
     if (_cache != null) {
       final cached = _cache.getCachedCatalog(cacheKey);
-      if (cached != null) {
+      if (cached != null && cached.isNotEmpty) {
         yield cached
             .map((s) => ServiceModel.fromFirestoreMap(s, s['id'] ?? ''))
             .toList();

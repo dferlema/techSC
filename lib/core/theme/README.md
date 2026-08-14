@@ -12,7 +12,7 @@ lib/
 
 > [!IMPORTANT]
 > Solo hay **una** fuente de verdad para los colores: `lib/core/theme/app_colors.dart`.
-> Siempre importar desde `package:techsc/core/theme/app_colors.dart`.
+> Siempre importar desde `package:tscomputer/core/theme/app_colors.dart`.
 
 ---
 
@@ -81,7 +81,7 @@ Widget build(BuildContext context) {
 ### ✅ Correcto — Usar AppColors para tokens personalizados
 
 ```dart
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 // Para tokens que no están en colorScheme (nearBlack, surfaceLight, etc.)
 Text('Título', style: TextStyle(color: AppColors.nearBlack))

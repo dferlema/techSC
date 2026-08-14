@@ -1,9 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:techsc/features/reservations/models/reservation_model.dart';
-import 'package:techsc/features/reservations/screens/reservation_detail_page.dart';
-import 'package:techsc/features/reservations/screens/service_reservation_page.dart';
+import 'package:tscomputer/features/reservations/models/reservation_model.dart';
+import 'package:tscomputer/features/reservations/screens/reservation_detail_page.dart';
+import 'package:tscomputer/features/reservations/screens/service_reservation_page.dart';
 
 class TechnicianDashboard extends StatefulWidget {
   const TechnicianDashboard({super.key});
@@ -29,7 +30,9 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -44,27 +47,50 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
         title: const Text('Panel Técnico'),
       ),
       body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pending_actions),
-            label: 'Pendientes',
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).padding.bottom > 0
+              ? MediaQuery.of(context).padding.bottom + 4
+              : 20,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              height: 64,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  width: 0.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 24,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: List.generate(3, (i) => _NavItem(
+                  index: i,
+                  isSelected: _currentIndex == i,
+                  onTap: () => setState(() => _currentIndex = i),
+                )),
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.build),
-            label: 'Mis Trabajos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'Historial',
-          ),
-        ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
@@ -78,7 +104,7 @@ class _TechnicianDashboardState extends State<TechnicianDashboard> {
         },
         icon: const Icon(Icons.add),
         label: const Text('Nuevo Trabajo Manual'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: theme.colorScheme.primary,
         foregroundColor: Colors.white,
       ),
     );
@@ -137,6 +163,78 @@ class _ReservationList extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+const _labels = ['Pendientes', 'Mis Trabajos', 'Historial'];
+const _icons = [
+  Icons.pending_actions,
+  Icons.build_outlined,
+  Icons.history,
+];
+const _activeIcons = [
+  Icons.pending_actions,
+  Icons.build_rounded,
+  Icons.history,
+];
+
+class _NavItem extends StatelessWidget {
+  final int index;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.index,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = isSelected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withValues(alpha: 0.5);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  isSelected ? _activeIcons[index] : _icons[index],
+                  key: ValueKey('nav_${index}_$isSelected'),
+                  color: color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _labels[index],
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 {
-    "name": "techsc",
-    "short_name": "techsc",
+    "name": "tscomputer",
+    "short_name": "tscomputer",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

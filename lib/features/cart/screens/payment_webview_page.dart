@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 /// Pantalla que contiene el WebView para procesar el pago seguro con Payphone.
 class PaymentWebViewPage extends StatefulWidget {

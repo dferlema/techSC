@@ -1,10 +1,11 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:techsc/core/models/config_model.dart';
-import 'package:techsc/features/admin/models/profit_range_model.dart';
-import 'package:techsc/features/admin/models/bank_account_model.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/core/utils/firestore_retry.dart';
+import 'package:tscomputer/core/models/config_model.dart';
+import 'package:tscomputer/features/admin/models/profit_range_model.dart';
+import 'package:tscomputer/features/admin/models/bank_account_model.dart';
 
 /// Service to manage app-wide configuration settings (Company name, phone, VAT, etc.).
 class ConfigService {
@@ -29,7 +30,9 @@ class ConfigService {
   }
 
   Future<ConfigModel> getConfig() async {
-    final doc = await _firestore.collection(_collection).doc(_docId).get();
+    final doc = await retryFirestore(
+      () => _firestore.collection(_collection).doc(_docId).get(),
+    );
     if (!doc.exists) {
       return ConfigModel();
     }
@@ -51,7 +54,8 @@ class ConfigService {
 
   Future<void> addBannerByUrl(String imageUrl) async {
     try {
-      await _firestore.collection('banners').add({
+      final id = await DocumentIdService().generateId(prefix: 'banner');
+      await _firestore.collection('banners').doc(id).set({
         'imageUrl': imageUrl,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -61,11 +65,11 @@ class ConfigService {
     }
   }
 
-  Future<void> addBanner(File imageFile) async {
+  Future<void> addBannerFromBytes(Uint8List imageBytes) async {
     try {
       final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final Reference ref = _storage.ref().child('banners').child(fileName);
-      await ref.putFile(imageFile);
+      await ref.putData(imageBytes);
       final String downloadUrl = await ref.getDownloadURL();
 
       await addBannerByUrl(downloadUrl);
@@ -111,10 +115,9 @@ class ConfigService {
 
   Future<Map<String, int>?> getColorConfig() async {
     try {
-      final doc = await _firestore
-          .collection(_collection)
-          .doc('app_colors')
-          .get();
+      final doc = await retryFirestore(
+        () => _firestore.collection(_collection).doc('app_colors').get(),
+      );
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         if (data.containsKey('colors')) {
@@ -146,10 +149,9 @@ class ConfigService {
   }
 
   Future<List<ProfitRange>> getProfitRanges() async {
-    final doc = await _firestore
-        .collection(_collection)
-        .doc('profit_ranges')
-        .get();
+    final doc = await retryFirestore(
+      () => _firestore.collection(_collection).doc('profit_ranges').get(),
+    );
     if (!doc.exists || doc.data() == null) return [];
     final List<dynamic> list = doc.data()!['ranges'] ?? [];
     return list
@@ -181,10 +183,9 @@ class ConfigService {
   }
 
   Future<List<BankAccount>> getBankAccounts() async {
-    final doc = await _firestore
-        .collection(_collection)
-        .doc('bank_accounts')
-        .get();
+    final doc = await retryFirestore(
+      () => _firestore.collection(_collection).doc('bank_accounts').get(),
+    );
     if (!doc.exists || doc.data() == null) return [];
     final List<dynamic> list = doc.data()!['accounts'] ?? [];
     return list

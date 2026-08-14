@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/services/config_service.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/admin/models/profit_range_model.dart';
-import 'package:techsc/features/admin/providers/admin_providers.dart';
+import 'package:tscomputer/core/services/config_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/features/admin/models/profit_range_model.dart';
+import 'package:tscomputer/features/admin/providers/admin_providers.dart';
 
 class ProfitMarginSettingsPage extends ConsumerStatefulWidget {
   const ProfitMarginSettingsPage({super.key});

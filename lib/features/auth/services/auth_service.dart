@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'biometric_service.dart';
-import 'package:techsc/core/services/role_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;

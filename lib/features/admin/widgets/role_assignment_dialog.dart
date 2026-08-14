@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 /// Diálogo para asignar o cambiar el rol de un usuario
 class RoleAssignmentDialog extends StatefulWidget {

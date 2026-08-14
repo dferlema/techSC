@@ -5,9 +5,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async';
-import 'package:techsc/core/models/notification_model.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/services/deep_link_service.dart';
+import 'package:tscomputer/core/models/notification_model.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/services/deep_link_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -307,7 +308,8 @@ class NotificationService {
     String? receiverId,
   }) async {
     try {
-      await _firestore.collection('notifications').add({
+      final id = await DocumentIdService().generateId(prefix: 'notif', useDate: true);
+      await _firestore.collection('notifications').doc(id).set({
         'title': title,
         'body': body,
         'createdAt': FieldValue.serverTimestamp(),
@@ -331,94 +333,59 @@ class NotificationService {
     return Stream.fromFuture(_roleService.getUserRole(user.uid)).asyncExpand((
       role,
     ) {
-      // Create independent streams for each criteria
+      // Stream 1: personal notifications
       final Stream<List<NotificationModel>> userStream = _firestore
           .collection('notifications')
           .where('receiverId', isEqualTo: user.uid)
           .orderBy('createdAt', descending: true)
-          .limit(50)
+          .limit(100)
           .snapshots()
           .map(
             (s) =>
                 s.docs.map((d) => NotificationModel.fromFirestore(d)).toList(),
           );
 
+      // Stream 2: role + broadcast combined with whereIn
+      final targetRoles = [role, 'all'];
       final Stream<List<NotificationModel>> roleStream = _firestore
           .collection('notifications')
-          .where('receiverRole', isEqualTo: role)
+          .where('receiverRole', whereIn: targetRoles)
           .orderBy('createdAt', descending: true)
-          .limit(50)
+          .limit(100)
           .snapshots()
           .map(
             (s) =>
                 s.docs.map((d) => NotificationModel.fromFirestore(d)).toList(),
           );
 
-      final Stream<List<NotificationModel>> broadcastStream = _firestore
-          .collection('notifications')
-          .where('receiverRole', isEqualTo: 'all')
-          .orderBy('createdAt', descending: true)
-          .limit(50)
-          .snapshots()
-          .map(
-            (s) =>
-                s.docs.map((d) => NotificationModel.fromFirestore(d)).toList(),
-          );
-
-      // Manual implementation of CombineLatest3 behavior
-      // This is necessary to avoid needing RxDart or complex deps
-      // We assume package:async is available or just use raw StreamController
-      // Here we implement a custom merger
-      return _combineThreeStreams(userStream, roleStream, broadcastStream);
+      return _combineTwoStreams(userStream, roleStream);
     });
   }
 
-  /// Helper to combine 3 streams of lists into one sorted list
-  Stream<List<NotificationModel>> _combineThreeStreams(
+  /// Helper to combine 2 streams of lists into one sorted list
+  Stream<List<NotificationModel>> _combineTwoStreams(
     Stream<List<NotificationModel>> s1,
     Stream<List<NotificationModel>> s2,
-    Stream<List<NotificationModel>> s3,
   ) {
-    // Start with empty lists
     List<NotificationModel> l1 = [];
     List<NotificationModel> l2 = [];
-    List<NotificationModel> l3 = [];
 
-    // We need to keep track if the stream has emitted at least once to emit initial data?
-    // FireStore streams emit immediately locally usually.
-    // We will emit updates whenever any stream updates.
-
-    // Using a simple StreamController
     final controller = StreamController<List<NotificationModel>>();
 
-    // Helper to merge and add
     void mergeAndAdd() {
-      // Use a Set or Map to dedup by ID
       final Map<String, NotificationModel> dedupMap = {};
-
       for (var n in l1) {
         dedupMap[n.id] = n;
       }
       for (var n in l2) {
-        dedupMap[n.id] =
-            n; // Overwrites if duplicates (shouldn't happen ideally)
-      }
-      for (var n in l3) {
         dedupMap[n.id] = n;
       }
 
       final merged = dedupMap.values.toList();
-      // Sort in memory
       merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (merged.length > 100) merged.length = 100;
 
-      // Limit total
-      if (merged.length > 100) {
-        merged.length = 100;
-      }
-
-      if (!controller.isClosed) {
-        controller.add(merged);
-      }
+      if (!controller.isClosed) controller.add(merged);
     }
 
     final sub1 = s1.listen((data) {
@@ -431,15 +398,9 @@ class NotificationService {
       mergeAndAdd();
     }, onError: (e) => debugPrint('Error in roleStream: $e'));
 
-    final sub3 = s3.listen((data) {
-      l3 = data;
-      mergeAndAdd();
-    }, onError: (e) => debugPrint('Error in broadcastStream: $e'));
-
     controller.onCancel = () async {
       await sub1.cancel();
       await sub2.cancel();
-      await sub3.cancel();
     };
 
     return controller.stream;

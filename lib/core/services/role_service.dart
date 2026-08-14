@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:techsc/core/services/cache_service.dart';
+import 'package:tscomputer/core/utils/firestore_retry.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
 
 /// Servicio centralizado para gestión de roles y permisos de usuarios
 class RoleService {
@@ -37,7 +38,7 @@ class RoleService {
     }
 
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
+      final doc = await retryFirestore(() => _firestore.collection('users').doc(uid).get());
       if (doc.exists && doc.data()?['role'] != null) {
         String role = (doc.data()!['role'] as String).toLowerCase().trim();
 
@@ -158,10 +159,10 @@ class RoleService {
   /// Cuenta cuántos administradores hay en el sistema
   Future<int> _countAdmins() async {
     try {
-      final snapshot = await _firestore
+      final snapshot = await retryFirestore(() => _firestore
           .collection('users')
           .where('role', isEqualTo: ADMIN)
-          .get();
+          .get());
       return snapshot.docs.length;
     } on FirebaseException catch (e) {
       debugPrint('Error contando admins (Firebase): [${e.code}] ${e.message}');
@@ -229,7 +230,7 @@ class RoleService {
   /// Obtiene estadísticas de usuarios por rol
   Future<Map<String, int>> getRoleStatistics() async {
     try {
-      final snapshot = await _firestore.collection('users').get();
+      final snapshot = await retryFirestore(() => _firestore.collection('users').get());
       final stats = {ADMIN: 0, SELLER: 0, CLIENT: 0};
 
       for (var doc in snapshot.docs) {

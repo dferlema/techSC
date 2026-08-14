@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:techsc/core/services/role_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
 
 void main() {
   group('RoleService - Static helper methods', () {

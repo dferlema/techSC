@@ -23,6 +23,8 @@ class ReservationModel {
   final String? solution;
   final double? repairCost;
   final String? spareParts;
+  final List<Map<String, dynamic>>? partsData;
+  final List<Map<String, dynamic>>? servicesData;
 
   // Payment fields
   final String? paymentLink;
@@ -30,6 +32,9 @@ class ReservationModel {
   final String? paymentMethod;
   final String? paymentInstitution;
   final String? paymentVoucher;
+  final double? totalPaid;
+  final double? balance;
+  final String? paymentStatus;
 
   ReservationModel({
     required this.id,
@@ -52,11 +57,16 @@ class ReservationModel {
     this.solution,
     this.repairCost,
     this.spareParts,
+    this.partsData,
+    this.servicesData,
     this.paymentLink,
     this.isPaid = false,
     this.paymentMethod,
     this.paymentInstitution,
     this.paymentVoucher,
+    this.totalPaid,
+    this.balance,
+    this.paymentStatus,
   });
 
   factory ReservationModel.fromFirestoreMap(
@@ -84,11 +94,20 @@ class ReservationModel {
       solution: data['solution'],
       repairCost: (data['repairCost'] as num?)?.toDouble(),
       spareParts: data['spareParts'],
+      partsData: data['partsData'] != null
+          ? List<Map<String, dynamic>>.from(data['partsData'])
+          : null,
+      servicesData: data['servicesData'] != null
+          ? List<Map<String, dynamic>>.from(data['servicesData'])
+          : null,
       paymentLink: data['paymentLink'],
       isPaid: data['isPaid'] ?? false,
       paymentMethod: data['paymentMethod'],
       paymentInstitution: data['paymentInstitution'],
       paymentVoucher: data['paymentVoucher'],
+      totalPaid: (data['totalPaid'] as num?)?.toDouble(),
+      balance: (data['balance'] as num?)?.toDouble(),
+      paymentStatus: data['paymentStatus'],
     );
   }
 
@@ -120,11 +139,16 @@ class ReservationModel {
       'solution': solution,
       'repairCost': repairCost,
       'spareParts': spareParts,
+      'partsData': partsData,
+      'servicesData': servicesData,
       'paymentLink': paymentLink,
       'isPaid': isPaid,
       'paymentMethod': paymentMethod,
       'paymentInstitution': paymentInstitution,
       'paymentVoucher': paymentVoucher,
+      'totalPaid': totalPaid,
+      'balance': balance,
+      'paymentStatus': paymentStatus,
     };
   }
 
@@ -137,11 +161,16 @@ class ReservationModel {
     String? solution,
     double? repairCost,
     String? spareParts,
+    List<Map<String, dynamic>>? partsData,
+    List<Map<String, dynamic>>? servicesData,
     String? paymentLink,
     bool? isPaid,
     String? paymentMethod,
     String? paymentInstitution,
     String? paymentVoucher,
+    double? totalPaid,
+    double? balance,
+    String? paymentStatus,
   }) {
     return ReservationModel(
       id: id,
@@ -164,11 +193,16 @@ class ReservationModel {
       solution: solution ?? this.solution,
       repairCost: repairCost ?? this.repairCost,
       spareParts: spareParts ?? this.spareParts,
+      partsData: partsData ?? this.partsData,
+      servicesData: servicesData ?? this.servicesData,
       paymentLink: paymentLink ?? this.paymentLink,
       isPaid: isPaid ?? this.isPaid,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentInstitution: paymentInstitution ?? this.paymentInstitution,
       paymentVoucher: paymentVoucher ?? this.paymentVoucher,
+      totalPaid: totalPaid ?? this.totalPaid,
+      balance: balance ?? this.balance,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
     );
   }
 }

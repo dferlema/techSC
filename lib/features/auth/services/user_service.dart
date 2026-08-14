@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/cache_service.dart';
-import 'package:techsc/features/auth/models/user_model.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
+import 'package:tscomputer/core/utils/firestore_retry.dart';
+import 'package:tscomputer/features/auth/models/user_model.dart';
 
 class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -19,7 +20,7 @@ class UserService {
     }
 
     // 2. Try Firestore
-    final doc = await _db.collection(_collection).doc(uid).get();
+    final doc = await retryFirestore(() => _db.collection(_collection).doc(uid).get());
     if (doc.exists) {
       final user = UserModel.fromFirestore(doc);
       if (_cache != null) {

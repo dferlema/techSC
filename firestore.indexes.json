@@ -1,0 +1,36 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "accounting_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "chart_of_accounts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "code", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accounts_receivable",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "originId", "order": "ASCENDING" },
+        { "fieldPath": "originType", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "accounts_payable",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "originId", "order": "ASCENDING" },
+        { "fieldPath": "originType", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}

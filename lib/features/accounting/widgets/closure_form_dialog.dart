@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/accounting/models/daily_closure_model.dart';
-import 'package:techsc/features/accounting/providers/accounting_providers.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/features/accounting/models/daily_closure_model.dart';
+import 'package:tscomputer/features/accounting/providers/accounting_providers.dart';
 
 /// Diálogo para realizar el cierre de caja diario.
 ///

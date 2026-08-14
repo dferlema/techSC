@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/catalog/screens/product_detail_page.dart';
-import 'package:techsc/features/catalog/models/product_model.dart';
-import 'package:techsc/features/reservations/screens/service_detail_page.dart';
-import 'package:techsc/features/reservations/models/service_model.dart';
+import 'package:tscomputer/features/catalog/screens/product_detail_page.dart';
+import 'package:tscomputer/features/catalog/models/product_model.dart';
+import 'package:tscomputer/features/reservations/screens/service_detail_page.dart';
+import 'package:tscomputer/features/reservations/models/service_model.dart';
 
 class DeepLinkService {
   static final DeepLinkService _instance = DeepLinkService._internal();
@@ -42,7 +42,7 @@ class DeepLinkService {
   void _handleUri(Uri uri) {
     debugPrint('Deep Link received: $uri');
 
-    if (uri.scheme == 'techsc') {
+    if (uri.scheme == 'tscomputer') {
       final id = uri.queryParameters['id'];
       if (id == null) return;
 

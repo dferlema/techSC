@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/core/utils/ecuador_validator.dart';
-import 'package:techsc/features/accounting/models/transaction_model.dart';
-import 'package:techsc/features/accounting/providers/accounting_providers.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/utils/ecuador_validator.dart';
+import 'package:tscomputer/features/accounting/models/transaction_model.dart';
+import 'package:tscomputer/features/accounting/providers/accounting_providers.dart';
+import 'package:tscomputer/features/accounting/services/journal_entry_service.dart';
 
 /// Diálogo para registrar una nueva transacción contable (Gasto o Ingreso manual).
 ///
@@ -31,11 +32,21 @@ class _TransactionFormDialogState extends ConsumerState<TransactionFormDialog> {
     'Sueldos',
     'Suministros',
     'Servicios Básicos',
+    'Electricidad',
+    'Agua',
+    'Teléfono/Internet',
+    'Combustible',
+    'Marketing',
+    'Comisiones',
+    'Honorarios',
     'Gasto General',
     'Otros',
   ];
   final List<String> _categoriesIN = [
     'Venta Manual',
+    'Servicio Técnico',
+    'Venta de Activos',
+    'Alquiler de Equipos',
     'Ajuste de Saldo',
     'Otros',
   ];
@@ -96,12 +107,15 @@ class _TransactionFormDialogState extends ConsumerState<TransactionFormDialog> {
                 keyboardType: TextInputType.number,
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Requerido para SRI';
-                  if (val.length == 10 && !EcuadorValidator.validateCedula(val))
+                  if (val.length == 10 && !EcuadorValidator.validateCedula(val)) {
                     return 'Cédula inválida';
-                  if (val.length == 13 && !EcuadorValidator.validateRUC(val))
+                  }
+                  if (val.length == 13 && !EcuadorValidator.validateRUC(val)) {
                     return 'RUC inválido';
-                  if (val.length != 10 && val.length != 13)
+                  }
+                  if (val.length != 10 && val.length != 13) {
                     return 'Debe tener 10 o 13 dígitos';
+                  }
                   return null;
                 },
               ),
@@ -125,7 +139,7 @@ class _TransactionFormDialogState extends ConsumerState<TransactionFormDialog> {
 
               // Selector de IVA (Ecuador)
               DropdownButtonFormField<double>(
-                value: _selectedVatRate,
+                initialValue: _selectedVatRate,
                 decoration: const InputDecoration(
                   labelText: 'Tasa de IVA',
                   border: OutlineInputBorder(),
@@ -145,7 +159,7 @@ class _TransactionFormDialogState extends ConsumerState<TransactionFormDialog> {
 
               // Categoría
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Categoría',
                   border: OutlineInputBorder(),
@@ -209,6 +223,9 @@ class _TransactionFormDialogState extends ConsumerState<TransactionFormDialog> {
 
     try {
       await ref.read(accountingServiceProvider).saveTransaction(transaction);
+
+      // Asiento contable automático (mapeo categoría → cuenta del plan 4.x/5.x)
+      await _postJournalEntry(transaction);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -216,6 +233,93 @@ class _TransactionFormDialogState extends ConsumerState<TransactionFormDialog> {
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    }
+  }
+
+  String _accountForCategory(String category, TransactionType type) {
+    if (type == TransactionType.ingreso) {
+      switch (category) {
+        case 'Venta Manual':
+          return '4.1'; // Ventas de Productos
+        case 'Servicio Técnico':
+          return '4.2'; // Servicios Técnicos
+        case 'Venta de Activos':
+          return '4.3.04'; // Venta de Activos Fijos
+        case 'Alquiler de Equipos':
+          return '4.3.03'; // Ingresos por Alquiler de Equipos
+        case 'Ajuste de Saldo':
+          return '4.3.06'; // Otros Ingresos Operativos
+        default:
+          return '4.3.06';
+      }
+    }
+    switch (category) {
+      case 'Arriendo':
+        return '5.2.01.01'; // Arriendo de Local Comercial
+      case 'Sueldos':
+        return '5.1.01'; // Sueldos y Salarios
+      case 'Suministros':
+        return '5.2.03.01'; // Material de Oficina
+      case 'Material de Oficina':
+        return '5.2.03.01';
+      case 'Servicios Básicos':
+        return '5.2.02'; // Servicios Básicos (grupo)
+      case 'Electricidad':
+        return '5.2.02.01'; // Energía Eléctrica
+      case 'Agua':
+        return '5.2.02.02'; // Agua Potable
+      case 'Teléfono/Internet':
+        return '5.2.02.03'; // Telecomunicaciones
+      case 'Combustible':
+        return '5.3.01'; // Combustibles y Lubricantes
+      case 'Marketing':
+      case 'Publicidad':
+        return '5.4.01'; // Publicidad y Marketing
+      case 'Comisiones':
+        return '5.4.04'; // Comisiones en Ventas
+      case 'Honorarios':
+        return '5.8.01'; // Honorarios Profesionales
+      case 'Gasto General':
+      case 'Otros':
+        return '5.9.06'; // Gastos Generales
+      default:
+        return '5.9.06';
+    }
+  }
+
+  Future<void> _postJournalEntry(TransactionModel transaction) async {
+    try {
+      final total = transaction.total;
+      final expenseAccount = _accountForCategory(
+        transaction.category,
+        transaction.type,
+      );
+      final description = transaction.description.isNotEmpty
+          ? transaction.description
+          : 'Movimiento ${transaction.type == TransactionType.ingreso ? 'de ingreso' : 'de gasto'} (${transaction.category})';
+
+      final List<Map<String, dynamic>> lines = [];
+      if (transaction.type == TransactionType.ingreso) {
+        // Negocio popular RIMPE: no cobra IVA en ventas.
+        // DR Caja por el total / CR Ingreso por el total.
+        lines.add({'accountCode': '1.1.01.01', 'debit': total, 'credit': 0.0});
+        lines.add({'accountCode': expenseAccount, 'debit': 0.0, 'credit': total});
+      } else {
+        // Negocio popular (RIMPE): el IVA del gasto NO es acreditable, se
+        // capitaliza como parte del gasto. DR Gasto por el total / CR Caja.
+        lines.add({'accountCode': expenseAccount, 'debit': total, 'credit': 0.0});
+        lines.add({'accountCode': '1.1.01.01', 'debit': 0.0, 'credit': total});
+      }
+
+      await JournalEntryService().createEntryFromEvent(
+        referenceType: 'manual_${transaction.type.name}',
+        referenceId: transaction.id.isNotEmpty ? transaction.id : DateTime.now().microsecondsSinceEpoch.toString(),
+        date: transaction.date,
+        description: description,
+        lines: lines,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Error al crear asiento de movimiento manual: $e');
     }
   }
 }

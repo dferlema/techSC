@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/cache_service.dart';
-import 'package:techsc/features/catalog/models/product_model.dart';
+import 'package:tscomputer/core/services/cache_service.dart';
+import 'package:tscomputer/features/catalog/models/product_model.dart';
 
 class ProductService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;

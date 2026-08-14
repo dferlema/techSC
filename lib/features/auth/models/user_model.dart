@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/role_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
 
 /// Modelo de datos para representar un usuario en el sistema
 class UserModel {

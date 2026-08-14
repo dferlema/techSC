@@ -4,8 +4,34 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:techsc/core/services/config_service.dart';
-import 'package:techsc/core/models/config_model.dart';
+import 'package:tscomputer/core/services/config_service.dart';
+import 'package:tscomputer/core/models/config_model.dart';
+
+/// Caché simple de nombres de usuario para evitar N+1 queries en reportes.
+class _PdfNameCache {
+  static final _PdfNameCache _instance = _PdfNameCache._();
+  factory _PdfNameCache() => _instance;
+  _PdfNameCache._();
+  Map<String, String>? _cache;
+  DateTime _lastFetch = DateTime(2000);
+
+  Future<Map<String, String>> getNames() async {
+    if (_cache != null && DateTime.now().difference(_lastFetch).inMinutes < 5) {
+      return _cache!;
+    }
+    final userDocs = await FirebaseFirestore.instance.collection('users').get();
+    final map = <String, String>{};
+    for (var doc in userDocs.docs) {
+      final data = doc.data();
+      if (data.containsKey('name')) {
+        map[doc.id] = data['name'];
+      }
+    }
+    _cache = map;
+    _lastFetch = DateTime.now();
+    return map;
+  }
+}
 
 class PdfReportService {
   Future<void> generateSalesPDF(
@@ -18,21 +44,7 @@ class PdfReportService {
     final dateRange =
         'Del ${DateFormat('dd/MM/yyyy').format(startDate)} al ${DateFormat('dd/MM/yyyy').format(endDate)}';
 
-    // Fetch sellers to map IDs to Names
-    Map<String, String> sellerNames = {};
-    try {
-      final userDocs = await FirebaseFirestore.instance
-          .collection('users')
-          .get();
-      for (var doc in userDocs.docs) {
-        final data = doc.data();
-        if (data.containsKey('name')) {
-          sellerNames[doc.id] = data['name'];
-        }
-      }
-    } catch (e) {
-      debugPrint('Error fetching sellers: $e');
-    }
+    final sellerNames = await _PdfNameCache().getNames();
 
     // Group by Seller
     Map<String, List<Map<String, dynamic>>> groupedBySeller = {};
@@ -610,6 +622,377 @@ class PdfReportService {
       // Ideally we should return a Result object or throw to be handled by UI
       rethrow;
     }
+  }
+
+  /// Descarga el Balance General en PDF.
+  Future<void> generateBalanceSheetPDF(
+    Map<String, dynamic> data,
+    DateTime asOf,
+  ) async {
+    final config = await ConfigService().getConfig();
+    final pdf = pw.Document();
+
+    double v(String key) => (data[key] as num?)?.toDouble() ?? 0.0;
+    final activo = v('activo');
+    final pasivo = v('pasivo');
+    final patrimonio = v('patrimonio');
+    final cuadra = data['cuadra'] == true;
+
+    pw.Widget section(String title, List<MapEntry<String, double>> rows, PdfColor color, double total) {
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 12, bottom: 4),
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14, color: color),
+            ),
+          ),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(3),
+              1: pw.FlexColumnWidth(1),
+            },
+            children: [
+              for (final row in rows)
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Text(row.key, style: const pw.TextStyle(fontSize: 10)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Text(
+                        '\$${row.value.toStringAsFixed(2)}',
+                        textAlign: pw.TextAlign.right,
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.blue50),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(
+                      'Total $title',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(
+                      '\$${total.toStringAsFixed(2)}',
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    pw.Widget detailSection(String title, List<dynamic> accounts, PdfColor color) {
+      final items = (accounts as List?) ?? const [];
+      if (items.isEmpty) return pw.SizedBox.shrink();
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 12, bottom: 4),
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13, color: color),
+            ),
+          ),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(0.9),
+              1: pw.FlexColumnWidth(2.6),
+              2: pw.FlexColumnWidth(1.1),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Código', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Cuenta', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Saldo', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  ),
+                ],
+              ),
+              for (final item in items)
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(item['code'] ?? '', style: const pw.TextStyle(fontSize: 9)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(item['name'] ?? '', style: const pw.TextStyle(fontSize: 9)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(
+                        '\$${((item['balance'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                        textAlign: pw.TextAlign.right,
+                        style: const pw.TextStyle(fontSize: 9),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        header: (context) => _buildPDFHeader(
+          'Balance General',
+          'Al ${DateFormat('dd/MM/yyyy').format(asOf)}',
+          config,
+        ),
+        footer: (context) => _buildPDFFooter(config),
+        build: (context) => [
+          section('ACTIVO', [
+            MapEntry('Efectivo', v('efectivo')),
+            MapEntry('Cuentas por Cobrar', v('cuentasPorCobrar')),
+            MapEntry('Inventario', v('inventario')),
+          ], PdfColors.blue800, activo),
+          detailSection('Desglose Activo por Cuenta', data['detalleActivo'], PdfColors.blue700),
+          section('PASIVO', [
+            MapEntry('Cuentas por Pagar', v('cuentasPorPagar')),
+            MapEntry('IVA por Pagar', v('ivaPorPagar')),
+          ], PdfColors.orange800, pasivo),
+          detailSection('Desglose Pasivo por Cuenta', data['detallePasivo'], PdfColors.orange700),
+          section('PATRIMONIO', [
+            MapEntry('Capital', v('capital')),
+            MapEntry('Utilidad del Ejercicio', v('utilidad')),
+          ], PdfColors.green800, patrimonio),
+          detailSection('Desglose Patrimonio por Cuenta', data['detallePatrimonio'], PdfColors.green700),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            color: cuadra ? PdfColors.green50 : PdfColors.red50,
+            child: pw.Text(
+              'TOTAL PASIVO + PATRIMONIO: \$${(pasivo + patrimonio).toStringAsFixed(2)}'
+              '  |  ACTIVO: \$${activo.toStringAsFixed(2)}'
+              '  |  ${cuadra ? 'BALANCE CUADRA ✓' : 'DIFERENCIA: \$${v('diferencia').toStringAsFixed(2)}'}',
+              style: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 12,
+                color: cuadra ? PdfColors.green900 : PdfColors.red900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (format) => pdf.save());
+  }
+
+  /// Descarga el Estado de Resultados (Pérdidas y Ganancias) en PDF.
+  Future<void> generateIncomeStatementPDF(
+    Map<String, dynamic> data,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final config = await ConfigService().getConfig();
+    final pdf = pw.Document();
+
+    double v(String key) => (data[key] as num?)?.toDouble() ?? 0.0;
+    final totalIngresos = v('totalIngresos');
+    final totalGastos = v('totalGastos');
+    final utilidad = v('utilidad');
+
+    pw.Widget section(String title, List<MapEntry<String, double>> rows, PdfColor color, double total) {
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 12, bottom: 4),
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14, color: color),
+            ),
+          ),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(3),
+              1: pw.FlexColumnWidth(1),
+            },
+            children: [
+              for (final row in rows)
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Text(row.key, style: const pw.TextStyle(fontSize: 10)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Text(
+                        '\$${row.value.toStringAsFixed(2)}',
+                        textAlign: pw.TextAlign.right,
+                        style: const pw.TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.blue50),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(
+                      'Total $title',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(
+                      '\$${total.toStringAsFixed(2)}',
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    pw.Widget detailSection(String title, List<dynamic> accounts, PdfColor color) {
+      final items = (accounts as List?) ?? const [];
+      if (items.isEmpty) return pw.SizedBox.shrink();
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 12, bottom: 4),
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13, color: color),
+            ),
+          ),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(0.9),
+              1: pw.FlexColumnWidth(2.6),
+              2: pw.FlexColumnWidth(1.1),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Código', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Cuenta', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Saldo', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  ),
+                ],
+              ),
+              for (final item in items)
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(item['code'] ?? '', style: const pw.TextStyle(fontSize: 9)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(item['name'] ?? '', style: const pw.TextStyle(fontSize: 9)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(
+                        '\$${((item['balance'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                        textAlign: pw.TextAlign.right,
+                        style: const pw.TextStyle(fontSize: 9),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        header: (context) => _buildPDFHeader(
+          'Estado de Resultados (Pérdidas y Ganancias)',
+          'Del ${DateFormat('dd/MM/yyyy').format(start)} al ${DateFormat('dd/MM/yyyy').format(end)}',
+          config,
+        ),
+        footer: (context) => _buildPDFFooter(config),
+        build: (context) => [
+          section('INGRESOS', [
+            MapEntry('Venta de Productos', v('ingresosVentas')),
+            MapEntry('Servicios Técnicos', v('ingresosServicios')),
+            MapEntry('Otros Ingresos', v('ingresosOtros')),
+          ], PdfColors.green800, totalIngresos),
+          detailSection('Desglose de Ingresos por Cuenta', data['detalleIngresos'], PdfColors.green700),
+          section('GASTOS', [
+            MapEntry('Costo de Ventas (COGS)', v('gastosCogs')),
+            MapEntry('Gastos de Personal', v('gastosPersonal')),
+            MapEntry('Gastos Operativos', v('gastosOperativos')),
+            MapEntry('Gastos Administrativos', v('gastosAdmin')),
+          ], PdfColors.red800, totalGastos),
+          detailSection('Desglose de Gastos por Cuenta', data['detalleGastos'], PdfColors.red700),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            color: utilidad >= 0 ? PdfColors.green50 : PdfColors.red50,
+            child: pw.Text(
+              'UTILIDAD / PÉRDIDA: \$${utilidad.toStringAsFixed(2)}',
+              style: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 14,
+                color: utilidad >= 0 ? PdfColors.green900 : PdfColors.red900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (format) => pdf.save());
   }
 
   pw.Widget _buildPDFFooter(ConfigModel config) {

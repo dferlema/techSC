@@ -7,17 +7,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class SupplierModel {
   final String id;
   final String name;
+  final String ruc;
   final String contactName;
   final String contactPhone;
   final String website;
+  final String address;
+  final String email;
   final DateTime createdAt;
 
   SupplierModel({
     required this.id,
     required this.name,
+    this.ruc = '',
     required this.contactName,
     required this.contactPhone,
     required this.website,
+    this.address = '',
+    this.email = '',
     required this.createdAt,
   });
 
@@ -48,9 +54,12 @@ class SupplierModel {
     return SupplierModel(
       id: id,
       name: data['name'] ?? '',
+      ruc: data['ruc'] ?? '',
       contactName: contactName,
       contactPhone: contactPhone,
       website: data['website'] ?? '',
+      address: data['address'] ?? '',
+      email: data['email'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -66,9 +75,12 @@ class SupplierModel {
   Map<String, dynamic> toMap() {
     return {
       'name': name,
+      'ruc': ruc,
       'contactName': contactName,
       'contactPhone': contactPhone,
       'website': website,
+      'address': address,
+      'email': email,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -79,17 +91,23 @@ class SupplierModel {
   SupplierModel copyWith({
     String? id,
     String? name,
+    String? ruc,
     String? contactName,
     String? contactPhone,
     String? website,
+    String? address,
+    String? email,
     DateTime? createdAt,
   }) {
     return SupplierModel(
       id: id ?? this.id,
       name: name ?? this.name,
+      ruc: ruc ?? this.ruc,
       contactName: contactName ?? this.contactName,
       contactPhone: contactPhone ?? this.contactPhone,
       website: website ?? this.website,
+      address: address ?? this.address,
+      email: email ?? this.email,
       createdAt: createdAt ?? this.createdAt,
     );
   }

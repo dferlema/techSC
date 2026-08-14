@@ -20,11 +20,18 @@ class ServiceModel {
   });
 
   factory ServiceModel.fromFirestoreMap(Map<String, dynamic> data, String id) {
+    final fetchedName = data['name'] ?? data['title'] ?? '';
     return ServiceModel(
       id: id,
-      name: data['name'] ?? '',
+      name: fetchedName.toString().isNotEmpty
+          ? fetchedName.toString()
+          : (data['description'] != null && data['description'].toString().isNotEmpty
+              ? data['description'].toString()
+              : 'Servicio'),
       description: data['description'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
+      price: (data['price'] is num)
+          ? (data['price'] as num).toDouble()
+          : (double.tryParse(data['price']?.toString() ?? '') ?? 0.0),
       imageUrl: data['imageUrl'] ?? data['image'],
       categoryId: data['categoryId'] ?? '',
       createdAt: data['createdAt'] is Timestamp
@@ -40,6 +47,7 @@ class ServiceModel {
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
+      'title': name,
       'description': description,
       'price': price,
       'imageUrl': imageUrl,

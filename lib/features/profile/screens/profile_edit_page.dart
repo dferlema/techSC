@@ -1,11 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
-import 'package:techsc/core/services/preferences_service.dart';
+import 'package:tscomputer/features/auth/services/auth_service.dart';
+import 'package:tscomputer/core/services/preferences_service.dart';
+import 'package:tscomputer/core/platform/platform_image.dart';
+import 'package:tscomputer/core/platform/profile_image_helper.dart';
 
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
@@ -71,17 +70,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      final directory = await getApplicationDocumentsDirectory();
       final user = _authService.currentUser;
       if (user == null) return;
 
-      final fileName = 'profile_${user.uid}${path.extension(pickedFile.path)}';
-      final localFile = File('${directory.path}/$fileName');
-
-      await File(pickedFile.path).copy(localFile.path);
+      final bytes = await pickedFile.readAsBytes();
+      final savedPath = await saveProfileImage(bytes, user.uid);
 
       setState(() {
-        _localImagePath = localFile.path;
+        _localImagePath = savedPath;
       });
     }
   }
@@ -187,7 +183,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       radius: 60,
                       backgroundColor: Colors.grey[200],
                       backgroundImage: _localImagePath != null
-                          ? FileImage(File(_localImagePath!))
+                          ? getLocalImageProvider(_localImagePath!)
                           : null,
                       child: _localImagePath == null
                           ? const Icon(

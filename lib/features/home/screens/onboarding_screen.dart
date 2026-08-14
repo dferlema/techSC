@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:techsc/core/services/preferences_service.dart';
+import 'package:tscomputer/core/services/preferences_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});

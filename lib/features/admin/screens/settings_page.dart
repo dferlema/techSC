@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/models/config_model.dart';
-import 'package:techsc/core/services/config_service.dart';
-import 'package:techsc/features/auth/services/auth_service.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/features/admin/providers/admin_providers.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
-import 'package:techsc/features/admin/screens/profit_margin_settings_page.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/features/admin/models/bank_account_model.dart';
+import 'package:tscomputer/core/models/config_model.dart';
+import 'package:tscomputer/core/services/config_service.dart';
+import 'package:tscomputer/features/auth/services/auth_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/widgets/cart_badge.dart';
+import 'package:tscomputer/features/admin/providers/admin_providers.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/features/admin/screens/profit_margin_settings_page.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tscomputer/features/admin/models/bank_account_model.dart';
+import 'package:tscomputer/features/accounting/services/chart_of_accounts_service.dart';
+import 'package:tscomputer/features/accounting/models/chart_of_account_model.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/features/admin/widgets/settings_dashboard_view.dart';
+import 'package:tscomputer/features/admin/widgets/settings_dashboard_view.dart';
 
 class _NavIndex {
   static const int dashboard = 0;
@@ -23,6 +26,7 @@ class _NavIndex {
   static const int margins = 4;
   static const int accounts = 5;
   static const int integrations = 6;
+  static const int maintenance = 7;
 }
 
 class _DrawerItem {
@@ -337,6 +341,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               return 'Cuentas Bancarias';
             case _NavIndex.integrations:
               return l10n.integrationsTab;
+            case _NavIndex.maintenance:
+              return 'Mantenimiento';
             default:
               return l10n.settingsPageTitle;
           }
@@ -391,6 +397,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             icon: Icons.integration_instructions_outlined,
             selectedIcon: Icons.integration_instructions,
             color: const Color(0xFF1B5E20),
+          ),
+          _DrawerItem(
+            index: _NavIndex.maintenance,
+            label: 'Mantenimiento',
+            icon: Icons.build_outlined,
+            selectedIcon: Icons.build,
+            color: const Color(0xFFB71C1C),
           ),
         ];
 
@@ -500,6 +513,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ProfitMarginSettingsPage(key: _profitMarginKey),
               _buildBankAccountsTab(context),
               _buildIntegrationsTab(l10n),
+              _buildMaintenanceTab(context),
             ],
           ),
           floatingActionButton:
@@ -522,7 +536,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               backgroundColor: AppColors.primaryBlue,
                             ),
                             loading: () => null,
-                            error: (_, __) => null,
+                            error: (_, _) => null,
                           )
                     : FloatingActionButton.extended(
                         onPressed: () => _showBankAccountDialog(context),
@@ -675,7 +689,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           height: 150,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             height: 150,
                             color: Colors.grey[200],
                             child: const Icon(Icons.broken_image),
@@ -821,6 +835,594 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceTab(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red[50],
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.red[200]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 32),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Herramientas de Mantenimiento', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red[800])),
+                      const SizedBox(height: 2),
+                      Text('Estas opciones son destructivas. Úselas solo en casos necesarios.',
+                          style: TextStyle(fontSize: 12, color: Colors.red[600])),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.inventory_2_outlined, color: Colors.orange, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Resetear Stocks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Establece el stock de TODOS los productos a 0 y elimina todos los movimientos de inventario.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _confirmResetStock(context),
+                      icon: const Icon(Icons.delete_sweep),
+                      label: const Text('RESETEAR TODO EL INVENTARIO'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[700],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.delete_forever_outlined, color: Colors.red, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Limpiar Movimientos de Inventario', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Elimina SOLO los registros de movimientos de inventario, sin modificar el stock actual de los productos.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmClearMovements(context),
+                      icon: const Icon(Icons.cleaning_services_outlined),
+                      label: const Text('LIMPIAR MOVIMIENTOS'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red[700],
+                        side: BorderSide(color: Colors.red[300]!),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.account_tree_outlined, color: Colors.green, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Re-sincronizar Plan de Cuentas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Agrega las cuentas contables nuevas que falten sin eliminar las existentes. Útil después de actualizar el plan de cuentas.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _resyncChartOfAccounts(context),
+                      icon: const Icon(Icons.sync),
+                      label: const Text('SINCRONIZAR PLAN DE CUENTAS'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.cleaning_services, color: Colors.blue, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Limpiar Transacciones Contables', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Elimina TODAS las transacciones contables y asientos contables. Útil para reiniciar el módulo contable desde cero.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmClearAccounting(context),
+                      icon: const Icon(Icons.account_balance_outlined),
+                      label: const Text('LIMPIAR CONTABILIDAD'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue[700],
+                        side: BorderSide(color: Colors.blue[300]!),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.exposure_zero, color: Colors.orange, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('Encerar Cuentas Contables', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Establece el saldo de TODAS las cuentas contables a 0 sin eliminar las cuentas. Útil para empezar un nuevo período fiscal.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmResetAccountBalances(context),
+                      icon: const Icon(Icons.exposure_zero),
+                      label: const Text('ENCERAR SALDOS'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange[700],
+                        side: BorderSide(color: Colors.orange[300]!),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmResetStock(BuildContext context) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool canConfirm = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('⚠️ Resetear Todo el Inventario'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8)),
+                  child: const Text(
+                    'Esta acción:'
+                    '\n• Pondrá el stock de TODOS los productos a 0'
+                    '\n• Eliminará TODOS los movimientos de inventario'
+                    '\n\nNo se puede deshacer.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Escriba CONFIRMAR para continuar:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(hintText: 'CONFIRMAR', border: OutlineInputBorder()),
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() => canConfirm = controller.text.trim() == 'CONFIRMAR'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: canConfirm ? () => Navigator.pop(ctx, true) : null,
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('RESETEAR'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    if (confirmed != true) return;
+    try {
+      _showLoading(context, 'Reseteando inventario...');
+
+      final firestore = FirebaseFirestore.instance;
+
+      final productsSnap = await firestore.collection('products').get();
+      final batch1 = firestore.batch();
+      for (final doc in productsSnap.docs) {
+        batch1.update(doc.reference, {'stock': 0});
+      }
+      await batch1.commit();
+
+      final movSnap = await firestore.collection('inventory_movements').get();
+      final batch2 = firestore.batch();
+      for (final doc in movSnap.docs) {
+        batch2.delete(doc.reference);
+      }
+      await batch2.commit();
+
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ ${productsSnap.docs.length} productos reseteados, ${movSnap.docs.length} movimientos eliminados'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _confirmClearMovements(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Limpiar Movimientos'),
+        content: const Text('¿Eliminar todos los movimientos de inventario? El stock actual NO se modificará.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      _showLoading(context, 'Eliminando movimientos...');
+      final firestore = FirebaseFirestore.instance;
+      final movSnap = await firestore.collection('inventory_movements').get();
+      final batch = firestore.batch();
+      for (final doc in movSnap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ ${movSnap.docs.length} movimientos eliminados'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _confirmClearAccounting(BuildContext context) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool canConfirm = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('⚠️ Limpiar Contabilidad'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(8)),
+                  child: const Text(
+                    'Esta acción eliminará TODAS las transacciones contables y asientos contables.'
+                    '\n\nLos datos de pedidos, reservas, inventario y CxC/CxP no se verán afectados.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Escriba CONFIRMAR para continuar:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(hintText: 'CONFIRMAR', border: OutlineInputBorder()),
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() => canConfirm = controller.text.trim() == 'CONFIRMAR'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: canConfirm ? () => Navigator.pop(ctx, true) : null,
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('LIMPIAR'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    if (confirmed != true) return;
+    try {
+      _showLoading(context, 'Limpiando contabilidad...');
+      final firestore = FirebaseFirestore.instance;
+
+      final txSnap = await firestore.collection('accounting_transactions').get();
+      final batch1 = firestore.batch();
+      for (final doc in txSnap.docs) {
+        batch1.delete(doc.reference);
+      }
+      await batch1.commit();
+
+      final entrySnap = await firestore.collection('accounting_entries').get();
+      final batch2 = firestore.batch();
+      for (final doc in entrySnap.docs) {
+        batch2.delete(doc.reference);
+      }
+      await batch2.commit();
+
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ ${txSnap.docs.length} transacciones y ${entrySnap.docs.length} asientos eliminados'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _resyncChartOfAccounts(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('🔄 Re-sincronizar Plan de Cuentas'),
+        content: const Text(
+          'Se agregarán las cuentas contables nuevas que falten.\n'
+          'Las cuentas existentes no se modificarán.\n\n'
+          '¿Desea continuar?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('SINCRONIZAR'),
+          ),
+        ],
+      ),
+    );
+    if (result != true) return;
+    try {
+      _showLoading(context, 'Sincronizando plan de cuentas...');
+      final coaService = ChartOfAccountsService();
+      final snapshot = await FirebaseFirestore.instance.collection('chart_of_accounts').get();
+      final existingCodes = snapshot.docs.map((d) => (d.data()['code'] as String?) ?? '').toSet();
+      final defaults = ChartOfAccountModel.defaults();
+      int added = 0;
+      for (final account in defaults) {
+        if (!existingCodes.contains(account.code)) {
+          await coaService.saveAccount(account);
+          added++;
+        }
+      }
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(added > 0
+                ? '✅ $added cuenta(s) nueva(s) agregada(s) al plan de cuentas'
+                : 'ℹ️ El plan de cuentas ya está actualizado'),
+            backgroundColor: added > 0 ? Colors.green : Colors.blueGrey,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _confirmResetAccountBalances(BuildContext context) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool canConfirm = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('🔄 Encerar Cuentas Contables'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(8)),
+                  child: const Text(
+                    'Esta acción establecerá el saldo de TODAS las cuentas contables a 0.'
+                    '\n\nLas cuentas, transacciones y asientos NO se eliminarán, solo los saldos.'
+                    '\n\nRecomendado al iniciar un nuevo período fiscal.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Escriba ENCERAR para continuar:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(hintText: 'ENCERAR', border: OutlineInputBorder()),
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() => canConfirm = controller.text.trim() == 'ENCERAR'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: canConfirm ? () => Navigator.pop(ctx, true) : null,
+                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('ENCERAR'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    if (confirmed != true) return;
+    try {
+      _showLoading(context, 'Encerando cuentas contables...');
+      final firestore = FirebaseFirestore.instance;
+      final cuentasSnap = await firestore.collection('chart_of_accounts').get();
+      final batch = firestore.batch();
+      for (final doc in cuentasSnap.docs) {
+        batch.update(doc.reference, {'balance': 0.0});
+      }
+      await batch.commit();
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ${cuentasSnap.docs.length} cuentas enceradas a 0'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  void _showLoading(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(message),
+          ],
+        ),
       ),
     );
   }
@@ -1037,7 +1639,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         );
       },
       loading: () => const AppLoadingIndicator(),
-      error: (e, __) => AppErrorWidget(error: e),
+      error: (e, _) => AppErrorWidget(error: e),
     );
   }
 }

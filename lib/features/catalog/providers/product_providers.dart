@@ -1,7 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/features/catalog/models/product_model.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/features/catalog/models/product_model.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
 
 /// Provider for the search query in the products page
 final productSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -11,7 +12,9 @@ final productSelectedCategoryIdProvider = StateProvider<String?>((ref) => null);
 
 /// Provider for product categories
 final productCategoriesProvider = StreamProvider<List<CategoryModel>>((ref) {
-  return ref.watch(categoryServiceProvider).getCategories(CategoryType.product);
+  return ref.watch(categoryServiceProvider).getCategories(CategoryType.product).handleError(
+    (error) => debugPrint('Stream error [productCategories]: $error'),
+  );
 });
 
 /// Notifier that manages the filtered product list

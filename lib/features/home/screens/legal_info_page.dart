@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:techsc/core/utils/branding_helper.dart';
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/core/utils/branding_helper.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 class LegalInfoPage extends StatelessWidget {
   final int initialTabIndex;
@@ -80,7 +80,7 @@ class LegalInfoPage extends StatelessWidget {
           ),
           _buildSubHeader('1. Responsable del Tratamiento'),
           _buildParagraph(
-            'TechSC, con domicilio en Ecuador, es el responsable del tratamiento de los datos personales recopilados a través de esta aplicación.',
+            'TS Computer, con domicilio en Ecuador, es el responsable del tratamiento de los datos personales recopilados a través de esta aplicación.',
           ),
           _buildSubHeader('2. Datos que Recopilamos'),
           _buildParagraph(

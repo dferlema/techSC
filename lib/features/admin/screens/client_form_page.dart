@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/core/utils/validators.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/core/utils/validators.dart';
 
 /// Pagina de formulario para crear o editar clientes.
 /// Incluye validaciones específicas para cédula y teléfono de Ecuador.
@@ -143,8 +144,8 @@ class _ClientFormPageState extends State<ClientFormPage> {
 
       final db = FirebaseFirestore.instance;
       if (widget.clientId == null) {
-        // ✅ Crear nuevo cliente en colección 'users'
-        await db.collection('users').add(clientData);
+        final id = await DocumentIdService().generateId(prefix: 'usr');
+        await db.collection('users').doc(id).set(clientData);
       } else {
         // ✏️ Actualizar cliente existente
         await db.collection('users').doc(widget.clientId).update(clientData);

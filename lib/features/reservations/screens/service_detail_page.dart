@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/core/utils/whatsapp_share_helper.dart';
-import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/features/reservations/models/service_model.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/utils/whatsapp_share_helper.dart';
+import 'package:tscomputer/core/widgets/cart_badge.dart';
+import 'package:tscomputer/features/reservations/models/service_model.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 class ServiceDetailPage extends ConsumerStatefulWidget {
   final ServiceModel service;

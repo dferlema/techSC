@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/features/orders/providers/order_providers.dart';
+import 'package:tscomputer/features/orders/providers/order_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:techsc/features/orders/widgets/client_order_card.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/features/orders/widgets/client_order_card.dart';
+import 'package:tscomputer/core/widgets/app_loading_indicator.dart';
+import 'package:tscomputer/core/widgets/app_error_widget.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;

@@ -7,8 +7,12 @@ class CacheService {
   // Singleton for internal use if needed, but we'll use Riverpod for access
   CacheService();
 
-  Future<void> init() async {
-    await Hive.initFlutter();
+  Future<void> init({String? path}) async {
+    if (path != null) {
+      Hive.init(path);
+    } else {
+      await Hive.initFlutter();
+    }
     await Hive.openBox(profileBoxName);
     await Hive.openBox(catalogBoxName);
   }

@@ -1,18 +1,35 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/orders/models/quote_model.dart';
+import 'package:tscomputer/features/orders/models/quote_model.dart';
 
+/// Representa una orden de servicio generada al aprobar una cotización.
+///
+/// La orden guarda una "fotografía" de la cotización original (`originalQuote`)
+/// de modo que los datos quedan congelados en el momento de la aprobación,
+/// aunque luego la cotización se modifique.
 class OrderModel {
+  /// ID del documento de la orden en Firestore (p. ej. `ord-20260813-001`).
   final String id;
+
+  /// ID de la cotización que dio origen a esta orden.
   final String quoteId;
+
+  /// Copia de la cotización aprobada (con sus items, totales e historial).
   final QuoteModel originalQuote;
 
-  final String status; // 'pending', 'in_progress', 'completed', 'cancelled'
-  final String paymentStatus; // 'unpaid', 'partial', 'paid', 'refunded'
+  /// Estado del flujo de servicio: 'pending', 'in_progress', 'completed', 'cancelled'.
+  final String status;
 
+  /// Estado del pago: 'unpaid', 'partial', 'paid', 'refunded'.
+  final String paymentStatus;
+
+  /// Fecha en que se creó la orden (al aprobar la cotización).
   final DateTime createdAt;
+
+  /// Fecha de finalización del servicio, si ya se completó.
   final DateTime? completedAt;
 
-  final String technicianId; // Assigned technician
+  /// UID del técnico asignado a la orden (vacío si aún no se asigna).
+  final String technicianId;
 
   OrderModel({
     required this.id,
@@ -25,6 +42,11 @@ class OrderModel {
     this.technicianId = '',
   });
 
+  /// Convierte la orden a un mapa plano para guardarlo en Firestore.
+  ///
+  /// Además de los campos propios, desnormaliza `total`, `items` y
+  /// `discountPercentage` de la cotización para facilitar consultas
+  /// y reportes sin tener que leer el objeto anidado.
   Map<String, dynamic> toMap() {
     return {
       'quoteId': quoteId,
@@ -44,6 +66,7 @@ class OrderModel {
 
   Map<String, dynamic> toFirestore() => toMap();
 
+  /// Construye una orden a partir de un mapa (los datos ya están en disco).
   factory OrderModel.fromFirestoreMap(Map<String, dynamic> data, String id) {
     return OrderModel(
       id: id,
@@ -70,6 +93,7 @@ class OrderModel {
     );
   }
 
+  /// Construye una orden a partir de un documento Firestore.
   factory OrderModel.fromFirestore(DocumentSnapshot doc) {
     return OrderModel.fromFirestoreMap(
       doc.data() as Map<String, dynamic>,

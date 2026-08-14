@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/features/cart/services/cart_service.dart';
-import 'package:techsc/features/cart/screens/payment_webview_page.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/features/cart/services/cart_service.dart';
+import 'package:tscomputer/features/orders/services/order_service.dart';
+import 'package:tscomputer/features/cart/screens/payment_webview_page.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 class CartPage extends ConsumerStatefulWidget {
   const CartPage({super.key});
@@ -18,6 +19,7 @@ class _CartPageState extends ConsumerState<CartPage> {
   String _view = 'cart'; // 'cart' o 'payment'
   String _selectedPaymentMethod = 'efectivo';
   bool _isLoading = false;
+  bool _applyVAT = false;
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -133,7 +135,7 @@ class _CartPageState extends ConsumerState<CartPage> {
                                 width: 60,
                                 height: 60,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(
+                                errorBuilder: (_, _, _) => Icon(
                                   Icons.image,
                                   size: 40,
                                   color: AppColors.divider,
@@ -319,6 +321,16 @@ class _CartPageState extends ConsumerState<CartPage> {
                 icon: Icons.payments,
                 color: AppColors.success,
                 isDiscount: true,
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: SwitchListTile(
+                  title: const Text('Aplicar IVA (15%)', style: TextStyle(fontSize: 14)),
+                  subtitle: const Text('Activar solo si el cliente requiere factura con IVA', style: TextStyle(fontSize: 11)),
+                  value: _applyVAT,
+                  onChanged: (v) => setState(() => _applyVAT = v),
+                  secondary: Icon(Icons.receipt, color: _applyVAT ? AppColors.primaryBlue : Colors.grey),
+                ),
               ),
             ],
           ),
@@ -542,6 +554,7 @@ class _CartPageState extends ConsumerState<CartPage> {
 
       final orderId = await cart.createOrder(
         paymentMethod: _selectedPaymentMethod,
+        applyVAT: _applyVAT,
       );
 
       if (_selectedPaymentMethod == 'payphone') {
@@ -558,8 +571,9 @@ class _CartPageState extends ConsumerState<CartPage> {
           cancellationUrl: 'https://pay.payphonetodoesposible.com/cancel',
         );
 
-        if (checkoutUrl == null)
+        if (checkoutUrl == null) {
           throw Exception('No se generó el link de pago');
+        }
 
         setState(() => _isLoading = false);
         if (!mounted) return;
@@ -579,9 +593,11 @@ class _CartPageState extends ConsumerState<CartPage> {
               .collection('orders')
               .doc(orderId)
               .update({'paymentStatus': 'paid', 'isPaid': true});
+          await OrderService().registerOrderIncome(orderId);
           if (!mounted) return;
           _showFinalSuccess(orderId);
         } else {
+          if (!mounted) return;
           _showError('Pago no completado. Tu pedido quedó como PENDIENTE.');
           Navigator.pushReplacementNamed(context, '/my-orders');
         }

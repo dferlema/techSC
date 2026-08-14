@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/core/theme/app_colors.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
 
 class ClientOrderCard extends StatelessWidget {
   final String docId;
@@ -211,7 +211,7 @@ class ClientOrderCard extends StatelessWidget {
                     child: Image.network(
                       item['image'],
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
+                      errorBuilder: (_, _, _) => Icon(
                         Icons.image,
                         size: 20,
                         color: AppColors.textSecondary,

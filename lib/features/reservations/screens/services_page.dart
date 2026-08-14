@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/core/services/role_service.dart';
-import 'package:techsc/features/reservations/screens/service_detail_page.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/core/widgets/cart_badge.dart';
-import 'package:techsc/features/cart/screens/cart_page.dart';
-import 'package:techsc/features/reservations/models/service_model.dart';
-import 'package:techsc/features/reservations/providers/service_providers.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/core/services/role_service.dart';
+import 'package:tscomputer/features/reservations/screens/service_detail_page.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
+import 'package:tscomputer/core/widgets/cart_badge.dart';
+import 'package:tscomputer/features/cart/screens/cart_page.dart';
+import 'package:tscomputer/features/reservations/models/service_model.dart';
+import 'package:tscomputer/features/reservations/providers/service_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:techsc/l10n/app_localizations.dart';
-import 'package:techsc/core/widgets/app_loading_indicator.dart';
-import 'package:techsc/core/widgets/app_error_widget.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 class ServicesPage extends ConsumerStatefulWidget {
   final String routeName;
@@ -113,20 +111,27 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
           );
         }
 
-        return ListView.builder(
-          itemCount: filtered.length,
-          itemBuilder: (context, index) {
-            final service = filtered[index];
-            return _buildServiceCard(
-              service: service,
-              serviceId: service.id,
-              canManage: canManage,
-            );
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(serviceCategoriesProvider);
+            ref.invalidate(filteredServicesProvider(categoryId));
           },
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: filtered.length,
+            itemBuilder: (context, index) {
+              final service = filtered[index];
+              return _buildServiceCard(
+                service: service,
+                serviceId: service.id,
+                canManage: canManage,
+              );
+            },
+          ),
         );
       },
-      loading: () => const AppLoadingIndicator(),
-      error: (err, _) => AppErrorWidget(error: err),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
     );
   }
 
@@ -242,7 +247,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                           style: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : Colors.indigo[900]?.withAlpha(178),
+                                : Colors.indigo[900]?.withOpacity(0.7),
                             fontWeight: isSelected
                                 ? FontWeight.bold
                                 : FontWeight.w500,
@@ -298,8 +303,8 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                 },
               );
             },
-            loading: () => const AppLoadingIndicator(),
-            error: (err, _) => AppErrorWidget(error: err),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error: $err')),
           ),
         );
       },
@@ -309,7 +314,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
         ),
         body: const Center(child: CircularProgressIndicator()),
       ),
-      error: (err, __) => Scaffold(
+      error: (err, _) => Scaffold(
         appBar: AppBar(
           title: Text(AppLocalizations.of(context)!.servicesTitle),
         ),
@@ -333,7 +338,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(13),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -399,7 +404,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(230),
+                        color: Colors.white.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -409,7 +414,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                           const SizedBox(width: 2),
                           const Text(
                             '4.8', // Rating not yet in model
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
                             ),
@@ -481,7 +486,7 @@ class _ServicesPageState extends ConsumerState<ServicesPage> {
                                 borderRadius: BorderRadius.circular(15),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.orange.withAlpha(76),
+                                    color: Colors.orange.withOpacity(0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 4),
                                   ),

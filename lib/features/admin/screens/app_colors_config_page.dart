@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:techsc/core/theme/app_colors.dart';
-import 'package:techsc/core/services/config_service.dart';
+import 'package:tscomputer/core/theme/app_colors.dart';
+import 'package:tscomputer/core/services/config_service.dart';
 
 class AppColorsConfigPage extends StatefulWidget {
   const AppColorsConfigPage({super.key});

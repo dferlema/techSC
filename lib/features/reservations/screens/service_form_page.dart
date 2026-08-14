@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
-import 'package:techsc/features/catalog/services/category_service.dart';
-import 'package:techsc/l10n/app_localizations.dart';
+import 'package:tscomputer/core/services/document_id_service.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
+import 'package:tscomputer/features/catalog/services/category_service.dart';
+import 'package:tscomputer/l10n/app_localizations.dart';
 
 /// Pagina de formulario para crear o editar servicios.
 /// Incluye gestión de componentes dinámicos y validación de campos.
@@ -165,7 +166,8 @@ class _ServiceFormPageState extends ConsumerState<ServiceFormPage> {
 
       final db = FirebaseFirestore.instance;
       if (widget.serviceId == null) {
-        await db.collection('services').add(serviceData);
+        final id = await DocumentIdService().generateId(prefix: 'serv');
+        await db.collection('services').doc(id).set(serviceData);
       } else {
         await db
             .collection('services')
@@ -453,6 +455,23 @@ class _ServiceFormPageState extends ConsumerState<ServiceFormPage> {
                         CategoryType.service,
                       ),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.orange, size: 32),
+                                  const SizedBox(height: 8),
+                                  Text('Error al cargar datos', style: TextStyle(fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  Text('${snapshot.error}', style: TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
                         final categories = snapshot.data ?? [];
                         bool categoryExists = categories.any(
                           (c) => c.id == _selectedCategoryId,

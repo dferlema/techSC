@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:techsc/core/providers/providers.dart';
-import 'package:techsc/features/reservations/models/service_model.dart';
-import 'package:techsc/features/catalog/models/category_model.dart';
+import 'package:tscomputer/core/providers/providers.dart';
+import 'package:tscomputer/features/reservations/models/service_model.dart';
+import 'package:tscomputer/features/catalog/models/category_model.dart';
 
 /// Provider for the search query in the services page
 final serviceSearchQueryProvider = StateProvider<String>((ref) => '');
