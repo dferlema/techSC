@@ -234,6 +234,7 @@ class WhatsAppShareHelper {
         await shareBytes(
           response.bodyBytes,
           'share_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          text: message,
         );
       } else {
         throw Exception('Failed to download image');

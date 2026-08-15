@@ -34,8 +34,21 @@ class PayableService {
     }
   }
 
-  Future<void> registerPayment(String payableId, double amount, String method, {bool applyVAT = false}) async {
+  Future<void> registerPayment(
+    String payableId,
+    double amount,
+    String method, {
+    bool applyVAT = false,
+    DateTime? date,
+    String? reference,
+    String? bank,
+    String? accountNumber,
+    String? accountHolder,
+    String? cardLast4,
+    String? notes,
+  }) async {
     try {
+      final paymentDate = date ?? DateTime.now();
       final docRef = _firestore.collection(_collection).doc(payableId);
       final doc = await docRef.get();
       if (!doc.exists) throw Exception('Cuenta por pagar no encontrada');
@@ -50,7 +63,7 @@ class PayableService {
         'paidAmount': newPaid,
         'balance': (totalAmount - newPaid).clamp(0.0, double.infinity),
         'status': newStatus,
-        'lastPaymentDate': Timestamp.fromDate(DateTime.now()),
+        'lastPaymentDate': Timestamp.fromDate(paymentDate),
       });
 
       final paymentRef = docRef.collection('payments').doc(
@@ -59,7 +72,13 @@ class PayableService {
       await paymentRef.set({
         'amount': amount,
         'method': method,
-        'date': Timestamp.now(),
+        'date': Timestamp.fromDate(paymentDate),
+        'reference': reference?.isNotEmpty == true ? reference : null,
+        'bank': bank?.isNotEmpty == true ? bank : null,
+        'accountNumber': accountNumber?.isNotEmpty == true ? accountNumber : null,
+        'accountHolder': accountHolder?.isNotEmpty == true ? accountHolder : null,
+        'cardLast4': cardLast4?.isNotEmpty == true ? cardLast4 : null,
+        'notes': notes?.isNotEmpty == true ? notes : null,
       });
 
       // Asiento contable: DR CxP (disminución de pasivo) / CR cuenta según método
@@ -81,7 +100,7 @@ class PayableService {
       await JournalEntryService().createEntryFromEvent(
         referenceType: 'payable_payment',
         referenceId: paymentRef.id,
-        date: DateTime.now(),
+        date: paymentDate,
         description: 'Pago CxP - ${data['supplierName']}',
         lines: [
           {'accountCode': payableAccount, 'debit': amount, 'credit': 0.0},

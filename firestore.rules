@@ -345,5 +345,13 @@ service cloud.firestore {
       allow update: if isAdmin() || isAccounting();
       allow delete: if isAdmin();
     }
+
+    // --- NUEVO: Activos Fijos (depreciación) ---
+    match /fixed_assets/{assetId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() || isAccounting() || isStaff();
+      allow update: if isAdmin() || isAccounting() || isStaff();
+      allow delete: if isAdmin();
+    }
   }
 }

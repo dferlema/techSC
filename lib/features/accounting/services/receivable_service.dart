@@ -35,8 +35,21 @@ class ReceivableService {
     }
   }
 
-  Future<void> registerPayment(String receivableId, double amount, String method, {bool applyVAT = false}) async {
+  Future<void> registerPayment(
+    String receivableId,
+    double amount,
+    String method, {
+    bool applyVAT = false,
+    DateTime? date,
+    String? reference,
+    String? bank,
+    String? accountNumber,
+    String? accountHolder,
+    String? cardLast4,
+    String? notes,
+  }) async {
     try {
+      final paymentDate = date ?? DateTime.now();
       final docRef = _firestore.collection(_collection).doc(receivableId);
       final doc = await retryFirestore(() => docRef.get());
       if (!doc.exists) throw Exception('Cuenta por cobrar no encontrada');
@@ -51,7 +64,7 @@ class ReceivableService {
         'paidAmount': newPaid,
         'balance': (totalAmount - newPaid).clamp(0.0, double.infinity),
         'status': newStatus,
-        'lastPaymentDate': Timestamp.fromDate(DateTime.now()),
+        'lastPaymentDate': Timestamp.fromDate(paymentDate),
       });
 
       final paymentRef = docRef.collection('payments').doc(
@@ -60,7 +73,13 @@ class ReceivableService {
       await paymentRef.set({
         'amount': amount,
         'method': method,
-        'date': Timestamp.now(),
+        'date': Timestamp.fromDate(paymentDate),
+        'reference': reference?.isNotEmpty == true ? reference : null,
+        'bank': bank?.isNotEmpty == true ? bank : null,
+        'accountNumber': accountNumber?.isNotEmpty == true ? accountNumber : null,
+        'accountHolder': accountHolder?.isNotEmpty == true ? accountHolder : null,
+        'cardLast4': cardLast4?.isNotEmpty == true ? cardLast4 : null,
+        'notes': notes?.isNotEmpty == true ? notes : null,
       });
 
       // Asiento contable: DR cuenta según método / CR CxC (disminución)
@@ -79,7 +98,7 @@ class ReceivableService {
       await JournalEntryService().createEntryFromEvent(
         referenceType: 'receivable_payment',
         referenceId: paymentRef.id,
-        date: DateTime.now(),
+        date: paymentDate,
         description: 'Pago CxC - ${data['clientName']}',
         lines: [
           {'accountCode': cashAccount, 'debit': amount, 'credit': 0.0},

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tscomputer/core/theme/app_colors.dart';
 import 'package:tscomputer/features/accounting/providers/accounting_providers.dart';
-import 'package:tscomputer/features/accounting/widgets/transaction_form_dialog.dart';
 import 'package:tscomputer/features/accounting/screens/chart_of_accounts_page.dart';
 import 'package:tscomputer/features/accounting/screens/journal_entries_page.dart';
 import 'package:tscomputer/features/accounting/screens/receivables_page.dart';
@@ -159,16 +158,6 @@ class _AccountingHomePageState extends ConsumerState<AccountingHomePage> {
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showDialog(
-          context: context,
-          builder: (_) => const TransactionFormDialog(),
-        ),
-        backgroundColor: AppColors.primaryBlue,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Agregar Movimiento'),
       ),
     );
   }

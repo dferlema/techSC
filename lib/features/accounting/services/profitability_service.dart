@@ -80,6 +80,7 @@ class ProfitabilityService {
   static const _ordersCollection = 'orders';
   static const _productsCollection = 'products';
   static const _categoriesCollection = 'categories';
+  static const _reservationsCollection = 'reservations';
 
   static const _completedStatuses = ['entregado', 'completado', 'completed', 'delivered'];
 
@@ -145,6 +146,33 @@ class ProfitabilityService {
 
         unitsByProduct[pid] = (unitsByProduct[pid] ?? 0) + qty;
         revenueByProduct[pid] = (revenueByProduct[pid] ?? 0) + price * qty * scale;
+        ordersByProduct[pid] = (ordersByProduct[pid] ?? 0) + 1;
+      }
+    }
+
+    // ─── Servicios técnicos: repuestos vendidos en reservaciones completadas ───
+    // Las partes usadas se guardan en `partsData` con {productId, name, price}.
+    Query resQuery = _firestore.collection(_reservationsCollection);
+    if (since != null) {
+      resQuery = resQuery.where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since));
+    }
+    final reservationsSnap = await resQuery.get();
+
+    for (final doc in reservationsSnap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final status = (data['status'] as String? ?? '').toLowerCase();
+      if (!_completedStatuses.contains(status)) continue;
+
+      final parts = data['partsData'] as List<dynamic>? ?? [];
+      for (final part in parts) {
+        final map = part as Map<String, dynamic>;
+        final pid = (map['productId'] as String?)?.trim() ?? '';
+        if (pid.isEmpty || !productMap.containsKey(pid)) continue;
+        final price = (map['price'] as num?)?.toDouble() ?? 0.0;
+        if (price <= 0) continue;
+
+        unitsByProduct[pid] = (unitsByProduct[pid] ?? 0) + 1;
+        revenueByProduct[pid] = (revenueByProduct[pid] ?? 0) + price;
         ordersByProduct[pid] = (ordersByProduct[pid] ?? 0) + 1;
       }
     }

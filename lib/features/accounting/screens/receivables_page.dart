@@ -309,6 +309,13 @@ class _ReceivablesPageState extends ConsumerState<ReceivablesPage> with SingleTi
         result['amount'] as double,
         result['method'] as String,
         applyVAT: result['applyVAT'] as bool,
+        date: result['date'] as DateTime?,
+        reference: result['reference'] as String?,
+        bank: result['bank'] as String?,
+        accountNumber: result['accountNumber'] as String?,
+        accountHolder: result['accountHolder'] as String?,
+        cardLast4: result['cardLast4'] as String?,
+        notes: result['notes'] as String?,
       );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

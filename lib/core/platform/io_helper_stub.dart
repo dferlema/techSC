@@ -30,7 +30,7 @@ Future<bool> hasInternetConnection() async {
   return html.window.navigator.onLine ?? true;
 }
 
-Future<void> shareBytes(Uint8List bytes, String fileName) async {
+Future<void> shareBytes(Uint8List bytes, String fileName, {String? text}) async {
   final blob = html.Blob([bytes], 'application/octet-stream');
   final url = html.Url.createObjectUrlFromBlob(blob);
   html.AnchorElement(href: url)

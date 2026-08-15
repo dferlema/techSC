@@ -269,6 +269,13 @@ class _PurchaseInvoicesPageState extends ConsumerState<PurchaseInvoicesPage> {
         result['amount'] as double,
         result['method'] as String,
         applyVAT: result['applyVAT'] as bool,
+        date: result['date'] as DateTime?,
+        reference: result['reference'] as String?,
+        bank: result['bank'] as String?,
+        accountNumber: result['accountNumber'] as String?,
+        accountHolder: result['accountHolder'] as String?,
+        cardLast4: result['cardLast4'] as String?,
+        notes: result['notes'] as String?,
       );
       // Actualizar estado de la factura según el nuevo saldo de la CxP.
       final updated = await _findPayable(payableId);

@@ -65,9 +65,9 @@ Future<bool> hasInternetConnection() async {
   }
 }
 
-Future<void> shareBytes(Uint8List bytes, String fileName) async {
+Future<void> shareBytes(Uint8List bytes, String fileName, {String? text}) async {
   final path = await writeBytesToTempFile(bytes, fileName);
   if (path != null) {
-    await Share.shareXFiles([XFile(path)]);
+    await Share.shareXFiles([XFile(path)], text: text);
   }
 }
